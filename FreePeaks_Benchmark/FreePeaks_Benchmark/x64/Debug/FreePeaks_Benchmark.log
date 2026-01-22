@@ -1,0 +1,8 @@
+﻿  main.cpp
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\custom_method.hpp(582,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file '../../Sourcecode/freepeak_ofec/run/main.cpp')
+  
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\custom_method.hpp(653,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file '../../Sourcecode/freepeak_ofec/run/main.cpp')
+  
+  FreePeaks_Benchmark.vcxproj -> E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\FreePeaks_Benchmark\x64\Debug\FreePeaks_Benchmark.exe

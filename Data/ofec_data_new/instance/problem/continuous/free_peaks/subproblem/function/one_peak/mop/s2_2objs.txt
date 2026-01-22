@@ -1,0 +1,13 @@
+num_objs	2
+
+_%BEGIN%
+one_peak	s2
+center		random
+height		100.0
+_%END%
+
+_%BEGIN%
+one_peak	s2
+center		random
+height		100.0
+_%END%

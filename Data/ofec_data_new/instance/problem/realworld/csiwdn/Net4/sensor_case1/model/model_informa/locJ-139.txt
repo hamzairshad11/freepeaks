@@ -1,0 +1,5 @@
+input size: 2
+output size: 16
+hidden size: 40
+num layers: 5
+train loss: 1.90677e-06  valid loss:2.1049e-06

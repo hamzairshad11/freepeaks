@@ -1,0 +1,8 @@
+kra30b abs dis	42760
+ste36c abs dis	1.3703e+07
+tai10a abs dis	no optima
+tai10b abs dis	no optima
+tai60a abs dis	1.31835e+06
+tai80a abs dis	2.13809e+06
+tho150 abs dis	1.58942e+06
+tho30 abs dis	64890

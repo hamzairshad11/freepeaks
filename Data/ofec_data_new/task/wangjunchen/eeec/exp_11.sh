@@ -1,0 +1,89 @@
+AN=kNPSO PS=10 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=2 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=3 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=4 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=5 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=6 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=7 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=8 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=9 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean
+
+AN=kNPSO PS=10 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=10000 NR=100 OF=mean
+AN=kNPSO PS=15 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=15000 NR=100 OF=mean
+AN=kNPSO PS=20 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=20000 NR=100 OF=mean
+AN=kNPSO PS=25 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=25000 NR=100 OF=mean
+AN=kNPSO PS=30 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=30000 NR=100 OF=mean
+AN=kNPSO PS=35 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=35000 NR=100 OF=mean
+AN=kNPSO PS=40 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=40000 NR=100 OF=mean
+AN=kNPSO PS=45 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=45000 NR=100 OF=mean
+AN=kNPSO PS=50 NN=10 PN=free_peaks GT=read_file DF1=sop/2d_2_s1_1_8.txt ME=50000 NR=100 OF=mean

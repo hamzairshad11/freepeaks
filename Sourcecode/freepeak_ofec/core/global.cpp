@@ -1,0 +1,6 @@
+#include "global.h"
+
+namespace ofec {
+	std::string g_working_directory;
+	std::mutex g_globalMutithreadMtx;
+}

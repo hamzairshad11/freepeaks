@@ -1,0 +1,72 @@
+number_of_objectives 1
+number_of_variables 2
+number_of_constraints 0
+
+subtree_number 	6
+subtree_name 	root
+num		2
+[ b5 , 1 ] [ a7 , 2 ]
+subtree_name 	b5
+num		2
+[ a6 , 2 ] [ b4 , 1 ]
+subtree_name 	b4
+num		2
+[ b3 , 1 ] [ a5 , 2 ]
+subtree_name 	b3
+num		2
+[ b2 , 1 ] [ a4 , 2 ]
+subtree_name 	b2
+num		2
+[ b1 , 1 ] [ a3 , 2 ]
+subtree_name 	b1
+num		2
+[ a1 , 1 ] [ a2 , 2 ]
+
+_%BEGIN%
+subspace		a1
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.4018038690
+_%END%
+
+_%BEGIN%
+subspace		a2
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.8026729214
+_%END%
+
+_%BEGIN%
+subspace		a3
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.8188247058
+_%END%
+
+_%BEGIN%
+subspace		a4
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.0610709280
+_%END%
+
+_%BEGIN%
+subspace		a5
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.7338130949
+_%END%
+
+_%BEGIN%
+subspace		a6
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.3371468644
+_%END%
+
+_%BEGIN%
+subspace		a7
+generation	read_file
+file		sop/s1_random_map_x
+seed        0.0061119702
+_%END%

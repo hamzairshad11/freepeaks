@@ -1,0 +1,9 @@
+num_objs	1
+
+_%BEGIN%
+one_peak	s1
+center		random
+max_center  50.0
+min_center  -50.0
+height		100.0
+_%END%

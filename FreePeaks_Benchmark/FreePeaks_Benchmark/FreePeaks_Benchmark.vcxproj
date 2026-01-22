@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\algorithm.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\multi_population.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\population.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\termination.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\datum_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\definition.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\enable_shared_ptr.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\environment\environment.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\exception.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\global.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\instance.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\parameter\input_parameter_map.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\parameter\parameter_map.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\parameter\parameter_variant.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\parameter\variants_to_stream.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\problem\continuous\continuous.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\problem\domain.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\problem\encoding.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\problem\optima.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\problem\problem.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\problem\solution.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\random\extreal.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\random\newran.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\factory.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_bound.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_imbalance.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\param_creator.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\constraint_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\register_constraint.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\distance_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\euclidean_distance.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\flat_border.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\register_distance.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\function_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s1.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s10.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s2.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s3.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s4.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s5.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s6.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s7.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s8.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s9.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\register_one_peak.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_function.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\register_function.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_objective.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_assymetrix.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_ill_conditioning.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_irregularities.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\register_transform.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\type.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\init_pop_bounded.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\custom_method.hpp" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\factory.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\interface.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\functional.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\kd-tree\kdtree_space.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\kd-tree\pool_allocator.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\matrix.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\nondominated_sorting\filter_sort.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\algorithm.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\termination.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\environment\environment.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\global.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\instance.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\parameter\input_parameter_map.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\parameter\parameter_map.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\parameter\parameter_variant.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\parameter\variants_to_stream.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\problem\continuous\continuous.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\problem\optima.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\problem\problem.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\problem\solution.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\random\extreal.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\random\newran.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_bound.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_imbalance.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\param_creator.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\constraint_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\register_constraint.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\distance_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\euclidean_distance.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\flat_border.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\register_distance.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\function_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s1.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s10.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s2.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s3.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s4.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s5.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s6.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s7.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s8.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s9.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\register_one_peak.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_function.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\register_function.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_objective.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_assymetrix.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_ill_conditioning.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_irregularities.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\register_transform.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\init_pop_bounded.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\interface.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\main.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\register_instance.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\functional.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\matrix.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{24e224fd-d6c3-4dd3-94dd-fcf73a17ad0b}</ProjectGuid>
+    <RootNamespace>FreePeaksBenchmark</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

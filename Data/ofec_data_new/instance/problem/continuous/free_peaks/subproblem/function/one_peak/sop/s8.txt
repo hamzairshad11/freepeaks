@@ -1,0 +1,10 @@
+num_objs	1
+
+_%BEGIN%
+one_peak	s8
+center		default
+height		100.0
+m			3
+eta			5.5
+r_ratio		0.25
+_%END%

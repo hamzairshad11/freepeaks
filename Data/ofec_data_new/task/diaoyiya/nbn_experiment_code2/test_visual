@@ -1,0 +1,349 @@
+#include "buffer_con_nbn.h"
+#include <core/problem/continuous/continuous.h>
+#include "../../../../core/window/canvas_area.h"
+#include "../../../../core/common/control/int_slider.h"
+#include "../../../../core/common/control/real_slider.h"
+#include "../../../../core/common/control/check_box.h"
+#include <utility/nbn_visualization/nbn_grid_tree_division.h>
+#include <utility/nbn_visualization/nbn_grid_tree_division_mmop.h>
+#include <utility/nbn_visualization/tree_graph_simple.h>
+#include "../../../../core/global_ui.h"
+#include <vtkProperty.h>
+#include <vtkVertexGlyphFilter.h>
+
+namespace ofec_demo {
+	using namespace ofec;
+
+	bool BufferConNBN::conditionsMet(Problem *pro) const {
+		return CAST_CONOP(pro) != nullptr;
+	}
+
+	void BufferConNBN::initializeCanvas(CanvasArea *canvas_area, Problem *pro) {
+		m_canvas.reset(new VTK3DGeometryCanvas("Nearest-Better Network"));
+		m_id_canvas = canvas_area->addCanvas(m_canvas.get());
+		{auto slider = new IntSlider("number of samples", 1000, 10000000, m_num_samples, 1000);
+		connect(slider, &IntSlider::valueChanged, this, &BufferConNBN::changeNumSamples);
+		m_canvas->addControlWidget(slider); }
+		{auto slider = new IntSlider("number of division", 2, 500, m_num_div, 1);
+		connect(slider, &IntSlider::valueChanged, this, &BufferConNBN::changeNumDiv);
+		m_canvas->addControlWidget(slider); }
+		{auto slider = new RealSlider("line width", 1, 5, m_line_width, 0.1);
+		connect(slider, &RealSlider::valueChanged, this, &BufferConNBN::changeLineWidth); 
+		m_canvas->addControlWidget(slider); }
+		{auto slider = new RealSlider("line opacity", 0, 1, m_line_opacity, 0.01);
+		connect(slider, &RealSlider::valueChanged, this, &BufferConNBN::changeLineOpacity); 
+		m_canvas->addControlWidget(slider); }
+		if (pro->isOptimaVarGiven()) {
+			auto checkbox = new CheckBox("show optima", m_show_optima);
+			connect(checkbox, &CheckBox::checkStateChanged, this, &BufferConNBN::setOptimaVisible);
+			m_canvas->addControlWidget(checkbox);
+			auto slider = new RealSlider("point size of optima", 6, 30, m_optima_point_size, 0.3);
+			connect(slider, &RealSlider::valueChanged, this, &BufferConNBN::changeOptimaPointSize);
+			m_canvas->addControlWidget(slider);
+		}
+	}
+
+	void BufferConNBN::addBuffer(int max_id_buffer, Problem *pro) {
+		if (m_num_samples < pow(2, pro->numVariables())) {
+			g_buffer->exceptionMessage("The number of samples for nearest-better network is too small.");
+			return;
+		}
+
+		std::vector<std::array<int, 2>> id_belong;
+		std::vector<std::array<double, 2>> pos;
+		std::vector<double> fitness;
+
+		NBN_DivisionBase *division;
+
+		if (pro->numObjectives() > 1)
+			division = new NBN_GridTreeDivisionMMOP;
+		else
+			division = new NBN_GridTreeDivision;
+
+		std::ifstream in(UI_DIR "/custom/buffer/problem/continuous/single_objective/buffer_con_nbn_data/"
+			+ pro->name() + '_' + std::to_string(m_num_samples));
+		if (in) {
+
+		}
+		else {
+			if (pro->numObjectives() == 1)
+				division->setMaxSampleSize(m_num_samples);
+			division->setMultiThread(true);
+			division->setEvaluateMultiTask(true);
+			division->setNumberThread(std::thread::hardware_concurrency());
+
+			auto eval_fun = [](SolBase &sol, Problem *pro) {
+				sol.evaluate(pro);
+				Real pos = (pro->optMode(0) == OptMode::kMaximize) ? 1 : -1;
+				sol.setFitness(pos * sol.objective(0));
+				};
+			auto rnd = std::make_shared<Random>(0.5);
+
+			division->initialize(pro->getSharedPtr(), rnd, eval_fun, false);
+			if (pro->isOptimaVarGiven()) {
+				if (pro->numObjectives() > 1) {
+					// TODO
+
+					int belong_id;
+					auto tmp_sol = pro->createSolution();
+					for (size_t k = 0; k < pro->optimaBase()->numberVariables(); ++k) {
+						dynamic_cast<VarVec<>&>(tmp_sol->variableBase()) = CAST_CONOP(pro)->optima()->variable(k);
+						//tmp_sol->evaluate(pro);
+						m_solOptIds.push_back(dynamic_cast<NBN_GridTreeDivisionMMOP*>(division)->inputSol(*tmp_sol));
+					}
+					delete tmp_sol;
+				}
+				else {
+					int belong_id;
+					auto tmp_sol = pro->createSolution();
+					for (size_t k = 0; k < pro->optimaBase()->numberVariables(); ++k) {
+						dynamic_cast<VarVec<> &>(tmp_sol->variableBase()) = CAST_CONOP(pro)->optima()->variable(k);
+						tmp_sol->evaluate(pro);
+						dynamic_cast<NBN_GridTreeDivision*>(division)->addSol(*tmp_sol);
+					}
+					delete tmp_sol;
+				}
+			}
+			division->initialize_();
+			if (pro->numObjectives() > 1) {
+				dynamic_cast<NBN_GridTreeDivisionMMOP*>(division)->setDimensioinDivNumber(m_num_div);
+				dynamic_cast<NBN_GridTreeDivisionMMOP*>(division)->generateSols();
+				dynamic_cast<NBN_GridTreeDivisionMMOP*>(division)->updateFitness();
+				dynamic_cast<NBN_GridTreeDivisionMMOP*>(division)->generateNetwork();
+			}
+
+			std::vector<std::shared_ptr<SolBase>> sols;
+			std::vector<int> belong;
+			std::vector<double> dis2parent;
+			std::vector<bool> flagOpt;
+			division->getSharedNBN(sols, fitness, belong, dis2parent, flagOpt);
+
+			std::vector<TreeGraphSimple::SolInfo> info;
+			TreeGraphSimple::SolInfo::transfer(info, sols, flagOpt);
+
+			std::vector<int> solIds(sols.size());
+			for (int idx(0); idx < solIds.size(); ++idx)
+				solIds[idx] = idx + 1;
+
+			std::vector<TreeGraphSimple::NBNdata> nbn_data;
+			transferNBNData(nbn_data, solIds, belong, dis2parent, fitness);
+			TreeGraphSimple nbn_graph;
+			nbn_graph.setNBNdata(nbn_data);
+			nbn_graph.calNetwork();
+
+			id_belong.resize(sols.size());
+			pos.resize(sols.size());
+			for (int idx(0); idx < sols.size(); ++idx) {
+				id_belong[idx][0] = nbn_graph.get_nbn_data()[idx].m_id;
+				id_belong[idx][1] = nbn_graph.get_nbn_data()[idx].m_belong;
+				pos[idx][0] = nbn_graph.get_nbn_pos()[idx][0];
+				pos[idx][1] = nbn_graph.get_nbn_pos()[idx][1];
+			}
+		}
+
+		std::vector<Real> data(fitness);
+		auto Q1 = data.begin() + data.size() / 4;
+		auto Q2 = Q1 + data.size() / 4;
+		auto Q3 = Q2 + data.size() / 4;
+		std::nth_element(data.begin(), Q1, data.end());
+		std::nth_element(Q1, Q2, data.end());
+		std::nth_element(Q2, Q3, data.end());
+		auto IQR = *Q3 - *Q1;
+
+		std::vector<bool> normal(fitness.size(), true);
+		for (size_t i = 0; i < fitness.size(); ++i) {
+			if (fitness[i] < *Q1 - 1.5 * IQR)
+				normal[i] = false;
+		}
+
+		auto min_fit = std::numeric_limits<Real>::max();
+		auto max_fit = -min_fit;
+		for (int idx(0); idx < fitness.size(); ++idx) {
+			if (!normal[idx]) 
+				continue;
+			if (min_fit > fitness[idx]) 
+				min_fit = fitness[idx];
+			if (max_fit < fitness[idx]) 
+				max_fit = fitness[idx];
+		}
+
+		int id_1st_normal = -1;
+		for (int idx(0); idx < fitness.size(); ++idx) {
+			if (normal[idx]) {
+				id_1st_normal = idx;
+				break;
+			}
+		}
+
+		std::vector<std::array<Real, 3>> points(pos.size());
+		std::vector<Real> nodefit(pos.size());
+		for (int idx(0); idx < pos.size(); ++idx) {
+			int id_assign = idx;
+			if (!normal[idx])
+				id_assign = id_1st_normal;
+			points[idx][0] = pos[id_assign][0];
+			points[idx][1] = pos[id_assign][1];
+			nodefit[idx] = points[idx][2] = (fitness[id_assign] - min_fit) / (max_fit - min_fit);
+		}
+
+		std::list<std::pair<int, int>> lines;	
+		size_t num_lines = id_belong.size();
+		if (pro->isOptimaVarGiven())
+			num_lines -= pro->optimaBase()->numberVariables();
+		for (int idx(0); idx < num_lines; ++idx) {
+			if (normal[idx])
+				lines.emplace_back(id_belong[idx][0], id_belong[idx][1]);
+		}
+
+		auto lut = vtk_3d_geom::createEvenByValLuT(nodefit);
+		auto scalar_array = vtkSmartPointer<vtkFloatArray>::New();
+		for (auto scalar : nodefit) {
+			scalar_array->InsertNextTuple1(scalar);
+		}
+		auto new_datum = new Datum;
+		new_datum->edges = vtk_3d_geom::createColoredGraph(points, lines, scalar_array, lut);
+
+		if (pro->isOptimaVarGiven()) {
+			if (pro->numObjectives() > 1) {
+				std::vector<std::array<Real, 3>> optima_points;
+				std::array<Real, 3> optimum_point;
+				for (auto& idx: new_datum->m_solOptIds) {
+					optimum_point[0] = pos[idx][0];
+					optimum_point[1] = pos[idx][1];
+					optimum_point[2] = (fitness[idx] - min_fit) / (max_fit - min_fit);
+					optima_points.push_back(optimum_point);
+				}
+				new_datum->fnd_lut = vtkLookupTable::New();
+				new_datum->fnd_lut->SetTableRange(0, 1);
+				new_datum->fnd_lut->SetNumberOfColors(2);
+				new_datum->fnd_lut->SetTableValue(1, 0, 0, 0);
+				new_datum->fnd_lut->SetTableValue(0, 0.6, 0.6, 0.6);
+				new_datum->fnd_lut->Build();
+				new_datum->fnd_scalar = vtkFloatArray::New();
+				new_datum->fnd_scalar->SetNumberOfTuples(optima_points.size());
+				for (size_t i = 0; i < optima_points.size(); i++)
+					new_datum->fnd_scalar->SetTuple1(i, 0);
+				new_datum->optima_glyph = vtkVertexGlyphFilter::New();
+				new_datum->optima = vtk_3d_geom::createColoredGlyphs(optima_points, new_datum->fnd_scalar, new_datum->fnd_lut, new_datum->optima_glyph);
+
+			}
+			else {
+				std::vector<std::array<Real, 3>> optima_points;
+				std::array<Real, 3> optimum_point;
+				for (int idx(pos.size() - pro->optimaBase()->numberVariables()); idx < pos.size(); ++idx) {
+					optimum_point[0] = pos[idx][0];
+					optimum_point[1] = pos[idx][1];
+					optimum_point[2] = (fitness[idx] - min_fit) / (max_fit - min_fit);
+					optima_points.push_back(optimum_point);
+				}
+				new_datum->fnd_lut = vtkLookupTable::New();
+				new_datum->fnd_lut->SetTableRange(0, 1);
+				new_datum->fnd_lut->SetNumberOfColors(2);
+				new_datum->fnd_lut->SetTableValue(1, 0, 0, 0);
+				new_datum->fnd_lut->SetTableValue(0, 0.6, 0.6, 0.6);
+				new_datum->fnd_lut->Build();
+				new_datum->fnd_scalar = vtkFloatArray::New();
+				new_datum->fnd_scalar->SetNumberOfTuples(optima_points.size());
+				for (size_t i = 0; i < optima_points.size(); i++)
+					new_datum->fnd_scalar->SetTuple1(i, 0);
+				new_datum->optima_glyph = vtkVertexGlyphFilter::New();
+				new_datum->optima = vtk_3d_geom::createColoredGlyphs(optima_points, new_datum->fnd_scalar, new_datum->fnd_lut, new_datum->optima_glyph);
+			}
+		}
+
+		new_datum->division.reset(division);
+		new_datum->points = std::move(points);
+		new_datum->min_fit = min_fit;
+		new_datum->max_fit = max_fit;
+		new_datum->m_solOptIds = m_solOptIds;
+		m_data[max_id_buffer + 1].reset(new_datum);
+	}
+
+	void BufferConNBN::paintOnCanvas(int id_buffer, Problem *pro) {
+		if (m_cur_datum) {
+			m_canvas->renderer()->RemoveActor(m_cur_datum->edges);
+			if (m_cur_datum->optima)
+				m_canvas->renderer()->RemoveActor(m_cur_datum->optima);
+			m_cur_datum = nullptr;
+		}
+		if (m_data.count(id_buffer)) {
+			m_canvas->renderer()->AddActor(m_data.at(id_buffer)->edges);
+			m_data.at(id_buffer)->edges->GetProperty()->SetLineWidth(m_line_width);
+			m_data.at(id_buffer)->edges->GetProperty()->SetOpacity(m_line_opacity);
+			if (m_data.at(id_buffer)->optima) {
+				m_canvas->renderer()->AddActor(m_data.at(id_buffer)->optima);
+				m_data.at(id_buffer)->optima->GetProperty()->SetPointSize(m_optima_point_size);
+				m_data.at(id_buffer)->optima->SetVisibility(m_show_optima);
+			}
+			m_cur_datum = m_data.at(id_buffer).get();
+		}
+		m_canvas->resetCamera();
+	}
+	
+	void BufferConNBN::removeBuffer(int id_buffer, Problem *pro) {
+		m_data.erase(id_buffer);
+	}
+	
+	void BufferConNBN::clearCanvas(CanvasArea *canvas_area, Problem *pro) {
+		canvas_area->removeCanvas(m_id_canvas);
+		m_id_canvas = -1;
+		m_canvas.reset();
+		m_cur_datum = nullptr;
+	}
+
+	void BufferConNBN::changeNumSamples(int num) {
+		m_num_samples = num;
+	}
+
+	void BufferConNBN::changeNumDiv(int num) {
+		m_num_div = num;
+	}
+
+	void BufferConNBN::changeLineWidth(float val) {
+		m_line_width = val;
+		if (m_cur_datum) {
+			m_cur_datum->edges->GetProperty()->SetLineWidth(val);
+			m_canvas->refresh();
+		}
+	}
+
+	void BufferConNBN::changeLineOpacity(float val) {
+		m_line_opacity = val;
+		if (m_cur_datum) {
+			m_cur_datum->edges->GetProperty()->SetOpacity(val);
+			m_canvas->refresh();
+		}
+	}
+
+	void BufferConNBN::setOptimaVisible(bool flag) {
+		m_show_optima = flag;
+		if (m_cur_datum && m_cur_datum->optima) {
+			m_cur_datum->optima->SetVisibility(flag);
+			m_canvas->refresh();
+		}
+	}
+
+	void BufferConNBN::changeOptimaPointSize(float val) {
+		m_optima_point_size = val;
+		if (m_cur_datum && m_cur_datum->optima) {
+			m_cur_datum->optima->GetProperty()->SetPointSize(val);
+			m_canvas->refresh();
+		}
+	}
+
+	void BufferConNBN::setOptimaFound(int id_buffer, bool flag) {
+		if (m_data.count(id_buffer) && m_data.at(id_buffer)->optima) {
+			for (size_t i = 0; i < m_data.at(id_buffer)->fnd_scalar->GetNumberOfTuples(); i++)
+				m_data.at(id_buffer)->fnd_scalar->SetTuple1(i, flag ? 1.0 : 0.0);
+			m_data.at(id_buffer)->optima_glyph->GetPolyDataInput(0)->Modified();
+		}
+	}
+
+	void BufferConNBN::setOptimaFound(int id_buffer, const std::vector<bool> &flags) {
+		if (m_data.count(id_buffer) && m_data.at(id_buffer)->optima) {
+			for (size_t i = 0; i < flags.size(); i++)
+				m_data.at(id_buffer)->fnd_scalar->SetTuple1(i, flags[i] ? 1.0 : 0.0);
+			m_data.at(id_buffer)->optima_glyph->GetPolyDataInput(0)->Modified();
+		}
+	}
+}
