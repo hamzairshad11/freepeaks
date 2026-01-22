@@ -3,8 +3,5 @@
 *.ipch
 *.db
 *.opendb
-*.slnx
 [Bb]in/
 [Oo]bj/
-
-# *.pt

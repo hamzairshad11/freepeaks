@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="FreePeaks_Benchmark/FreePeaks_Benchmark.vcxproj" Id="24e224fd-d6c3-4dd3-94dd-fcf73a17ad0b" />
+</Solution>
