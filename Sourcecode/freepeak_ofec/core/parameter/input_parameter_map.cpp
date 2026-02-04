@@ -249,15 +249,25 @@ namespace ofec {
 		m_directory_path(directory_path),
 		m_filter(filter)
 	{
-		m_requirement = "a " + m_filter + " file in \"" + m_directory_path + '\"';
+		m_requirement = "a " + m_filter + " is a filename in \"" + m_directory_path + '\"';
 		*m_value = recommend;
 	}
 
 	void FileName::checkValue() const {
 		
-		//if (!std::filesystem::exists(g_working_directory + '/' + m_directory_path + '/' + *m_value)) {
+		std::filesystem::path p(*m_value);
+
+		//if (p.has_parent_path()) {
 		//	throw Exception(m_requirement);
 		//}
+
+		if (!std::filesystem::exists(g_working_directory + '/' + m_directory_path + '/' + *m_value)) {
+
+			std::cerr << "[Warning] File does not exist: "
+				<< (g_working_directory + '/' + m_directory_path + '/' + *m_value)
+				<< std::endl;
+			//throw Exception(m_requirement);
+		}
 	}
 
 	InputString::InputString(std::string &reference, const std::string &recommend) :

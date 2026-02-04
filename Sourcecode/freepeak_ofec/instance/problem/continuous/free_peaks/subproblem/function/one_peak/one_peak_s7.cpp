@@ -3,9 +3,17 @@
 #include "../../function/one_peak_function.h"
 
 namespace ofec::free_peaks {
-	OnePeakS7::OnePeakS7(Problem *pro, const std::string &subspace_name, const ParameterMap &param) :
-		OnePeakBase(pro, subspace_name, param),
-		m_radius(0) {}
+
+	void OnePeakS7::addInputParameters() {
+		m_input_parameters.add("r_ratio", new RangedReal(m_r_ratio, 0, 1, 0.5));
+	}
+
+
+
+	void OnePeakS7::initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param) {
+		OnePeakBase::initialize(pro, subspace_name, param);
+	//	bindData();
+	}
 
 	Real OnePeakS7::evaluate_(Real dummy, size_t var_size) {
 		if (dummy <= m_radius)
@@ -15,12 +23,9 @@ namespace ofec::free_peaks {
 	}
 
 	void OnePeakS7::bindData() {
-		OnePeakBase::bindData();
+		OnePeakBase::bindData();	
 		auto fun = dynamic_cast<OnePeakFunction*>(CAST_FPs(m_pro)->subproblem(m_subspace_name)->function());
 		Real min_dis = fun->computeMinDis(m_center);
-		if (m_param.has("r_ratio"))
-			m_radius = m_param.get<Real>("r_ratio") * min_dis;
-		else
-			m_radius = 0.5 * min_dis;
+		m_radius = m_r_ratio * min_dis;
 	}
 }

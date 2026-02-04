@@ -3,11 +3,16 @@
 #include "../../function/one_peak_function.h"
 
 namespace ofec::free_peaks {
-	OnePeakS8::OnePeakS8(Problem *pro, const std::string &subspace_name, const ParameterMap &param) :
-		OnePeakBase(pro, subspace_name, param) ,
-		m_radius(0),
-		m_m(param.get<int>("m")),
-		m_eta(param.get<Real>("eta")) {}
+
+	void OnePeakS8::addInputParameters() {
+		m_input_parameters.add("m", new RangedInt(m_m, 0, 100, 3));
+		m_input_parameters.add("eta", new RangedReal(m_eta, 0, 1e6, 5.5));
+		m_input_parameters.add("r_ratio", new RangedReal(m_r_ratio, 0, 1, 0.5));
+	}
+
+	void OnePeakS8::initialize(Problem *pro, const std::string &subspace_name, const ParameterMap &param) {
+		OnePeakBase::initialize(pro, subspace_name, param);
+	}
 
 	Real OnePeakS8::evaluate_(Real dummy, size_t var_size) {
 		if (dummy <= m_radius) {
@@ -23,9 +28,7 @@ namespace ofec::free_peaks {
 		OnePeakBase::bindData();
 		auto fun = dynamic_cast<OnePeakFunction*>(CAST_FPs(m_pro)->subproblem(m_subspace_name)->function());
 		Real min_dis = fun->computeMinDis(m_center);
-		if (m_param.has("r_ratio"))
-			m_radius = m_param.get<Real>("r_ratio") * min_dis;
-		else
-			m_radius = 0.5 * min_dis;
+		m_radius = m_r_ratio * min_dis;
+
 	}
 }

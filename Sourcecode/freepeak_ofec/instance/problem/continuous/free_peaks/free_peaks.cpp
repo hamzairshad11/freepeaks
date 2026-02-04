@@ -3,71 +3,101 @@
 #include "subproblem/function/register_function.h"
 #include "subproblem/function/one_peak/register_one_peak.h"
 #include "subproblem/constraint/register_constraint.h"
-#include "subproblem/transform/register_transform.h"
+#include "subproblem/transform/transform_x/register_transform_x.h"
+#include "subproblem/transform/transform_y/register_transform_y.h"
 #include "../../../../core/global.h"
 #include "param_creator.h"
 #include "../../../../core/problem/solution.h"
 #include "../../../../utility/nondominated_sorting/filter_sort.h"
 #include "../../../../utility/functional.h"
+#include "subproblem/subproblem.h"
 
 namespace ofec {
 	bool FreePeaks::ms_registered = false;
+	std::mutex FreePeaks::ms_register_mtx;
 
-	void FreePeaks::addInputParameters() {
-		std::list<std::string> group = { "read_file", "random", "default" };
-		m_input_parameters.add("generation type", new EnumeratedString(m_generation_type, group, "read_file"));
-		m_input_parameters.add("dataFile1", new FileName(m_file_name,
-			"instance/problem/continuous/free_peaks",
-			"config (*.txt)", "sop/2d_s1_to_s8.txt"));	
+	const std::string FreePeaks::ms_file_dir= "instance/problem/continuous/free_peaks/";
+	std::string FreePeaks::directory() {
+		return g_working_directory + ms_file_dir;
 	}
 
-	void FreePeaks::initialize_(Environment *env) {
-		Continuous::initialize_(env);
+	void FreePeaks::registerFP() {
+		ms_register_mtx.lock();
 		if (!ms_registered) {
 			free_peaks::registerDistance();
 			free_peaks::registerFunction();
 			free_peaks::registerOnePeak();
 			free_peaks::registerConstraint();
-			free_peaks::registerTransform();
+			free_peaks::registerTransformX();
+			free_peaks::registerTransformY();
 			ms_registered = true;
 		}
+		ms_register_mtx.unlock();
+	}
+
+
+	void FreePeaks::addInputParameters() {
+		std::list<std::string> group = { "read_file", "random","assigned" ,"default"};
+		m_input_parameters.add("generation_type", new EnumeratedString(m_generation_type, group, "read_file"));
+		m_input_parameters.add("dataFile1", new FileName(m_file_name,
+			ms_file_dir,
+			"config (*.txt)", "sop/2d_s1_to_s8.txt"));	
+
+	//	m_input_parameters.add("number of variables", new RangedSizeT(m_number_variables, 1, 1000, 2));
+	}
+
+	void FreePeaks::initialize_(Environment *env) {
+		Continuous::initialize_(env);
+		registerFP();
+		
 		if (m_generation_type == "read_file") {
-			readFromFile(g_working_directory + "/instance/problem/continuous/free_peaks/" + m_file_name);
+			readFromFile(g_working_directory + ms_file_dir + m_file_name);
+			bindData();
 		}
 		else if (m_generation_type == "random") {
 
+			// to do
+		}
+		else if (m_generation_type == "assigned") {
+			// do nothing 
 		}
 		else {
 
 		}
-		for (auto &it : m_subspace_tree.name_box_subproblem) {
+
+	}
+
+	void FreePeaks::bindData() {
+		for (auto& it : m_subspace_tree.name_box_subproblem) {
 			if (it.second.second == nullptr)
 				continue;
 			it.second.second->bindData();
 		}
+		calculateOptima();
 	}
 
 	void FreePeaks::evaluate(const VariableBase &vars, std::vector<Real> &objs, std::vector<Real> &cons) const {
 		auto &x = dynamic_cast<const VariableVector<>&>(vars);
 		std::vector<Real> vars_(x.begin(), x.end()); //for parallel running
 		auto name = m_subspace_tree.tree->getRegionName(vars_);
+		//std::cout << "FreePeaks::evaluate name\t" << name << std::endl;
 		m_subspace_tree.name_box_subproblem.at(name).second->evaluate(vars_, objs, cons);
 	}
 
-	void FreePeaks::updateOptima(Environment *env) {
+	void FreePeaks::calculateOptima() {
 		auto new_optima = new Optima<>();
 		if (m_number_objectives == 1) {
-			for (auto &it : m_subspace_tree.name_box_subproblem) {
+			for (auto& it : m_subspace_tree.name_box_subproblem) {
 				if (it.second.second == nullptr)
 					continue;
-				auto &subpro_optima = it.second.second->optima();
+				auto& subpro_optima = it.second.second->optima();
 				for (size_t i = 0; i < subpro_optima.numberSolutions(); ++i) {
 					new_optima->appendSolution(subpro_optima.solution(i));
 				}
 			}
 			m_objective_accuracy = 1e-3;
 		}
-		else if(m_number_objectives > 1) {
+		else if (m_number_objectives > 1) {
 			//依次在每个子空间的峰之间进行采样，再进行排序
 			for (auto& it : m_subspace_tree.name_box_subproblem) {
 				if (it.second.second == nullptr)
@@ -128,6 +158,10 @@ namespace ofec {
 		m_optima.reset(new_optima);
 	}
 
+	void FreePeaks::updateOptima(Environment *env) {
+		calculateOptima();
+	}
+
 	void FreePeaks::readFromFile(const std::string &file_path) {
 		std::ifstream in(file_path);
 		if (in.fail()) {
@@ -136,28 +170,32 @@ namespace ofec {
 
 		size_t number_variables, number_objectives, number_constraints;
 		free_peaks::ParamIO::readSizes(in, number_variables, number_objectives, number_constraints);
-		resizeVariable(number_variables);
-		for (size_t i = 0; i < number_variables; ++i) {
-			m_domain.setRange(0.0, 1.0, i);
-		}
-		resizeObjective(number_objectives);
-		for (size_t i = 0; i < number_objectives; ++i) {
-			m_optimize_mode[i] = OptimizeMode::kMaximize;
-		}
-		resizeConstraint(number_constraints);
 
-		m_subspace_tree.clear();
+		setSizes(number_variables, number_objectives, number_constraints);
+		//resizeVariable(number_variables);
+		//for (size_t i = 0; i < number_variables; ++i) {
+		//	m_domain.setRange(0.0, 1.0, i);
+		//}
+		//resizeObjective(number_objectives);
+		//for (size_t i = 0; i < number_objectives; ++i) {
+		//	m_optimize_mode[i] = OptimizeMode::kMaximize;
+		//}
+		//resizeConstraint(number_constraints);
 		std::vector<std::pair<std::string, std::vector<std::pair<std::string, double>>>>  treeData;
 		free_peaks::ParamIO::readTreeData(in, treeData);
-		std::vector<std::pair<Real, Real>> ranges(m_number_variables);
-		for (size_t i = 0; i < m_number_variables; ++i) {
-			ranges[i] = m_domain[i].limit;
-		}
-		m_subspace_tree.createTree(ranges, treeData);
+		setKDtree(treeData);
+
+		//m_subspace_tree.clear();
+		//std::vector<std::pair<Real, Real>> ranges(m_number_variables);
+		//for (size_t i = 0; i < m_number_variables; ++i) {
+		//	ranges[i] = m_domain[i].limit;
+		//}
+		//m_subspace_tree.createTree(ranges, treeData);
+
+
 		ParameterMap subpro_param;
 		for (size_t id_subpro = 0; id_subpro < m_subspace_tree.tree->size(); ++id_subpro) {
-			free_peaks::ParamIO::readParameter(in, subpro_param);
-			auto new_subpro = new free_peaks::Subproblem(subpro_param, this);
+			in >> subpro_param;
 			std::string subspace_name;
 			if (static_cast<ParameterType>(subpro_param.at("subspace").index()) == ParameterType::kChar) {
 				subspace_name.push_back(subpro_param.get<char>("subspace"));
@@ -165,7 +203,15 @@ namespace ofec {
 			else if (static_cast<ParameterType>(subpro_param.at("subspace").index()) == ParameterType::kString) {
 				subspace_name = subpro_param.get<std::string>("subspace");
 			}
-			m_subspace_tree.name_box_subproblem.at(subspace_name).second.reset(new_subpro);
+
+			//free_peaks::ParamIO::readParameter(in, subpro_param);
+			setSubproblem(subspace_name, subpro_param);
+			//auto new_subpro = free_peaks::Subproblem::create();
+			//new_subpro->initialize(subpro_param, this);
+			//new_subpro->recordInputParameters();
+			//setSubproblem(subspace_name, new_subpro);
+
+
 		}	
 	}
 
@@ -222,19 +268,89 @@ namespace ofec {
 		return result;
 	}
 
-	void FreePeaks::writeToFile(const std::string &file_path) const {
-		std::ofstream out(file_path);
+	void FreePeaks::writeToFile() const {
+		std::ofstream out(g_working_directory + ms_file_dir + m_file_name);
+
+		free_peaks::ParamIO::writeSizes(out, m_number_variables, m_number_objectives, m_number_constraints);
 		free_peaks::ParamIO::writeTreeData(out, m_subspace_tree.treeData());
 		out << "\n\n";
 		for (auto &it : m_subspace_tree.name_box_subproblem) {
 			if (it.second.second != nullptr) {
-				free_peaks::ParamIO::writeParameter(it.second.second->parameter(), out);
+				out << it.second.second->archivedParameters();
+				//free_peaks::ParamIO::writeParameter(it.second.second->archivedParameters(), out);
 				out << '\n';
 			}
 		}
+		out.close();
 	}
 	
 	free_peaks::Subproblem* FreePeaks::subproblem(const std::string &subspace_name) const {
 		return m_subspace_tree.name_box_subproblem.at(subspace_name).second.get();
 	}
+
+
+
+
+	void FreePeaks::setSizes(size_t number_variables, size_t number_objectives, size_t number_constraints) {
+		resizeVariable(number_variables);
+		for (size_t i = 0; i < number_variables; ++i) {
+			m_domain.setRange(0.0, 1.0, i);
+		}
+		resizeObjective(number_objectives);
+		for (size_t i = 0; i < number_objectives; ++i) {
+			m_optimize_mode[i] = OptimizeMode::kMaximize;
+		}
+		resizeConstraint(number_constraints);
+
+	}
+	// subtree_name  subspace_name , subspace ratio
+	void FreePeaks::setKDtree(const std::vector<std::pair<std::string, std::vector<std::pair<std::string, double>>>>& treeData) {
+		m_subspace_tree.clear();
+		std::vector<std::pair<Real, Real>> ranges(m_number_variables);
+		for (size_t i = 0; i < m_number_variables; ++i) {
+			ranges[i] = m_domain[i].limit;
+		}
+		m_subspace_tree.createTree(ranges, treeData);
+	}
+	void FreePeaks::setSubproblem(const std::string& subspace_name, free_peaks::Subproblem* new_subpro){
+		m_subspace_tree.name_box_subproblem.at(subspace_name).second.reset(new_subpro);
+	}
+
+	void FreePeaks::setSubproblem(const std::string& subspace_name, const ParameterMap& subpro_param) {
+		auto new_subpro = free_peaks::Subproblem::create();
+		new_subpro->initialize(subpro_param, this);
+		new_subpro->recordInputParameters();
+		m_subspace_tree.name_box_subproblem.at(subspace_name).second.reset(new_subpro);
+	}
+
+
+	void FreePeaks::outputTotalFile() {
+		writeToFile();
+		for (auto& it : m_subspace_tree.name_box_subproblem) {
+			if (it.second.second != nullptr) {
+				it.second.second->outputTotalFile();
+			}
+		}
+	}
+
+	void FreePeaks::recordInputParameters()
+	{
+		Continuous::recordInputParameters();
+		for (auto& it : m_subspace_tree.name_box_subproblem) {
+			if (it.second.second != nullptr) {
+				it.second.second->recordInputParameters();
+			}
+		}
+	}
+
+	void FreePeaks::restoreInputParameters()
+	{
+		Continuous::restoreInputParameters();
+		for (auto& it : m_subspace_tree.name_box_subproblem) {
+			if (it.second.second != nullptr) {
+				it.second.second->restoreInputParameters();
+			}
+		}
+	}
+
 }

@@ -13,7 +13,7 @@ namespace ofec::free_peaks {
 			for (auto &it2 : it.second) {
 				tmp_box.reset(new Box(it2.first, it2.second));
 				name_box_subproblem[it2.first] = make_pair(tmp_box, nullptr);
-				name_box_subproblem[it.first].first->children.push_front(tmp_box);
+				name_box_subproblem[it.first].first->children.push_back(tmp_box);
 			}
 		}
 		tree.reset(new nanoflann::KDTreeSpace<double>(tree_name.front().second, ranges));

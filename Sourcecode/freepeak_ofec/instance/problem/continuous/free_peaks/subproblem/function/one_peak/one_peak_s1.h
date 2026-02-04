@@ -5,8 +5,12 @@
 
 namespace ofec::free_peaks {
 	class OnePeakS1 final : public OnePeakBase {
+
+		OFEC_CONCRETE_INSTANCE(OnePeakS1)
 	public:
-		OnePeakS1(Problem *pro, const std::string &subspace_name, const ParameterMap &param);
+
+		void addInputParameters() {}
+		virtual void initialize(Problem *pro, const std::string &subspace_name, const ParameterMap &param)override;
 		Real evaluate_(Real dummy, size_t var_size) override;
 	};
 }

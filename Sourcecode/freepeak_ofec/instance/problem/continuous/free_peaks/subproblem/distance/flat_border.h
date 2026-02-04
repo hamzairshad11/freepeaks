@@ -6,11 +6,15 @@
 
 namespace ofec::free_peaks {
 	class FlatBorder : public DistanceBase {
+		OFEC_CONCRETE_INSTANCE(FlatBorder)
+
 	private:
 		FunctionBase *m_fun;
 
 	public:
-		FlatBorder(Problem *pro, const std::string &subspace_name, const ParameterMap &param);
+
+		void addInputParameters() {}
+		virtual void initialize(Problem *pro, const std::string &subspace_name, const ParameterMap &param) override;
 		Real operator()(const std::vector<Real> &a, const std::vector<Real> &b) const override;
 		void bindData() override;
 	};

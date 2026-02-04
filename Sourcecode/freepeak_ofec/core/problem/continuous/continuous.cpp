@@ -83,6 +83,7 @@ namespace ofec {
 		std::vector<std::pair<Real, Real>> boundary(m_domain.size());
 		for (size_t j = 0; j < m_domain.size(); ++j)
 			boundary[j] = m_domain.range(j).limit;
+
 		return boundary;
 	}
 

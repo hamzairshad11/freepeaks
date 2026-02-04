@@ -101,6 +101,9 @@ namespace ofec {
 			return variableDistance(vars1, vars2) / maximumVariableDistance();
 		}
 		virtual Real maximumVariableDistance()const { return 1.0; }
+		/**
+* @default: minization
+*/
 		virtual void resizeObjective(size_t num_objs);
 		virtual void resizeConstraint(size_t num_cons);
 

@@ -22,6 +22,8 @@
 #include "parameter_variant.h"
 #include "../exception.h"
 #include <ostream>
+#include <istream>
+
 
 namespace ofec {
 	class ParameterMap {
@@ -35,7 +37,7 @@ namespace ofec {
 	public:
 
 		virtual ~ParameterMap() = default;
-		friend bool operator==(const ParameterMap& p1, const ParameterMap& p2);
+		//friend bool operator==(const ParameterMap& p1, const ParameterMap& p2);
 		ParameterVariant& operator[](const std::string &key);
 		const ParameterVariant& at(const std::string &key) const;
 		bool has(const std::string &key) const;
@@ -45,6 +47,10 @@ namespace ofec {
 		CIteratorType end() const { return m_map.end(); }
 		CIteratorType cbegin() const { return m_map.cbegin(); }
 		CIteratorType cend() const { return m_map.cend(); }
+
+		const std::map<std::string, ParameterVariant>& map()const {
+			return m_map;
+		}
 
 		template <typename T>
 		const T& get(const std::string &key) const {
@@ -65,8 +71,20 @@ namespace ofec {
 				return default_val;
 			}
 		}
+
+
+		// ===== friend Êä³öÔËËã·û =====
+		friend std::ostream& operator<<(std::ostream& os, const ParameterMap& pm);
+		friend std::istream& operator>>(std::istream& in, ParameterMap& pm);
+		friend bool operator==(const ParameterMap& lhs, const ParameterMap& rhs);
+
+
 	};
 
+
+	extern std::ostream& operator<<(std::ostream& os, const ParameterMap& pm);
+	extern std::istream& operator>>(std::istream& in, ParameterMap& pm);
+	extern bool operator==(const ParameterMap& lhs, const ParameterMap& rhs);
 
 	template< typename T>
 	inline void vecToParam(ParameterMap &v, const std::string &name, const std::vector<T> &vt) {

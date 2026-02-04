@@ -6,28 +6,48 @@
 #include <fstream>
 
 namespace ofec::free_peaks {
-	OnePeakFunction::OnePeakFunction(Problem *pro, const std::string &subspace_name, const ParameterMap &param) :
-		FunctionBase(pro, subspace_name, param), m_dis(nullptr)
+
+	const std::string OnePeakFunction::ms_file_dir = "/instance/problem/continuous/free_peaks/subproblem/function/one_peak/"	;
+	std::string OnePeakFunction::directory() {
+		return g_working_directory + ms_file_dir;
+	}
+	void OnePeakFunction::addInputParameters() {
+
+		std::list<std::string> group = { "read_file", "random","assigned" , "default" };
+		m_input_parameters.add("generation_type", new EnumeratedString(m_generation_type, group, "read_file"));
+		m_input_parameters.add("dataFile1", new FileName(m_file_name,
+			ms_file_dir,
+			"config (*.txt)", "sop/s1.txt"));
+	}
+
+	void OnePeakFunction::initialize(Problem *pro, const std::string &subspace_name, const ParameterMap &param) 
 	{
-		auto generation = m_param.get<std::string>("generation");
-		if (generation == "read_file") {
-			auto file_name = m_param.get<std::string>("file") + ".txt";
-			readFromFile(g_working_directory + "/instance/problem/continuous/free_peaks/subproblem/function/one_peak/" + file_name);
-		}
-		else if (generation == "random") {
 
+		FunctionBase::initialize(pro, subspace_name, param);
+	
+		if(m_generation_type== "read_file")
+			readFromFile(g_working_directory + ms_file_dir + m_file_name);
+		else if (m_generation_type == "random") {
+			// to do 
 		}
-		else {
+		else if (m_generation_type == "assigned") {
+			// do nothing
+		}
+		else if (m_generation_type == "default") {
+			
+		}
 
-		}
+
+	//	bindData();
 
 	}
 
+
+
 	void OnePeakFunction::bindData() {
-		//FunctionBase::bindData();
+		FunctionBase::bindData();
 		
 		m_var_ranges.assign(CAST_CONOP(m_pro)->numberVariables(), { -100, 100 });
-
 		m_domain_size = 0;
 		for (auto &r : m_var_ranges)
 			m_domain_size += pow(r.second - r.first, 2);
@@ -84,17 +104,41 @@ namespace ofec::free_peaks {
 		
 	}
 
+
+	void OnePeakFunction::writeToFile() const {
+		auto file_path = g_working_directory + ms_file_dir + m_file_name;
+
+		std::ofstream out(file_path);
+		out << "num_one_peaks\t" << m_onepeaks.size() << '\n';
+		for (auto& it : m_onepeaks) {
+			out << '\n';
+			//it->recordInputParameters();
+			out << it->archivedParameters();
+			//ParamIO::writeParameter(it->archivedParameters(), out);
+		}
+		out << "\n\n";
+
+		out.close();
+
+	}
 	void OnePeakFunction::readFromFile(const std::string &file_path) {
 		std::ifstream in(file_path);
 		std::string name;
 		int size(0);
 		in >> name >> size;
+		clearOnePeaks();
 		while (size--) {
 			ParameterMap param;
-			ParamIO::readParameter(in, param);
-			m_onepeaks.emplace_back(FactoryFP<OnePeakBase>::produce(param.get<std::string>("one_peak"),
-				m_pro, m_subspace_name, param));
+			in >> param;
+			//ParamIO::readParameter(in, param);
+			addOnePeaks(param);
 		}
+	}
+
+	void OnePeakFunction::addOnePeaks(const ParameterMap& param) {
+		m_onepeaks.emplace_back(FactoryFP<OnePeakBase>::produce(param.get<std::string>(OnePeakBase::ms_register_key)));
+		m_onepeaks.back()->initialize(m_pro, m_subspace_name, param);
+		m_onepeaks.back()->recordInputParameters();
 	}
 
 	void OnePeakFunction::evaluate_(const std::vector<double> &var, std::vector<double> &obj) {
@@ -102,12 +146,16 @@ namespace ofec::free_peaks {
 		//for (size_t j = 0; j < obj.size(); ++j) {
 		//	obj[j] = m_onepeaks[j]->evaluate((*m_dis)(var, m_onepeaks[j]->center()), var.size());
 		//}
-		
-		
+
 		for (size_t j = 0; j < m_pro->numberObjectives(); ++j) {
 			auto x_ = var;
 			transferX(x_, var, m_onepeaks[j]->center());
 			obj[j] = m_onepeaks[j]->evaluate((*m_dis)(x_, m_transfered_centers[j]), var.size());
+
+	/*		std::cout << "OnePeakFunction::evaluate_\t" << std::endl;*/
+			//for (int idx(0); idx < obj.size(); ++idx)
+			//	std::cout << obj[idx] << "\t";
+			//std::cout << std::endl;
 		}
 	}
 
@@ -115,6 +163,11 @@ namespace ofec::free_peaks {
 		for (int idx(0); idx < vecX.size(); ++idx) {
 			vecX[idx] -= loc[idx];
 		}
+
+		//std::cout << "OnePeakFunction::transferX\t"<<std::endl;	
+		//for (int idx(0); idx < vecX.size(); ++idx)
+		//	std::cout << vecX[idx] << "\t";
+		//std::cout << std::endl;
 		FunctionBase::transferX(vecX, var);
 	}
 
@@ -187,6 +240,16 @@ namespace ofec::free_peaks {
 		transferX(center_x, center_x, center);
 
 		return (*m_dis)(cpoint, center_x);
-		return (*m_dis)(cpoint, center);
+		//return (*m_dis)(cpoint, center);
+	}
+
+
+	void OnePeakFunction::recordInputParameters() {
+		FunctionBase::recordInputParameters();
+		for (auto& it : m_onepeaks) it->recordInputParameters();
+	}
+	void OnePeakFunction::restoreInputParameters() {
+		FunctionBase::restoreInputParameters();
+		for (auto& it : m_onepeaks) it->restoreInputParameters();
 	}
 }

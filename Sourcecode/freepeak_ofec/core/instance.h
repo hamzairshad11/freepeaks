@@ -28,8 +28,6 @@ namespace ofec {
 
 		virtual ~Instance() = default;
 
-	//	virtual ~Instance() = default;
-
 		/* Ready-only methods */
 		const std::string& name() const { return m_name; }
 		const std::string& className() const { return m_className; }
@@ -41,8 +39,9 @@ namespace ofec {
 		void setClassName(const std::string& class_name) { m_className = class_name; }
 		void setName(const std::string &name) { m_name = name; }
 		void setRandom(const std::shared_ptr<Random>& random) { m_random = random; }
-		void recordInputParameters();
-		void restoreInputParameters();
+	
+		virtual void recordInputParameters();
+		virtual void restoreInputParameters();
 
 	protected:
 		virtual void registerName() {}

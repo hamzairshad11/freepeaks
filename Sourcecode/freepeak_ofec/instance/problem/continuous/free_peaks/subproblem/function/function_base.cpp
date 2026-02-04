@@ -2,9 +2,19 @@
 #include "../../free_peaks.h"
 
 namespace ofec::free_peaks {
-	FunctionBase::FunctionBase(Problem *pro, const std::string &subspace_name, const ParameterMap &param) : 
-		m_pro(pro), m_subspace_name(subspace_name), m_param(param), m_domain_size(0),
-		m_optimal_vars_mapped(true) {}
+
+	void FunctionBase::addInputParameters() {
+		m_input_parameters.add("function", new InputParameterValueTypeString(m_register_name));
+	}
+
+	void FunctionBase::initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param) {
+		m_pro = (pro); 
+		m_subspace_name = (subspace_name);
+		m_domain_size = 0;
+		m_input_parameters.input(param);
+	//	recordInputParameters();
+		m_optimal_vars_mapped = (false);
+	}
 
 	void FunctionBase::evaluate(const std::vector<Real> &var, std::vector<double> &obj) {
 		std::vector<Real> var_(var.size());
@@ -14,7 +24,12 @@ namespace ofec::free_peaks {
 			var_[i] = (var[i] - from[i].first) / (from[i].second - from[i].first) *
 				(to[i].second - to[i].first) + to[i].first;
 		}
-	//	transferX(var_, var);
+
+		//std::cout << "FunctionBase::evaluate\t" << std::endl;
+		//for(int idx(0);idx<var_.size();++idx)
+		//	std::cout << var_[idx] << "\t";
+		//std::cout << std::endl;
+		//transferX(var_, var);
 		evaluate_(var_, obj);
 	}
 

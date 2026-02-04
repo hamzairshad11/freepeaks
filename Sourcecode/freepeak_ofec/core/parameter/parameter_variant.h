@@ -142,6 +142,39 @@ namespace ofec {
 		value = std::get<T>(v);
 	}
 
+	std::string toString(ParameterType type);
+	ParameterType fromString(const std::string& s);
+	
+
+	template <typename T>
+	void PrintValue(std::ostream& os, const T& v)
+	{
+		os << v;
+	}
+	template <typename T>
+	void PrintValue(std::ostream& os, const std::vector<T>& v)
+	{
+		os << "[";
+		for (size_t i = 0; i < v.size(); ++i) {
+			if (i > 0) os << ", ";
+			os << v[i];
+		}
+		os << "]";
+	}
+
+
+	inline void PrintValue(std::ostream& os, const std::vector<bool>& v)
+	{
+		os << "[";
+		for (size_t i = 0; i < v.size(); ++i) {
+			if (i > 0) os << ", ";
+			os << static_cast<bool>(v[i]);
+		}
+		os << "]";
+	}
+
+
+
 	class ParameterVariantStream {
 	public:
 		using Type = std::pair<ParameterVariant, int>;
