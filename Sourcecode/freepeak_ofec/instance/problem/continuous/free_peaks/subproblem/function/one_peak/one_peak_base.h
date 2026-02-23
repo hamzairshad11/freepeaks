@@ -7,31 +7,52 @@
 namespace ofec {
 	class Problem;
 	namespace free_peaks {
-		class OnePeakBase {
+		class OnePeakBase : virtual public Instance {
+			OFEC_ABSTRACT_INSTANCE(OnePeakBase)
+
+		private:
+			std::string m_register_name = "OnePeakBase";
+
+		public:
+			static const std::pair<Real, Real> ms_x_range;
+			static const std::string ms_register_key;
+
+			//	static const std::pair<Real, Real> ms_y_range;	
+
 		protected:
+
 			Problem* m_pro = nullptr;
-			const std::string m_subspace_name;
-			const ParameterMap m_param;
+			std::string m_subspace_name;
+			//const ParameterMap m_param			
+			std::string m_center_type;
+
+
 			double m_height;
 			std::vector<Real> m_center;
 			double m_alpha = 1.0;
 			const double m_maxValue = 100;
 			int m_map_flag = 0;
-			//const std::pair<double, double> m_range = { -100, 100 };
+
 
 			double mapperFun(Real dummy) {
-				return std::pow(dummy / m_maxValue, m_alpha) * m_maxValue;
+				return std::pow(dummy / (m_maxValue + 1e-6), m_alpha) * (m_maxValue + 1e-6);
 			}
 
 
 			virtual Real evaluate_(Real dummy, size_t var_size) = 0;
 
 		public:
-			OnePeakBase(Problem *pro, const std::string& subspace_name, const ParameterMap& param);
+
+			void setRegisterName(const std::string& name) {
+				m_register_name = name;
+			}
+			void addInputParameters();
+			virtual void initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param);
 			virtual ~OnePeakBase() = default;
 
-			void setCenter(size_t i, Real v) { m_center[i] = v; }
+			virtual void bindData() {}
 
+			void setCenter(size_t i, Real v) { m_center[i] = v; }
 			virtual Real evaluate(Real dummy, size_t var_size) {
 				if (m_map_flag == 0) {
 					return evaluate_(dummy, var_size);
@@ -40,9 +61,10 @@ namespace ofec {
 					return evaluate_(mapperFun(dummy), var_size);
 				}
 			}
-			virtual void bindData();
 			double height() const { return m_height; }
 			const std::vector<Real>& center() const { return m_center; }
+			//static const std::pair<Real, Real>& range()const { return ms_range; }
+
 		};
 	}
 }

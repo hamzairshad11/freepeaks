@@ -69,12 +69,6 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_function.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\register_function.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.h" />
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_objective.h" />
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_assymetrix.h" />
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_base.h" />
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_ill_conditioning.h" />
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_irregularities.h" />
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\register_transform.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_base.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\type.h" />
@@ -88,6 +82,7 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\matrix.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\nondominated_sorting\filter_sort.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\algorithm\algorithm.cpp" />
@@ -131,12 +126,6 @@
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_function.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\register_function.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_objective.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_assymetrix.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_base.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_ill_conditioning.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\map_x_irregularities.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\register_transform.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_base.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\init_pop_bounded.cpp" />
@@ -146,6 +135,9 @@
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\functional.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\matrix.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="FreePeaks_Benchmark.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

@@ -17,7 +17,7 @@ namespace ofec {
 		OFEC_CONCRETE_INSTANCE(FreePeaksInitPopBounded)
 	protected:
 		void addInputParameters();
-		void initialize_(Environment *env) override;
+		void initialize_(Environment* env) override;
 		size_t m_id_peak_to_init;
 	};
 }

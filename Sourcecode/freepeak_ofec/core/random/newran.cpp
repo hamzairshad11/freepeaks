@@ -62,7 +62,7 @@ namespace ofec {
 	}
 
 	RandBase::RandBase(double s)            // set random number seed
-										  // s must be between 0 and 1
+		// s must be between 0 and 1
 	{
 
 		if (s >= 1.0 || s <= 0.0)
@@ -110,10 +110,10 @@ namespace ofec {
 #endif
 		int i;
 		m_not_ready = false;
-		m_sx.resize(60); 
+		m_sx.resize(60);
 		m_sfx.resize(60);
 
-	//	if (!m_sx || !m_sfx) ErrorNoSpace();
+		//	if (!m_sx || !m_sfx) ErrorNoSpace();
 
 		double sxi = 0.0; double inc = sym ? 0.01 : 0.02;
 		for (i = 0; i < 60; i++) {
@@ -173,10 +173,10 @@ namespace ofec {
 #endif
 		int i;
 		m_not_ready = false;
-		m_sx.resize(121); 
+		m_sx.resize(121);
 		m_sfx.resize(121);
 
-	//	if (!m_sx || !m_sfx)  ErrorNoSpace();
+		//	if (!m_sx || !m_sfx)  ErrorNoSpace();
 
 		double sxi = m_modex;
 		for (i = 0; i < 120; i++) {
@@ -222,7 +222,7 @@ namespace ofec {
 #ifdef MONITOR
 			cout << "freeing asymmetric arrays\n";
 #endif
-		//	delete[] m_sx; delete[] m_sfx;
+			//	delete[] m_sx; delete[] m_sfx;
 		}
 #ifdef MONITOR
 		cout << "destructing asymmetric\n";
@@ -321,7 +321,7 @@ namespace ofec {
 		else if (alpha == 1.0) m_method.reset(new Exponential(m_motherseed));
 		else m_method.reset(new Gamma2(alpha, m_motherseed));
 
-		if (m_method==nullptr)  ErrorNoSpace();
+		if (m_method == nullptr)  ErrorNoSpace();
 
 	}
 
@@ -331,7 +331,7 @@ namespace ofec {
 		else if (alpha == 1.0) m_method.reset(new Exponential(s));
 		else m_method.reset(new Gamma2(alpha, s));
 
-		if (m_method==nullptr)  ErrorNoSpace();
+		if (m_method == nullptr)  ErrorNoSpace();
 
 		m_motherseed = s;
 		m_name = "gamma";
@@ -363,7 +363,8 @@ namespace ofec {
 		normal(seed),
 		cauchy(seed),
 		levy(1.4, seed),
-		gamma(0.5, seed) {}
+		gamma(0.5, seed) {
+	}
 
 	void Random::initialize() {
 		uniform.initialize();
@@ -373,6 +374,5 @@ namespace ofec {
 		gamma.initialize();
 	}
 }
-
 
 

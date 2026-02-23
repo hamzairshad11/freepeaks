@@ -2,25 +2,39 @@
 #define OFEC_FREE_PEAKS_CONSTRAINT_BASE_H
 
 #include "../../../../../../core/parameter/parameter_map.h"
+#include "../../../../../../core/instance.h"
 #include "../distance/distance_base.h"
 #include "../../type.h"
 
 
 namespace ofec {
 	namespace free_peaks {
-		class ConstraintBase {
+		class ConstraintBase : virtual public Instance {
+			OFEC_ABSTRACT_INSTANCE(ConstraintBase)
+
+		private:
+			std::string m_register_name = "ConstraintBase";
 		protected:
+
+
+
+			// to do : Change members, m_subspace_name and m_dis to private, and provide accessor functions that return const pointers.
 			Problem* m_pro = nullptr;
-			const std::string m_subspace_name;
-			const ParameterMap m_param;
-			const DistanceBase* m_dis;
+			std::string m_subspace_name;
+			DistanceBase* m_dis;
+
 
 		public:
-			ConstraintBase(Problem *pro, const std::string& subspace_name, const ParameterMap& param);
+
+
+			void setRegisterName(const std::string& name) {
+				m_register_name = name;
+			}
+			void addInputParameters() {}
+			void initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param);
 			virtual ~ConstraintBase() = default;
 			virtual double evaluate(const std::vector<Real>& var) const = 0;
 			virtual void bindData();
-			const ParameterMap& parameter() const { return m_param; }
 		};
 	}
 }

@@ -1,0 +1,7 @@
+num_objs	1
+
+_%BEGIN%
+one_peak	s3
+center		default
+height		80.0
+_%END%

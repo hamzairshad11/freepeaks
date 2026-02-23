@@ -1,0 +1,14 @@
+number_of_objectives 1
+number_of_variables 2
+number_of_constraints 0
+
+subtree_number 	1
+subtree_name 	root
+num		1
+[ a1 , 1 ]
+
+_%BEGIN%
+subspace		a1
+generation	read_file
+file		sop/s10
+_%END%

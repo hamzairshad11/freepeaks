@@ -5,7 +5,7 @@ namespace ofec {
 		m_input_parameters.add("ratio of probabilities", new InputString(m_prob_ratio_init, "1"));
 	}
 
-	void FreePeaksInitPopImbalance::initialize_(Environment *env) {
+	void FreePeaksInitPopImbalance::initialize_(Environment* env) {
 		FreePeaks::initialize_(env);
 		if (m_prob_ratio_init != "1") {
 			m_each_prob.clear();
@@ -24,7 +24,7 @@ namespace ofec {
 		}
 	}
 
-	void FreePeaksInitPopImbalance::initializeVariables(VariableBase &vars, Random *rnd) const {
+	void FreePeaksInitPopImbalance::initializeVariables(VariableBase& vars, Random* rnd) const {
 		if (m_prob_ratio_init == "1") {
 			FreePeaks::initializeVariables(vars, rnd);
 		}
@@ -39,8 +39,8 @@ namespace ofec {
 				}
 				id_peak_to_init++;
 			}
-			auto &bnd = m_subspace_tree.tree->getBox(id_peak_to_init);
-			auto &x = dynamic_cast<VariableVector<Real>&>(vars);
+			auto& bnd = m_subspace_tree.tree->getBox(id_peak_to_init);
+			auto& x = dynamic_cast<VariableVector<Real>&>(vars);
 			for (int i = 0; i < m_number_variables; ++i) {
 				x[i] = rnd->uniform.nextNonStd(bnd[i].first, bnd[i].second);
 			}

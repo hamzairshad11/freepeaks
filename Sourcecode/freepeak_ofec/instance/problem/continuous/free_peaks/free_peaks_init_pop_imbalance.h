@@ -16,8 +16,8 @@ namespace ofec {
 		OFEC_CONCRETE_INSTANCE(FreePeaksInitPopImbalance)
 	protected:
 		void addInputParameters();
-		void initialize_(Environment *env) override;
-		void initializeVariables(VariableBase &vars, Random *rnd) const override;
+		void initialize_(Environment* env) override;
+		void initializeVariables(VariableBase& vars, Random* rnd) const override;
 		std::string m_prob_ratio_init;
 		std::vector<Real> m_each_prob;
 		Real m_sum_prob;

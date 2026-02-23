@@ -1,0 +1,47 @@
+number_of_objectives 1
+number_of_variables 2
+number_of_constraints 0
+
+subtree_number 	4
+subtree_name 	root
+num		2
+[ b3 , 1 ] [ a5 , 2 ]
+subtree_name 	b3
+num		2
+[ b2 , 1 ] [ a4 , 2 ]
+subtree_name 	b2
+num		2
+[ b1 , 1 ] [ a3 , 2 ]
+subtree_name 	b1
+num		2
+[ a1 , 1 ] [ a2 , 2 ]
+
+_%BEGIN%
+subspace		a1
+generation	read_file
+file		sop/s1
+_%END%
+
+_%BEGIN%
+subspace		a2
+generation	read_file
+file		sop/s1
+_%END%
+
+_%BEGIN%
+subspace		a3
+generation	read_file
+file		sop/s1
+_%END%
+
+_%BEGIN%
+subspace		a4
+generation	read_file
+file		sop/s1
+_%END%
+
+_%BEGIN%
+subspace		a5
+generation	read_file
+file		sop/s1
+_%END%

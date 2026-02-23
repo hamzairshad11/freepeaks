@@ -3,14 +3,14 @@
 #include "../../core/global.h"
 
 namespace ofec {
-	void InputParameterMap::add(const std::string &name, InputParameter *input_parameter) {
+	void InputParameterMap::add(const std::string& name, InputParameter* input_parameter) {
 		if (m_map.count(name)) {
 			throw Exception("The input parameter \"" + name + "\" has been duplicated.");
 		}
 		m_map.emplace(name, input_parameter);
 	}
 
-	InputParameter* InputParameterMap::at(const std::string &name) const {
+	InputParameter* InputParameterMap::at(const std::string& name) const {
 		if (m_map.count(name)) {
 			return m_map.at(name).get();
 		}
@@ -19,8 +19,8 @@ namespace ofec {
 		}
 	}
 
-	void InputParameterMap::input(const ParameterMap &parameters) const {
-		for (auto &p : parameters) {
+	void InputParameterMap::input(const ParameterMap& parameters) const {
+		for (auto& p : parameters) {
 			if (m_map.count(p.first)) {
 				m_map.at(p.first)->setVariantValue(p.second);
 			}
@@ -29,7 +29,7 @@ namespace ofec {
 
 
 	void InputParameterMap::output(ParameterMap& parameters) const {
-		for (auto &p : m_map) {
+		for (auto& p : m_map) {
 			p.second->getVariantValue(parameters[p.first]);
 		}
 	}
@@ -49,11 +49,11 @@ namespace ofec {
 	}
 
 	void InputParameterMap::checkValue() const {
-		for (auto &p : m_map) {
+		for (auto& p : m_map) {
 			try {
 				p.second->checkValue();
 			}
-			catch (const Exception &e) {
+			catch (const Exception& e) {
 				throw Exception("The value of \"" + p.first + "\" is " + e.what() + '.');
 			}
 		}
@@ -110,17 +110,17 @@ namespace ofec {
 		*m_value = value;
 	}
 
-	Bool::Bool(bool &reference, bool recommend) :
+	Bool::Bool(bool& reference, bool recommend) :
 		InputParameterValueTypeBool(reference)
 	{
 		m_requirement = "a boolean value";
 		*m_value = recommend;
 	}
 
-	RangedInt::RangedInt(int &reference, int minimum, int maximum, int recommend) :
+	RangedInt::RangedInt(int& reference, int minimum, int maximum, int recommend) :
 		InputParameterValueTypeInt(reference),
 		m_minimum(minimum),
-		m_maximum(maximum) 
+		m_maximum(maximum)
 	{
 		m_requirement = "an integer between "
 			+ std::to_string(m_minimum) + " and " + std::to_string(m_maximum);
@@ -133,12 +133,12 @@ namespace ofec {
 		}
 	}
 
-	EnumeratedInt::EnumeratedInt(int &reference, const std::list<int> &enumeration, int recommend) :
+	EnumeratedInt::EnumeratedInt(int& reference, const std::list<int>& enumeration, int recommend) :
 		InputParameterValueTypeInt(reference),
 		m_enumeration(enumeration)
 	{
 		m_requirement = "an integer from the enumeration { ";
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			m_requirement += std::to_string(e) + ", ";
 		}
 		m_requirement.pop_back();
@@ -147,7 +147,7 @@ namespace ofec {
 	}
 
 	void EnumeratedInt::checkValue() const {
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			if (*m_value == e) {
 				return;
 			}
@@ -155,7 +155,7 @@ namespace ofec {
 		throw Exception(m_requirement);
 	}
 
-	RangedSizeT::RangedSizeT(size_t &reference, size_t minimum, size_t maximum, size_t recommend) :
+	RangedSizeT::RangedSizeT(size_t& reference, size_t minimum, size_t maximum, size_t recommend) :
 		InputParameterValueTypeSizeT(reference),
 		m_minimum(minimum),
 		m_maximum(maximum)
@@ -171,12 +171,12 @@ namespace ofec {
 		}
 	}
 
-	EnumeratedSizeT::EnumeratedSizeT(size_t &reference, const std::list<size_t> &enumeration, size_t recommend) :
+	EnumeratedSizeT::EnumeratedSizeT(size_t& reference, const std::list<size_t>& enumeration, size_t recommend) :
 		InputParameterValueTypeSizeT(reference),
 		m_enumeration(enumeration)
 	{
 		m_requirement = "an integer from the enumeration { ";
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			m_requirement += std::to_string(e) + ", ";
 		}
 		m_requirement.pop_back();
@@ -185,7 +185,7 @@ namespace ofec {
 	}
 
 	void EnumeratedSizeT::checkValue() const {
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			if (*m_value == e) {
 				return;
 			}
@@ -193,19 +193,19 @@ namespace ofec {
 		throw Exception(m_requirement);
 	}
 
-	EnumerationBase::EnumerationBase(const std::list<std::string> &enumeration) :
+	EnumerationBase::EnumerationBase(const std::list<std::string>& enumeration) :
 		m_enumeration(enumeration)
 	{
 		m_requirement = "an item from the enumeration { ";
 		size_t id = 0;
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			m_requirement += std::to_string(id++) + ": " + e + ", ";
 		}
 		m_requirement.pop_back();
 		m_requirement += "}";
 	}
 
-	RangedReal::RangedReal(Real &reference, Real minimum, Real maximum, Real recommend) :
+	RangedReal::RangedReal(Real& reference, Real minimum, Real maximum, Real recommend) :
 		InputParameterValueTypeReal(reference),
 		m_minimum(minimum),
 		m_maximum(maximum)
@@ -221,12 +221,12 @@ namespace ofec {
 		}
 	}
 
-	EnumeratedReal::EnumeratedReal(Real &reference, const std::list<Real> &enumeration, Real recommend) :
+	EnumeratedReal::EnumeratedReal(Real& reference, const std::list<Real>& enumeration, Real recommend) :
 		InputParameterValueTypeReal(reference),
 		m_enumeration(enumeration)
 	{
 		m_requirement = "a real number from the enumeration { ";
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			m_requirement += std::to_string(e) + ", ";
 		}
 		m_requirement.pop_back();
@@ -235,7 +235,7 @@ namespace ofec {
 	}
 
 	void EnumeratedReal::checkValue() const {
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			if (*m_value == e) {
 				return;
 			}
@@ -243,31 +243,41 @@ namespace ofec {
 		throw Exception(m_requirement);
 	}
 
-	FileName::FileName(std::string &reference, const std::string &directory_path,
-		const std::string &filter, const std::string &recommend) :
+	FileName::FileName(std::string& reference, const std::string& directory_path,
+		const std::string& filter, const std::string& recommend) :
 		InputParameterValueTypeString(reference),
 		m_directory_path(directory_path),
 		m_filter(filter)
 	{
-		m_requirement = "a " + m_filter + " file in \"" + m_directory_path + '\"';
+		m_requirement = "a " + m_filter + " is a filename in \"" + m_directory_path + '\"';
 		*m_value = recommend;
 	}
 
 	void FileName::checkValue() const {
-		
-		//if (!std::filesystem::exists(g_working_directory + '/' + m_directory_path + '/' + *m_value)) {
+
+		std::filesystem::path p(*m_value);
+
+		//if (p.has_parent_path()) {
 		//	throw Exception(m_requirement);
 		//}
+
+		if (!std::filesystem::exists(g_working_directory + '/' + m_directory_path + '/' + *m_value)) {
+
+			std::cerr << "[Warning] File does not exist: "
+				<< (g_working_directory + '/' + m_directory_path + '/' + *m_value)
+				<< std::endl;
+			//throw Exception(m_requirement);
+		}
 	}
 
-	InputString::InputString(std::string &reference, const std::string &recommend) :
-		InputParameterValueTypeString(reference) 
+	InputString::InputString(std::string& reference, const std::string& recommend) :
+		InputParameterValueTypeString(reference)
 	{
 		*m_value = recommend;
 	}
 
 	DirectoryName::DirectoryName(std::string& reference, const std::string& recommend) :
-		InputParameterValueTypeString(reference) 
+		InputParameterValueTypeString(reference)
 	{
 		*m_value = recommend;
 	}
@@ -278,13 +288,13 @@ namespace ofec {
 		}
 	}
 
-	EnumeratedString::EnumeratedString(std::string &reference, 
-		const std::list<std::string> &enumeration, const std::string &recommend) :
+	EnumeratedString::EnumeratedString(std::string& reference,
+		const std::list<std::string>& enumeration, const std::string& recommend) :
 		InputParameterValueTypeString(reference),
 		m_enumeration(enumeration)
 	{
 		m_requirement = "a string from the enumeration { ";
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			m_requirement += e + ", ";
 		}
 		m_requirement.pop_back();
@@ -293,7 +303,7 @@ namespace ofec {
 	}
 
 	void EnumeratedString::checkValue() const {
-		for (auto &e : m_enumeration) {
+		for (auto& e : m_enumeration) {
 			if (*m_value == e) {
 				return;
 			}

@@ -39,4 +39,3 @@ int main(int argc, char* argv[]) {
 #endif // OFEC_MATLAB
 	return 0;
 }
-

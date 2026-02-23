@@ -1,0 +1,18 @@
+_%BEGIN%
+distance	flat_border
+_%END%
+_%BEGIN%
+function	one_peak
+generation	read_file
+file		sop/s8
+_%END%
+num_constraints	0
+num_trans_vars	0
+num_trans_objs	2
+_%BEGIN%
+transform	map_objective
+_%END%
+_%BEGIN%
+transform   WeierstrassRugenessMap
+alpha       1.80
+_%END%

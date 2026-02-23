@@ -1,4 +1,4 @@
-/******************************************************************************
+ï»¿/******************************************************************************
 * Project:Open Frameworks for Evolutionary Computation (OFEC)
 *******************************************************************************
 * Author: Yiya Diao & Junchen Wang & Changhe Li
@@ -57,10 +57,10 @@ namespace ofec {
 	class ParameterVariant : public ParameterBase {
 	public:
 
-		ParameterVariant() : ParameterVariant(false) {} // Ä¬ÈÏ¹¹ÔìÎª bool(false)
+		ParameterVariant() : ParameterVariant(false) {} // Ä¬ï¿½Ï¹ï¿½ï¿½ï¿½Îª bool(false)
 
 		template <typename T>
-		ParameterVariant(T value) : ParameterBase(value) {} // Ê¹ÓÃ¸ø¶¨Öµ¹¹Ôì
+		ParameterVariant(T value) : ParameterBase(value) {} // Ê¹ï¿½Ã¸ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½
 
 		template <typename T>
 		T getValue() const {
@@ -117,7 +117,7 @@ namespace ofec {
 		else if (std::is_same_v<T, std::string>) {
 			return ParameterType::kString;
 		}
-		else if (std::is_same_v<T, std::vector<Real>> ) {
+		else if (std::is_same_v<T, std::vector<Real>>) {
 			return ParameterType::kVectorReal;
 		}
 		else {
@@ -135,12 +135,46 @@ namespace ofec {
 	// judge whether a type is one of ParameterVariant
 	template<typename T, typename... ALL_T>
 	struct isVariantMember<T, std::variant<ALL_T...>>
-		: public std::disjunction<std::is_same<T, ALL_T>...> {};
+		: public std::disjunction<std::is_same<T, ALL_T>...> {
+	};
 
 	template<typename T>
 	void getFrom(const ParameterVariant& v, T& value) {
 		value = std::get<T>(v);
 	}
+
+	std::string toString(ParameterType type);
+	ParameterType fromString(const std::string& s);
+
+
+	template <typename T>
+	void PrintValue(std::ostream& os, const T& v)
+	{
+		os << v;
+	}
+	template <typename T>
+	void PrintValue(std::ostream& os, const std::vector<T>& v)
+	{
+		os << "[";
+		for (size_t i = 0; i < v.size(); ++i) {
+			if (i > 0) os << ", ";
+			os << v[i];
+		}
+		os << "]";
+	}
+
+
+	inline void PrintValue(std::ostream& os, const std::vector<bool>& v)
+	{
+		os << "[";
+		for (size_t i = 0; i < v.size(); ++i) {
+			if (i > 0) os << ", ";
+			os << static_cast<bool>(v[i]);
+		}
+		os << "]";
+	}
+
+
 
 	class ParameterVariantStream {
 	public:
@@ -160,11 +194,11 @@ namespace ofec {
 		std::list<std::pair<ParameterVariant, int>>& getStream() {
 			return m_stream;
 		}
-		
+
 		bool empty()const {
 			return m_stream.empty();
 		}
-		
+
 		void clear() {
 			m_last_id = 0;
 			m_stream.clear();
@@ -184,13 +218,13 @@ namespace ofec {
 			--m_last_id;
 			return std::move(info);
 		}
-		
+
 		template<typename T>
 		void input(const T& var) {
 			m_stream.emplace_back(var, m_last_id++);
 		}
 
-		template<typename T> 
+		template<typename T>
 		void output(T& var) {
 			auto info = m_stream.front();
 			m_stream.pop_front();

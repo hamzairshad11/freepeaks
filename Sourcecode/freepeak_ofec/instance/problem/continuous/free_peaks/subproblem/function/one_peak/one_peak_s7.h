@@ -5,13 +5,16 @@
 
 namespace ofec::free_peaks {
 	class OnePeakS7 final : public OnePeakBase {
+		OFEC_CONCRETE_INSTANCE(OnePeakS7)
 	private:
 		Real m_radius;
+		Real m_r_ratio;
 
 	public:
-		OnePeakS7(Problem *pro, const std::string &subspace_name, const ParameterMap &param);
+		void addInputParameters();
+		virtual void initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param) override;
 		Real evaluate_(Real dummy, size_t var_size) override;
-		void bindData() override;
+		virtual void bindData()	override;
 	};
 }
 

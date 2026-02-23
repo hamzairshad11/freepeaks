@@ -1,0 +1,28 @@
+ParameterMap_begin
+distance kString Euclidean
+ParameterMap_end
+
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//mpmmo_1_s2_2_onepeak.txt
+function kString one_peak
+generation_type kString read_file
+ParameterMap_end
+
+
+num_constraints	0
+
+
+num_trans_vars	1
+
+ParameterMap_begin
+transformX kString MapXAssymetrix
+ParameterMap_end
+
+
+num_trans_objs	1
+
+ParameterMap_begin
+transformY kString map_objective
+ParameterMap_end
+

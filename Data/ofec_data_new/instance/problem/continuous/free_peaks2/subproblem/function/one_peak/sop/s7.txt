@@ -1,0 +1,8 @@
+num_objs	1
+
+_%BEGIN%
+one_peak	s7
+center		default
+height		100.0
+r_ratio		0.25
+_%END%

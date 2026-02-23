@@ -13,7 +13,7 @@
 *  see https://github.com/Changhe160/OFEC for more information
 *
 *-------------------------------------------------------------------------------
-* 
+*
 * the abstract of different types of problems
 *
 *********************************************************************************/
@@ -40,7 +40,7 @@ namespace ofec {
 		OFEC_ABSTRACT_INSTANCE(Problem)
 	public:
 		virtual void reset();
-		void initialize(Environment *env);
+		void initialize(Environment* env);
 		/**
 		 * @brief Calculates the values of objectives and constraints based on the given decision variables.
 		 * @param vars: The decision variables.
@@ -74,12 +74,12 @@ namespace ofec {
 
 		/* variables related methods */
 		virtual VariableBase* createVariables() const = 0;
-		virtual VariableBase* createVariables(const VariableBase &vars) const = 0;
+		virtual VariableBase* createVariables(const VariableBase& vars) const = 0;
 
 		/* solution related methods */
 		virtual SolutionBase* createSolution() const = 0;
 		virtual SolutionBase* createSolution(const VariableBase& vars) const = 0;
-		virtual SolutionBase* createSolution(const SolutionBase &sol) const = 0;
+		virtual SolutionBase* createSolution(const SolutionBase& sol) const = 0;
 
 		/**
 		* @brief Initializes decision variables using a random number generator.
@@ -94,28 +94,31 @@ namespace ofec {
 		*/
 		virtual Real variableDistance(const VariableBase& vars1, const VariableBase& vars2) const = 0;
 
-		virtual bool same(const VariableBase &vars1, const VariableBase &vars2) const {
+		virtual bool same(const VariableBase& vars1, const VariableBase& vars2) const {
 			return variableDistance(vars1, vars2) == 0;
 		}
 		virtual Real normalizedVariableDistance(const VariableBase& vars1, const VariableBase& vars2) const {
 			return variableDistance(vars1, vars2) / maximumVariableDistance();
 		}
 		virtual Real maximumVariableDistance()const { return 1.0; }
+		/**
+* @default: minization
+*/
 		virtual void resizeObjective(size_t num_objs);
 		virtual void resizeConstraint(size_t num_cons);
 
 		//domination relationship between two objective vectors		
 		Dominance objectiveCompare(const SolutionBase& sola, const SolutionBase& solb) const;
 
-		bool dominate(const SolutionBase& sola, const SolutionBase& solb) const{
+		bool dominate(const SolutionBase& sola, const SolutionBase& solb) const {
 			return Dominance::kDominant == objectiveCompare(sola, solb);
 		}
 
 	protected:
 		void addInputParameters() {}
-		virtual void initialize_(Environment *env) {}
+		virtual void initialize_(Environment* env) {}
 		virtual void initializeAfter_(Environment* env) {}
-		virtual void updateOptima(Environment *env) {}
+		virtual void updateOptima(Environment* env) {}
 
 		size_t m_number_objectives = 0;
 		size_t m_number_constraints = 0;
@@ -127,7 +130,7 @@ namespace ofec {
 		Problem(const Problem&) = delete;
 		Problem& operator=(const Problem&) = delete;
 
-		bool m_initialized = false;		
+		bool m_initialized = false;
 	};
 
 
@@ -141,7 +144,7 @@ namespace ofec {
 			return new VariableType();
 		}
 
-		VariableBase* createVariables(const VariableBase &vars) const override {
+		VariableBase* createVariables(const VariableBase& vars) const override {
 			return new VariableType(dynamic_cast<const VariableType&>(vars));
 		}
 
@@ -149,11 +152,11 @@ namespace ofec {
 			return new SolutionType(m_number_objectives, m_number_constraints);
 		}
 
-		SolutionBase* createSolution(const VariableBase &vars) const override {
+		SolutionBase* createSolution(const VariableBase& vars) const override {
 			return new SolutionType(m_number_objectives, m_number_constraints, dynamic_cast<const VariableType&>(vars));
 		}
 
-		SolutionBase *createSolution(const SolutionBase &sol) const override {
+		SolutionBase* createSolution(const SolutionBase& sol) const override {
 			return new SolutionType(dynamic_cast<const SolutionType&>(sol));
 		}
 	};
@@ -189,9 +192,9 @@ namespace ofec {
 			return new SolutionType(this->m_number_objectives, this->m_number_constraints, m_number_variables);
 		}
 
-		Real variableDistance(const VariableBase &vars1, const VariableBase &vars2) const override {
-			auto &x1_ = dynamic_cast<const VariableType&>(vars1);
-			auto &x2_ = dynamic_cast<const VariableType&>(vars2);
+		Real variableDistance(const VariableBase& vars1, const VariableBase& vars2) const override {
+			auto& x1_ = dynamic_cast<const VariableType&>(vars1);
+			auto& x2_ = dynamic_cast<const VariableType&>(vars2);
 			Real sum_pow = 0;
 			for (size_t i = 0; i < m_number_variables; ++i) {
 				sum_pow += pow(x1_[i] - x2_[i], 2);
@@ -208,7 +211,7 @@ namespace ofec {
 				Problem::solutionToParameterVariants(sol, stream);
 				auto& vars = dynamic_cast<const SolutionType&>(sol).variable().vector();
 				stream << vars;
-				
+
 			}
 			else {
 				throw Exception("ProblemVariableVector::solutionToParameterVariants: not a ParameterVariant type\n");
@@ -216,9 +219,9 @@ namespace ofec {
 		}
 		virtual void parameterVariantsToSolution(
 			ParameterVariantStream& stream, SolutionBase& sol) const override {
-	
+
 			if (isVariantMember<std::vector<TElement>, ParameterBase>::value) {
-				Problem::parameterVariantsToSolution(stream,sol);
+				Problem::parameterVariantsToSolution(stream, sol);
 				auto& vars = dynamic_cast<SolutionType&>(sol).variable().vector();
 				stream >> vars;
 			}

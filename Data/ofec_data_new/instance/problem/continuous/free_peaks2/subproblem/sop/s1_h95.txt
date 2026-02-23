@@ -1,0 +1,23 @@
+_%BEGIN%
+distance	Euclidean
+_%END%
+
+
+_%BEGIN%
+function	one_peak
+generation	read_file
+file		sop/s1_h95
+_%END%
+
+
+num_constraints	0
+
+
+num_trans_vars	0
+
+
+num_trans_objs	1
+
+_%BEGIN%
+transform	map_objective
+_%END%

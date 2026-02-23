@@ -11,8 +11,8 @@ namespace ofec {
 		m_domain.clear();
 	}
 
-	void Continuous::evaluate(const VariableBase &vars, std::vector<Real> &objs, std::vector<Real> &cons) const {
-		const VariableVector<Real> &x = dynamic_cast<const VariableType&>(vars);
+	void Continuous::evaluate(const VariableBase& vars, std::vector<Real>& objs, std::vector<Real>& cons) const {
+		const VariableVector<Real>& x = dynamic_cast<const VariableType&>(vars);
 
 		std::vector<Real> x_(x.begin(), x.end()); //for parallel running
 		if (boundaryViolated(vars)) {
@@ -29,8 +29,8 @@ namespace ofec {
 		}
 	}
 
-	void Continuous::initializeVariables(VariableBase &vars, Random *rnd) const {
-		auto &x = dynamic_cast<VariableVector<Real>&>(vars);
+	void Continuous::initializeVariables(VariableBase& vars, Random* rnd) const {
+		auto& x = dynamic_cast<VariableVector<Real>&>(vars);
 		for (int i = 0; i < m_number_variables; ++i) {
 			if (m_domain[i].limited) {    // If m_initial_domain is not given, then use problem boundary as initialization range
 				x[i] = rnd->uniform.nextNonStd(m_domain[i].limit.first, m_domain[i].limit.second);
@@ -47,7 +47,7 @@ namespace ofec {
 	}
 
 	bool Continuous::boundaryViolated(const VariableBase& baseX) const {
-		const VariableVector<Real> &x = dynamic_cast<const VariableVector<Real>&>(baseX);
+		const VariableVector<Real>& x = dynamic_cast<const VariableVector<Real>&>(baseX);
 		for (int i = 0; i < m_number_variables; ++i) {
 			if (m_domain[i].limited) {
 				if (x[i]<m_domain[i].limit.first || x[i]>m_domain[i].limit.second)
@@ -58,7 +58,7 @@ namespace ofec {
 	}
 
 
-	void Continuous::initializeAfter_(Environment* env){
+	void Continuous::initializeAfter_(Environment* env) {
 		ProblemVariableVector<Real>::initializeAfter_(env);
 		if (m_domain.isDomainLimited()) {
 			// set the objective of solution at the edge as the default objective
@@ -68,7 +68,7 @@ namespace ofec {
 				edge_x[idx] = m_domain[idx].limit.first;
 			}
 
-			if (m_number_constraints==0) {
+			if (m_number_constraints == 0) {
 				evaluateObjective(edge_x.data(), m_default_objective);
 			}
 			else {
@@ -76,13 +76,14 @@ namespace ofec {
 				evaluateObjectiveAndConstraint(edge_x.data(), m_default_objective, m_default_contrait);
 			}
 		}
-		
+
 	}
 
 	std::vector<std::pair<Real, Real>> Continuous::boundary() const {
 		std::vector<std::pair<Real, Real>> boundary(m_domain.size());
 		for (size_t j = 0; j < m_domain.size(); ++j)
 			boundary[j] = m_domain.range(j).limit;
+
 		return boundary;
 	}
 
@@ -101,14 +102,14 @@ namespace ofec {
 			m_domain.setRange(l, u, i);
 	}
 
-	void Continuous::setDomain(const std::vector<std::pair<Real, Real>> &r) {
+	void Continuous::setDomain(const std::vector<std::pair<Real, Real>>& r) {
 		size_t count = 0;
-		for (auto &i : r) {
+		for (auto& i : r) {
 			m_domain.setRange(i.first, i.second, count++);
 		}
 	}
 
-	void Continuous::setDomain(const Domain<Real> &domain) {
+	void Continuous::setDomain(const Domain<Real>& domain) {
 		m_domain = domain;
 	}
 

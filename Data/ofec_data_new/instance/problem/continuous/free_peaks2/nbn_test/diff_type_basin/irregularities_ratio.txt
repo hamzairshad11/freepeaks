@@ -1,0 +1,24 @@
+subtree_number 	1
+subtree_name 	root
+num	4
+[ s0 , 1 ]	[ s1 , 1 ]	[ s2 , 1 ]	[ s3 , 1 ]	
+_%BEGIN%
+file	sop/diff_basin/s1_flat_irregularities
+generation	read_file
+subspace	s0
+_%END%
+_%BEGIN%
+file	sop/s1
+generation	read_file
+subspace	s1
+_%END%
+_%BEGIN%
+file	sop/s1
+generation	read_file
+subspace	s2
+_%END%
+_%BEGIN%
+file	sop/s1
+generation	read_file
+subspace	s3
+_%END%

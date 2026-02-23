@@ -9,19 +9,31 @@ namespace ofec {
 	class Problem;
 	namespace free_peaks {
 
-		class  DistanceBase {
+		class  DistanceBase : virtual public Instance {
+			OFEC_ABSTRACT_INSTANCE(DistanceBase)
+
+		private:
+			std::string m_register_name = "DistanceBase";
+
 		protected:
+
+			// to do : Change members, m_subspace_name and m_dis to private, and provide accessor functions that return const pointers.
+
 			Problem* m_pro = nullptr;
-			const std::string m_subspace_name;
-			const ParameterMap m_param;
+			std::string m_subspace_name;
 			static const Real ms_infinity;
 
+
 		public:
-			DistanceBase(Problem *pro, const std::string& subspace_name, const ParameterMap& param);
+			void setRegisterName(const std::string& name) {
+				m_register_name = name;
+			}
+			void addInputParameters();
+			virtual void initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param);
 			virtual ~DistanceBase() = default;
 			virtual Real operator()(const std::vector<Real>& a, const std::vector<Real>& b) const = 0;
 			virtual void bindData() {}
-			const ParameterMap& parameter() const { return m_param; }
+			//const ParameterMap& parameter() const { return m_param; }
 			Real infiniy() const { return ms_infinity; }
 		};
 	}
