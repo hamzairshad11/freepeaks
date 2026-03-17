@@ -88,6 +88,9 @@
     <Filter Include="ofec_src\utility\nondominated_sorting">
       <UniqueIdentifier>{7362e864-2c4b-44a8-8583-50a7d4588348}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ofec_src\instance\problem\continuous\free_peaks\subproblem\change">
+      <UniqueIdentifier>{d6d9b1a9-56a1-494e-9359-45b65351826b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\core\datum_base.h">
@@ -282,6 +285,42 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\change\change_base.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\change</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_Weierstrass_rugeness.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\function</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_assymetrix.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_base.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_ill_conditioning.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_irregularities.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\register_transform_x.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\transform_x_base.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\map_objective.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_y</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\register_transform_y.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_y</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\transform_y_base.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_y</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp">
+      <Filter>ofec_src\run</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\global.cpp">
@@ -419,9 +458,6 @@
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\interface.cpp">
       <Filter>ofec_src\run</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\main.cpp">
-      <Filter>ofec_src\run</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\register_instance.cpp">
       <Filter>ofec_src\run</Filter>
     </ClCompile>
@@ -433,6 +469,33 @@
     </ClCompile>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp">
       <Filter>ofec_src\utility\linear_algebra</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\change\change_base.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\change</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_assymetrix.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_base.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_ill_conditioning.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_irregularities.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\register_transform_x.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\map_objective.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_y</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\register_transform_y.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_y</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\main_solver.cpp">
+      <Filter>ofec_src\run</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

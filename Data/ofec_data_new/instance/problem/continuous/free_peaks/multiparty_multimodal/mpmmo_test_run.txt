@@ -1,0 +1,39 @@
+number_of_variables	2
+number_of_objectives	1
+number_of_constraints	0
+subtree_number 	3
+subtree_name 	root
+num	2
+[ subtree1 , 0.5 ]	[ subtree2 , 0.5 ]	
+subtree_name 	subtree1
+num	2
+[ mpmmo_test_run_s1_1 , 0.1 ]	[ mpmmo_test_run_s1_2 , 0.4 ]	
+subtree_name 	subtree2
+num	2
+[ mpmmo_test_run_s2_1 , 0.3 ]	[ mpmmo_test_run_s2_2 , 0.2 ]	
+
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//mpmmo_test_run_s1_1.txt
+generation_type kString read_file
+subspace kString mpmmo_test_run_s1_1
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//mpmmo_test_run_s1_2.txt
+generation_type kString read_file
+subspace kString mpmmo_test_run_s1_2
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//mpmmo_test_run_s2_1.txt
+generation_type kString read_file
+subspace kString mpmmo_test_run_s2_1
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//mpmmo_test_run_s2_2.txt
+generation_type kString read_file
+subspace kString mpmmo_test_run_s2_2
+ParameterMap_end
+

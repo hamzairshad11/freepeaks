@@ -1,0 +1,12 @@
+num_one_peaks	1
+
+ParameterMap_begin
+alpha kReal 1
+center_postion kVectorReal 2 38.7725 13.1538
+center_type kString assigned
+height kReal 88.5102
+map_flag kInt 0
+one_peak kString s1
+ParameterMap_end
+
+

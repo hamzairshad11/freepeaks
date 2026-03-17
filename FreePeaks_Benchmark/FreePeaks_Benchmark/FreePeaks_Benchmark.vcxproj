@@ -47,6 +47,7 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_bound.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_imbalance.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\param_creator.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\change\change_base.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\constraint_base.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\register_constraint.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\distance_base.h" />
@@ -67,15 +68,26 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\one_peak_s9.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak\register_one_peak.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_function.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\one_peak_Weierstrass_rugeness.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\register_function.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_assymetrix.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_ill_conditioning.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_irregularities.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\register_transform_x.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\transform_x_base.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\map_objective.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\register_transform_y.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\transform_y_base.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\type.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\init_pop_bounded.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\custom_method.hpp" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\factory.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\interface.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\functional.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\kd-tree\kdtree_space.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\utility\kd-tree\pool_allocator.h" />
@@ -104,6 +116,7 @@
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_bound.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\free_peaks_init_pop_imbalance.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\param_creator.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\change\change_base.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\constraint_base.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\constraint\register_constraint.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\distance\distance_base.cpp" />
@@ -127,10 +140,17 @@
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\function\register_function.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_assymetrix.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_base.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_ill_conditioning.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_irregularities.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\register_transform_x.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\map_objective.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_y\register_transform_y.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\init_pop_bounded.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\interface.cpp" />
-    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\main.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\main_solver.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\register_instance.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\functional.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\utility\linear_algebra\matrix.cpp" />
@@ -198,7 +218,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;$(ProjectDir)..\Sourcecode\freepeak_ofec;$(ProjectDir)Sourcecode\freepeak_ofec\run;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -214,7 +234,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;$(ProjectDir)..\Sourcecode\freepeak_ofec;$(ProjectDir)Sourcecode\freepeak_ofec\run;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -228,7 +248,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;$(ProjectDir)..\Sourcecode\freepeak_ofec;$(ProjectDir)Sourcecode\freepeak_ofec\run;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -244,7 +264,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;OFEC_DIR="."</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec;$(ProjectDir)..\Sourcecode\freepeak_ofec;$(ProjectDir)Sourcecode\freepeak_ofec\run;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

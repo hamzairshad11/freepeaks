@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 #ifdef OFEC_UNIT_TEST
 #include "../test/catch_amalgamated.hpp"
 #else
@@ -10,6 +10,7 @@
 #ifdef OFEC_PYTHON
 #include "../utility/python/python_caller.h"
 #endif // OFEC_PYTHON
+
 
 int main(int argc, char* argv[]) {
 
@@ -39,3 +40,4 @@ int main(int argc, char* argv[]) {
 #endif // OFEC_MATLAB
 	return 0;
 }
+

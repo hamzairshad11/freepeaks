@@ -1,7 +1,8 @@
 #ifndef OFEC_FREE_PEAKS_WEIERSTRASS_RUG_H
 #define OFEC_FREE_PEAKS_WEIERSTRASS_RUG_H
 
-#include "transform_x_base.h"
+//#include "one_peak_base.h"
+#include "../transform/transform_x/transform_x_base.h"
 #include "../../../../../../../instance/problem/continuous/single_objective/global/bbob/bbob.h"
 
 
@@ -14,7 +15,7 @@ namespace ofec::free_peaks {
 
 		Real m_alpha = 0.5;        // a = 0.5
 		int m_b = 3.0;            // b = 3
-		int m_kmax = 20;          // CEC2005 标准是 20 项
+		int m_kmax = 20;          // CEC2005
 
 	public:
 		void addInputParameters();

@@ -1537,12 +1537,28 @@ namespace ofec {
 #include "../instance/problem/continuous/free_peaks/subproblem/function/one_peak_function.h"
 #include "../instance/problem/continuous/free_peaks/factory.h"
 
-#include "../instance/problem/continuous/free_peaks/subproblem/function/one_peak_function.h"
-
-
 
 namespace fs = std::filesystem;
 
+
+/*void printBenchmarkStructure(ofec::FreePeaks* fp) {
+    std::cout << "\n=== Benchmark Structure ===\n";
+    auto tree = fp->subspaceTree().treeData();
+    for (const auto& [parent, children] : tree) {
+        std::cout << parent << ":\n";
+        for (const auto& [child, ratio] : children) {
+            std::cout << "  ├─ " << child << " (weight: " << ratio << ")\n";
+            auto subpro = fp->subproblem(child);
+            if (subpro) {
+                auto func = subpro->function();
+                if (auto opf = dynamic_cast<OnePeakFunction*>(func)) {
+                    std::cout << "    └─ Peak count: " << opf->numObjs()
+                        << ", center: [" << opf->optimalVars()[0][0] << ", " << opf->optimalVars()[0][1] << "]\n";
+                }
+            }
+        }
+    }
+}*/
 
 
 
@@ -1891,6 +1907,7 @@ bool equalFreePeaks(ofec::Problem* pro1, ofec::Problem* pro2) {
 }
 
 
+
 void generateHandMadeFreePeak(const std::string& funname) {
 
     using namespace ofec;
@@ -1992,7 +2009,8 @@ void generateHandMadeFreePeak(const std::string& funname) {
                 auto onepeak_func = dynamic_cast<ofec::free_peaks::OnePeakFunction*>(func);
 
                 // each function has one or more onepeaks
-                // for multiparty multi modal benchmark, each function has only one peak, one peak represent one objective function in each subspace
+                // for multiparty multi modal benchmark, each function has only one peak, 
+                // one peak represent one objective function in each subspace
                 // generate Onepeak 
                 {
                     auto onepeak(FactoryFP<OnePeakBase>::produceRandom(rnd->uniform.next()));
@@ -2006,12 +2024,12 @@ void generateHandMadeFreePeak(const std::string& funname) {
                     }
                     onepeak_param["center_postion"] = peak_position;
                     onepeak->initialize(freepeak, subspace_name, onepeak_param);
-                    /*              onepeak->recordInputParameters();*/
+                    //             onepeak->recordInputParameters();
                     onepeak_func->addOnePeaks(onepeak);
 
                 }
 
-                /*              func->recordInputParameters();*/
+                //       func->recordInputParameters();
                 subpro->setFunction(func);
 
             }
@@ -2049,7 +2067,7 @@ void generateHandMadeFreePeak(const std::string& funname) {
 
             //subpro->recordInputParameters();
             freepeak->setSubproblem(subspace_name, subpro);
-            //
+          
 
 
 
@@ -2060,6 +2078,10 @@ void generateHandMadeFreePeak(const std::string& funname) {
     freepeak->bindData();
     // after handmade setting each subproblem, we need to initialize the freepeak again to bind the data
    // freepeak->initialize(env.get());
+
+    //printBenchmarkStructure(freepeak);
+
+
 
 
 
@@ -2103,14 +2125,6 @@ void generateHandMadeFreePeak(const std::string& funname) {
     freepeak->outputTotalFile();
 
 
-
-
-
-
-
-
-
-
     {       // generate the same freepeak instance by read file
         std::string freepeakName = "free_peaks";
 
@@ -2132,7 +2146,7 @@ void generateHandMadeFreePeak(const std::string& funname) {
 
 
 
-        outputProMesh("freepeak_mesh.txt", env2.get(), 400);
+        outputProMesh("freepeak_mesh", env2.get(), 400);
 
 
     }
@@ -2142,16 +2156,11 @@ void generateHandMadeFreePeak(const std::string& funname) {
 }
 
 
-
-
-
-
-
 namespace ofec {
     void run(int argc, char* argv[]) {
         using namespace ofec;
         using namespace std;
-        ofec::g_working_directory = "//172.24.207.203/share/2018/diaoyiya/ofec-data";
+        /*ofec::g_working_directory = "//172.24.207.203/share/2018/diaoyiya/ofec-data";
         ofec::g_working_directory = "//172.29.41.69/share/2018/diaoyiya/ofec-data";
         ofec::g_working_directory = "//172.29.204.109/share/Student/2018/YiyaDiao/code_total/data";
         ofec::g_working_directory = "/home/lab408/share/2018/diaoyiya/ofec-data";
@@ -2159,14 +2168,14 @@ namespace ofec {
         //ofec::g_working_directory = "//172.24.24.151/e/DiaoYiya/code/data/ofec-data";
         ofec::g_working_directory = "//172.24.242.8/share/Student/2018/YiyaDiao/code_total/data/";
         ofec::g_working_directory = "E:/DiaoYiya/code/data/ofec-data/";
-        ofec::g_working_directory = "D:/code/Data/ofec_data/";
+        ofec::g_working_directory = "D:/code/Data/ofec_data/";*/
 
 
 
         // multiparty multiobjective
         // 
         // 
-        ofec::g_working_directory = "D:/code/multi_party_multi_modal/hamaza_code/Data/ofec_data_freepeak/";
+        ofec::g_working_directory = "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Data/ofec_data_new";
 
         //ofec::g_working_directory = "/home/dyy/data/ofec_data/ofec_data/";
         //ofec::g_working_directory = "/data/Share/Student/2018/diaoyiya/data/ofec_data/";
@@ -2174,7 +2183,7 @@ namespace ofec {
 
         registerInstance();
 
-
+        //generateMPMMOBenchmark("mpmmo_2p2g1l", 2, 2, 1, 2);
         generateHandMadeFreePeak("mpmmo_1");
 
 
@@ -2186,3 +2195,344 @@ namespace ofec {
 }
 
 #endif // !OFEC_CUSTOM_METHOD_HPP
+
+/*#ifndef OFEC_CUSTOM_METHOD_HPP
+#define OFEC_CUSTOM_METHOD_HPP
+
+#include "../core/global.h"
+#include "interface.h"
+
+// --- Includes for Supervisor's Map Generation ---
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <filesystem>
+#include "../instance/problem/continuous/free_peaks/free_peaks.h"
+#include "../instance/problem/continuous/free_peaks/subproblem/subproblem.h"
+#include "../instance/problem/continuous/free_peaks/subproblem/function/one_peak_function.h"
+#include "../instance/problem/continuous/free_peaks/factory.h"
+
+// --- Includes for Your Solver ---
+#include "../core/problem/solution.h"
+#include <vector>
+#include <numeric>   
+#include <algorithm> 
+#include <random>
+
+namespace fs = std::filesystem;
+
+namespace ofec {
+
+    // ==============================================================================
+    // PHASE 1: SUPERVISOR'S GENERATION CODE
+    // ==============================================================================
+    void generateHandMadeFreePeak(const std::string& funname) {
+        using namespace ofec;
+        using namespace free_peaks;
+
+        std::string dirname = "multiparty_multimodal/";
+        int numDim = 2, numObj = 1, numCon = 0;
+        std::shared_ptr<ofec::Random> rnd(new Random(0.5));
+
+        FreePeaks::registerFP();
+        std::string freepeakName = "free_peaks";
+        std::shared_ptr<Environment> env(generateEnvironmentByFactory(freepeakName));
+        env->recordInputParameters();
+        env->initialize();
+        env->setProblem(generateProblemByFactory(freepeakName));
+
+        auto freepeak = CAST_FPs(env->problem());
+
+        ParameterMap freepeak_param;
+        freepeak_param["generation_type"] = std::string("assigned");
+        freepeak_param["dataFile1"] = dirname + "/" + funname + ".txt";
+        freepeak->inputParameters().input(freepeak_param);
+        freepeak->initialize(env.get());
+
+        std::shared_ptr<ofec::Random> pro_rnd(new Random(0.5));
+        freepeak->setRandom(pro_rnd);
+        freepeak->setSizes(numDim, numObj, numCon);
+
+        freepeak->setKDtree({
+            {"root", { { "subtree1", 0.5}, {"subtree2", 0.5} } },
+            {"subtree1", { {funname + "_s1_1", 0.1}, {funname + "_s1_2", 0.4} } },
+            {"subtree2", { {funname + "_s2_1", 0.3}, {funname + "_s2_2", 0.2} } } });
+
+        for (int idsubtree(1); idsubtree <= 2; ++idsubtree) {
+            for (int idpeak(1); idpeak <= 2; ++idpeak) {
+                std::string subspace_name = funname + "_s" + std::to_string(idsubtree) + "_" + std::to_string(idpeak);
+                ParameterMap subpro_param;
+                subpro_param["subspace"] = subspace_name;
+                subpro_param["generation_type"] = std::string("assigned");
+                subpro_param["dataFile1"] = dirname + "/" + subspace_name + ".txt";
+
+                auto subpro(Subproblem::create());
+                subpro->initialize(subpro_param, freepeak);
+
+                auto dis(FactoryFP<DistanceBase>::produce("Euclidean"));
+                ParameterMap dis_param;
+                dis->initialize(freepeak, subspace_name, dis_param);
+                subpro->setDistance(dis);
+
+                ParameterMap fun_param;
+                fun_param["generation_type"] = std::string("assigned");
+                fun_param["dataFile1"] = dirname + "/" + subspace_name + "_onepeak" + ".txt";
+                auto func(FactoryFP<FunctionBase>::produce("one_peak"));
+                func->initialize(freepeak, subspace_name, fun_param);
+                auto onepeak_func = dynamic_cast<ofec::free_peaks::OnePeakFunction*>(func);
+
+                auto onepeak(FactoryFP<OnePeakBase>::produceRandom(rnd->uniform.next()));
+                ParameterMap onepeak_param;
+                onepeak_param["center_type"] = std::string("assigned");
+                onepeak_param["height"] = rnd->uniform.nextNonStd<Real>(0, 100);
+                std::vector<Real> peak_position(numDim);
+                for (int idx(0); idx < numDim; ++idx) {
+                    // Using explicit valid bounds instead of uninitialized static variables
+                    //peak_position[idx] = rnd->uniform.nextNonStd<Real>(-100.0, 100.0);
+                    peak_position[idx] = rnd->uniform.nextNonStd<Real>(OnePeakBase::ms_x_range.first, OnePeakBase::ms_x_range.second);
+                }
+                onepeak_param["center_postion"] = peak_position;
+                onepeak->initialize(freepeak, subspace_name, onepeak_param);
+                onepeak_func->addOnePeaks(onepeak);
+                subpro->setFunction(func);
+
+                ofec::ParameterMap default_param;
+                auto transformX(FactoryFP<X_TransformBase>::produceRandom(rnd->uniform.next()));
+                transformX->initialize(freepeak, subspace_name, default_param);
+                subpro->addVariableTransform(transformX);
+
+                auto transformY(FactoryFP<Y_TransformBase>::produce("map_objective"));
+                transformY->initialize(freepeak, subspace_name, default_param);
+                subpro->addObjectiveTransform(transformY);
+
+                freepeak->setSubproblem(subspace_name, subpro);
+            }
+        }
+
+        freepeak->bindData();
+
+        std::filesystem::create_directories(FreePeaks::directory() + dirname);
+        std::filesystem::create_directories(Subproblem::directory() + dirname);
+        std::filesystem::create_directories(OnePeakFunction::directory() + dirname);
+
+        freepeak->inputParameters().at("generation_type")->setValue("read_file");
+        for (auto& it : freepeak->subspaceTree().name_box_subproblem) {
+            if (it.second.second != nullptr) {
+                it.second.second->inputParameters().at("generation_type")->setValue("read_file");
+                it.second.second->function()->inputParameters().at("generation_type")->setValue("read_file");
+            }
+        }
+
+        freepeak->recordInputParameters();
+        freepeak->outputTotalFile();
+        std::cout << ">>> Landscape [" << funname << "] successfully generated and saved to disk." << std::endl;
+    }
+
+
+    // ==============================================================================
+    // PHASE 2: YOUR MPMMO ALGORITHM CODE
+    // ==============================================================================
+    class FreePeaksManual : public FreePeaks {
+    public:
+        void configure(const std::string& filename) {
+            this->m_file_name = filename;
+            this->m_generation_type = "read_file";
+            this->m_number_objectives = 1;
+        }
+        void initialize_(Environment* env) override {
+            FreePeaks::initialize_(env);
+        }
+        void evaluateSolution(ofec::Solution<>& sol) {
+            std::vector<ofec::Real> objs(this->numberObjectives());
+            std::vector<ofec::Real> cons(this->numberConstraints());
+            this->evaluate(sol.variable(), objs, cons);
+            for (size_t i = 0; i < objs.size(); i++) sol.objective(i) = objs[i];
+        }
+    };
+
+    class MPMMO_Benchmark {
+    private:
+        std::shared_ptr<FreePeaksManual> m_problem;
+        int m_num_parties;
+        std::vector<std::vector<int>> m_party_indices;
+
+    public:
+        MPMMO_Benchmark(std::shared_ptr<FreePeaksManual> prob, int num_parties)
+            : m_problem(prob), m_num_parties(num_parties) {
+            decomposeVariables();
+        }
+
+        void decomposeVariables() {
+            int total_vars = static_cast<int>(m_problem->numberVariables()); // Fixed warning
+            m_party_indices.resize(m_num_parties);
+            int current_var = 0;
+            for (int p = 0; p < m_num_parties; p++) {
+                int count = total_vars / m_num_parties;
+                if (p < total_vars % m_num_parties) count++;
+                for (int k = 0; k < count; k++) {
+                    m_party_indices[p].push_back(current_var++);
+                }
+            }
+        }
+
+        double evaluateParty(int party_id, const std::vector<double>& my_vars, const std::vector<std::vector<double>>& context) {
+            ofec::Solution<> full_sol(m_problem->numberObjectives(), m_problem->numberConstraints());
+            full_sol.variable().resize(m_problem->numberVariables());
+
+            const auto& my_indices = m_party_indices[party_id];
+            for (size_t i = 0; i < my_indices.size(); i++) full_sol.variable()[my_indices[i]] = my_vars[i];
+
+            for (int other = 0; other < m_num_parties; other++) {
+                if (other == party_id) continue;
+                const auto& other_indices = m_party_indices[other];
+                for (size_t i = 0; i < other_indices.size(); i++) full_sol.variable()[other_indices[i]] = context[other][i];
+            }
+            m_problem->evaluateSolution(full_sol);
+            return full_sol.objective(0);
+        }
+
+        const std::vector<int>& getPartyIndices(int p) { return m_party_indices[p]; }
+        int getNumParties() { return m_num_parties; }
+        int getTotalVariables() const { return static_cast<int>(m_problem->numberVariables()); } // Fixed warning
+    };
+
+    class MPMMO_Solver {
+        std::shared_ptr<MPMMO_Benchmark> m_bench;
+        int m_pop_size;
+        std::vector<std::vector<std::vector<double>>> m_populations;
+        std::vector<std::vector<double>> m_fitness_vals;
+        std::vector<std::vector<double>> m_representatives;
+
+    public:
+        MPMMO_Solver(std::shared_ptr<MPMMO_Benchmark> b, int pop) : m_bench(b), m_pop_size(pop) {}
+
+        void initializeWithNBC() {
+            int n_parties = m_bench->getNumParties();
+            m_populations.resize(n_parties);
+            m_fitness_vals.resize(n_parties);
+            m_representatives.resize(n_parties);
+
+            const int NBC_POP_SIZE = 500;
+            std::vector<std::vector<double>> global_pop(NBC_POP_SIZE);
+            std::vector<double> global_fitness(NBC_POP_SIZE);
+
+            for (int i = 0; i < NBC_POP_SIZE; i++) {
+                global_pop[i].resize(m_bench->getTotalVariables());
+                for (size_t v = 0; v < global_pop[i].size(); v++) global_pop[i][v] = (double)rand() / RAND_MAX;
+
+                std::vector<std::vector<double>> neutral_context(n_parties);
+                for (int p = 0; p < n_parties; p++) neutral_context[p] = std::vector<double>(m_bench->getPartyIndices(p).size(), 0.5);
+                global_fitness[i] = m_bench->evaluateParty(0, global_pop[i], neutral_context);
+            }
+
+            std::vector<int> indices(NBC_POP_SIZE);
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(), [&](int a, int b) { return global_fitness[a] > global_fitness[b]; });
+
+            for (int p = 0; p < n_parties; p++) {
+                int n_vars = static_cast<int>(m_bench->getPartyIndices(p).size()); // Fixed warning
+                m_populations[p].resize(m_pop_size, std::vector<double>(n_vars));
+                m_fitness_vals[p].resize(m_pop_size);
+
+                for (int i = 0; i < m_pop_size; i++) {
+                    int src_idx = indices[(p * m_pop_size + i) % NBC_POP_SIZE];
+                    const auto& my_indices = m_bench->getPartyIndices(p);
+                    for (size_t v = 0; v < my_indices.size(); v++) m_populations[p][i][v] = global_pop[src_idx][my_indices[v]];
+                }
+                m_representatives[p] = m_populations[p][0];
+            }
+        }
+
+        void run_one_generation(int gen) {
+            int n_parties = m_bench->getNumParties();
+            for (int active_p = 0; active_p < n_parties; active_p++) {
+                double best_val = -1e9;
+                int best_idx = 0;
+
+                for (int i = 0; i < m_pop_size; i++) {
+                    double fit = m_bench->evaluateParty(active_p, m_populations[active_p][i], m_representatives);
+                    m_fitness_vals[active_p][i] = fit;
+                    if (fit > best_val) { best_val = fit; best_idx = i; }
+                }
+
+                m_representatives[active_p] = m_populations[active_p][best_idx];
+
+                for (int i = 0; i < m_pop_size; i++) {
+                    if (i == best_idx) continue;
+                    for (size_t v = 0; v < m_populations[active_p][i].size(); v++) {
+                        m_populations[active_p][i][v] += ((double)rand() / RAND_MAX - 0.5) * 0.1;
+                        if (m_populations[active_p][i][v] < 0) m_populations[active_p][i][v] = 0;
+                        if (m_populations[active_p][i][v] > 1) m_populations[active_p][i][v] = 1;
+                    }
+                }
+            }
+        }
+
+        double getGlobalBest() { return m_bench->evaluateParty(0, m_representatives[0], m_representatives); }
+
+        std::vector<double> getGlobalBestVariables() {
+            std::vector<double> full_sol(m_bench->getTotalVariables());
+            for (int p = 0; p < m_bench->getNumParties(); p++) {
+                const auto& my_indices = m_bench->getPartyIndices(p);
+                for (size_t i = 0; i < my_indices.size(); i++) full_sol[my_indices[i]] = m_representatives[p][i];
+            }
+            return full_sol;
+        }
+    };
+
+
+    // ==============================================================================
+    // MAIN RUN FUNCTION
+    // ==============================================================================
+    void run(int argc, char* argv[]) {
+        using namespace ofec;
+        using namespace std;
+
+        ofec::g_working_directory = "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Data/ofec_data_new/";
+
+        registerInstance();
+
+        cout << "=========================================================" << endl;
+        cout << " PHASE 1: GENERATING THE BENCHMARK (Dynamic Map Builder) " << endl;
+        cout << "=========================================================" << endl;
+
+        std::string benchmark_name = "mpmmo_test_run";
+        generateHandMadeFreePeak(benchmark_name);
+
+        cout << "\n=========================================================" << endl;
+        cout << " PHASE 2: RUNNING MPCoEA ALGORITHM (Multimodal Solver)   " << endl;
+        cout << "=========================================================" << endl;
+
+        std::string target_file = "multiparty_multimodal/" + benchmark_name + ".txt";
+
+        auto core_problem = std::make_shared<FreePeaksManual>();
+        core_problem->configure(target_file);
+
+        try {
+            core_problem->initialize(nullptr);
+
+            MPMMO_Benchmark benchmark(core_problem, 2);
+            MPMMO_Solver solver(std::make_shared<MPMMO_Benchmark>(benchmark), 50);
+
+            solver.initializeWithNBC();
+
+            for (int g = 0; g < 20; g++) {
+                solver.run_one_generation(g);
+                std::vector<double> best_vars = solver.getGlobalBestVariables();
+
+                cout << "Gen " << g + 1 << " | Best Fitness: " << solver.getGlobalBest()
+                    << " | Coordinates: [ ";
+                for (double v : best_vars) cout << v << " ";
+                cout << "]" << endl;
+            }
+            cout << ">>> Full Pipeline Execution Complete." << endl;
+
+        }
+        catch (const std::exception& e) {
+            cerr << "Error: " << e.what() << endl;
+        }
+        system("pause");
+    }
+}
+
+#endif // !OFEC_CUSTOM_METHOD_HPP*/
