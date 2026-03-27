@@ -5,13 +5,10 @@ E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\fr
 E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(108,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
   
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(150,72): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(165,72): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
   
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(438,24): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-  (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
-  
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(653,29): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(544,24): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
   
 E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\factory.h(49,16): warning C4244: 'initializing': conversion from 'double' to 'unsigned int', possible loss of data

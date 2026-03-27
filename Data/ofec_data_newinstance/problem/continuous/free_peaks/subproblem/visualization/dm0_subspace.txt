@@ -1,0 +1,20 @@
+ParameterMap_begin
+distance kString Euclidean
+ParameterMap_end
+
+
+ParameterMap_begin
+dataFile1 kString visualization//dm0_subspace_onepeak.txt
+function kString one_peak
+generation_type kString read_file
+ParameterMap_end
+
+
+num_constraints	0
+
+
+num_trans_vars	0
+
+
+num_trans_objs	0
+

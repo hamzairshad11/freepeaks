@@ -1,0 +1,21 @@
+number_of_variables	2
+number_of_objectives	1
+number_of_constraints	0
+subtree_number 	1
+subtree_name 	root
+num	2
+[ subspace_1 , 0.5 ]	[ subspace_2 , 0.5 ]	
+
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//subspace_1.txt
+generation_type kString read_file
+subspace kString subspace_1
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString multiparty_multimodal//subspace_2.txt
+generation_type kString read_file
+subspace kString subspace_2
+ParameterMap_end
+

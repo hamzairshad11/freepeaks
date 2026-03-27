@@ -2223,9 +2223,6 @@ namespace fs = std::filesystem;
 
 namespace ofec {
 
-    // ==============================================================================
-    // PHASE 1: SUPERVISOR'S GENERATION CODE
-    // ==============================================================================
     void generateHandMadeFreePeak(const std::string& funname) {
         using namespace ofec;
         using namespace free_peaks;
@@ -2329,9 +2326,8 @@ namespace ofec {
     }
 
 
-    // ==============================================================================
-    // PHASE 2: YOUR MPMMO ALGORITHM CODE
-    // ==============================================================================
+    // MPMMO ALGORITHM
+
     class FreePeaksManual : public FreePeaks {
     public:
         void configure(const std::string& filename) {
@@ -2481,9 +2477,7 @@ namespace ofec {
     };
 
 
-    // ==============================================================================
     // MAIN RUN FUNCTION
-    // ==============================================================================
     void run(int argc, char* argv[]) {
         using namespace ofec;
         using namespace std;
@@ -2492,17 +2486,12 @@ namespace ofec {
 
         registerInstance();
 
-        cout << "=========================================================" << endl;
         cout << " PHASE 1: GENERATING THE BENCHMARK (Dynamic Map Builder) " << endl;
-        cout << "=========================================================" << endl;
-
         std::string benchmark_name = "mpmmo_test_run";
         generateHandMadeFreePeak(benchmark_name);
 
-        cout << "\n=========================================================" << endl;
         cout << " PHASE 2: RUNNING MPCoEA ALGORITHM (Multimodal Solver)   " << endl;
-        cout << "=========================================================" << endl;
-
+        
         std::string target_file = "multiparty_multimodal/" + benchmark_name + ".txt";
 
         auto core_problem = std::make_shared<FreePeaksManual>();
