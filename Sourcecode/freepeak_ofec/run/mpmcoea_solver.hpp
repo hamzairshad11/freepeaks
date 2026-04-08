@@ -1,23 +1,36 @@
 ﻿#ifndef OFEC_MPMCOEA_SOLVER_HPP
 #define OFEC_MPMCOEA_SOLVER_HPP
 
-#include "custom_method.hpp" 
+#include "custom_method.hpp"
 #include "../instance/problem/continuous/free_peaks/free_peaks.h"
+#include "../instance/problem/continuous/free_peaks/subproblem/transform/transform_x/transform_x_base.h"
+#include "../instance/problem/continuous/free_peaks/subproblem/transform/transform_y/transform_y_base.h"
+#include "../instance/problem/continuous/free_peaks/factory.h"
+#include "../instance/problem/continuous/free_peaks/subproblem/subproblem.h"
 #include "../core/environment/environment.h"
 #include <queue>
 #include <numeric>
 #include <vector>
 #include <algorithm>
+#define _USE_MATH_DEFINES
 #include <cmath>
+#include <numbers>
+
 #include <iomanip>
 #include <iostream>
 #include <memory>
 #include <random>
+#include <filesystem>
+
 
 namespace ofec {
 
-    // NEAREST-BETTER CLUSTERING (NBC)
+    namespace free_peaks {
 
+        void registerCustomTransforms();
+    }
+
+    // NEAREST-BETTER CLUSTERING (NBC)
     std::vector<std::vector<int>> nearestBetterClustering(
         const std::vector<std::vector<double>>& population,
         const std::vector<double>& fitness,
@@ -26,7 +39,6 @@ namespace ofec {
         int n = static_cast<int>(population.size());
         if (n == 0) return {};
 
-        // Build nearest-better graph
         struct Edge { int from, to; double weight; };
         std::vector<Edge> edges;
 
@@ -34,7 +46,7 @@ namespace ofec {
             double min_dist = std::numeric_limits<double>::max();
             int nb_idx = -1;
             for (int j = 0; j < n; j++) {
-                if (fitness[j] > fitness[i] + 1e-9) {  // Strictly better (maximization)
+                if (fitness[j] > fitness[i] + 1e-9) {
                     double d = 0.0;
                     for (size_t k = 0; k < population[i].size(); k++) {
                         double diff = population[i][k] - population[j][k];
@@ -47,19 +59,16 @@ namespace ofec {
             if (nb_idx != -1) edges.push_back({ i, nb_idx, min_dist });
         }
 
-        // Handle no better neighbors
         if (edges.empty()) {
             std::vector<std::vector<int>> clusters;
             for (int i = 0; i < n; i++) clusters.push_back({ i });
             return clusters;
         }
 
-        // Prune edges
         double sum_weights = 0.0;
         for (const auto& e : edges) sum_weights += e.weight;
         double threshold = phi * (sum_weights / edges.size());
 
-        // Build adjacency list
         std::vector<std::vector<int>> adj(n);
         for (const auto& e : edges) {
             if (e.weight <= threshold) {
@@ -68,7 +77,6 @@ namespace ofec {
             }
         }
 
-        // BFS for connected components
         std::vector<std::vector<int>> clusters;
         std::vector<bool> visited(n, false);
         for (int i = 0; i < n; i++) {
@@ -89,11 +97,10 @@ namespace ofec {
         return clusters;
     }
 
-    // MPMMO BENCHMARK WRAPPER 
-
+    // MPMMO BENCHMARK WRAPPER
     class MPMMO_Benchmark {
     private:
-        FreePeaks* m_problem;  
+        FreePeaks* m_problem;
         Environment* m_env;
         int m_num_dms;
         std::vector<std::vector<int>> m_party_indices;
@@ -108,16 +115,11 @@ namespace ofec {
             int total_vars = m_problem->numberVariables();
             m_party_indices.resize(m_num_dms);
 
-            // For 2D problem with 2 DMs:
-            // DM 0 gets variable 0 (x₁)
-            // DM 1 gets variable 1 (x₂)
-
             for (int v = 0; v < total_vars; v++) {
-                int dm_id = v % m_num_dms;  // Round-robin assignment
+                int dm_id = v % m_num_dms;
                 m_party_indices[dm_id].push_back(v);
             }
 
-            // DEBUG: Print variable assignment
             std::cout << "[DEBUG] Variable Decomposition:" << std::endl;
             for (int dm = 0; dm < m_num_dms; dm++) {
                 std::cout << "  DM " << dm << " controls variables: [";
@@ -129,14 +131,10 @@ namespace ofec {
             }
         }
 
-        // Context-based evaluation using PUBLIC FreePeaks API
         double evaluateDM(int dm_id, const std::vector<double>& my_vars,
             const std::vector<std::vector<double>>& context,
             Environment* env)
         {
-            if (dm_id == 0 && my_vars.size() > 0) {
-                std::cout << "[DEBUG evaluateDM] DM0 my_vars[0]=" << my_vars[0] << std::endl;
-            }
             // Build full solution vector
             std::vector<double> full_sol(m_problem->numberVariables(), 0.5);
 
@@ -149,16 +147,17 @@ namespace ofec {
                 if (other == dm_id) continue;
                 const auto& other_indices = m_party_indices[other];
                 for (size_t i = 0; i < other_indices.size(); i++) {
-                    full_sol[other_indices[i]] = context[other][i];
+                    if (i < context[other].size()) {
+                        full_sol[other_indices[i]] = context[other][i];
+                    }
                 }
             }
 
-            // Evaluate SAFELY via public API
             auto sol = m_problem->createSolution();
             auto& sol_vec = dynamic_cast<Solution<VariableVector<Real>>&>(*sol).variable().vector();
             sol_vec = full_sol;
-            sol->evaluate(m_env, false);
-            return sol->objective(0);   // Single objective (maximization)
+            sol->evaluate(env, false);
+            return sol->objective(0);
         }
 
         int getNumDMs() const { return m_num_dms; }
@@ -167,35 +166,22 @@ namespace ofec {
         FreePeaks* getProblem() const { return m_problem; }
     };
 
-
-    // MPM-CoEA SOLVER 
-
+    // MPM-CoEA SOLVER
     class MPM_CoEA {
     private:
         std::shared_ptr<MPMMO_Benchmark> m_bench;
         std::shared_ptr<Environment> m_env;
         int m_pop_size, m_med_pop_size, m_K;
 
-        // Competing populations: [DM][subpopulation_id][individual][variable]
         std::vector<std::vector<std::vector<std::vector<double>>>> m_competing_pops;
         std::vector<std::vector<std::vector<double>>> m_competing_fitness;
-
-        // Mediating population: [individual][variable]
         std::vector<std::vector<double>> m_mediating_pop;
         std::vector<double> m_mediating_fitness;
-
-        // Context vectors: Best representative per DM [DM][variable]
         std::vector<std::vector<double>> m_context_vectors;
-
-        // Member variable
-        std::string output_directory;  // For saving solutions
-
-        
-
+        std::string output_directory;
 
     public:
-
-        // Constructor parameter:
+        // Constructor with output directory
         MPM_CoEA(std::shared_ptr<MPMMO_Benchmark> bench,
             std::shared_ptr<Environment> env,
             int pop_size = 50,
@@ -205,7 +191,19 @@ namespace ofec {
             : m_bench(bench), m_env(env), m_pop_size(pop_size),
             m_med_pop_size(med_pop_size), m_K(K), output_directory(output_dir)
         {
-            // Creating output directory
+            std::filesystem::create_directories(output_directory);
+        }
+
+        // Constructor without output directory (for backward compatibility)
+        MPM_CoEA(std::shared_ptr<MPMMO_Benchmark> bench,
+            std::shared_ptr<Environment> env,
+            int pop_size = 50,
+            int med_pop_size = 100,
+            int K = 3)
+            : m_bench(bench), m_env(env), m_pop_size(pop_size),
+            m_med_pop_size(med_pop_size), m_K(K),
+            output_directory("visualization/solutions")
+        {
             std::filesystem::create_directories(output_directory);
         }
 
@@ -215,14 +213,10 @@ namespace ofec {
 
             std::ofstream outFile(filename);
             outFile << std::fixed << std::setprecision(6);
-
-            // Write header
             outFile << "# Generation: " << gen_num << std::endl;
-            outFile << "# Format: x1 x2 fitness dm_id" << std::endl;
+            outFile << "# Format: x1 x2 fitness" << std::endl;
 
-            // Save mediating population solutions
             for (size_t i = 0; i < m_mediating_pop.size(); i++) {
-                // Evaluate fitness
                 auto sol = m_bench->getProblem()->createSolution();
                 auto& sol_vec = dynamic_cast<Solution<VariableVector<Real>>&>(*sol).variable().vector();
                 sol_vec[0] = static_cast<Real>(m_mediating_pop[i][0]);
@@ -231,29 +225,19 @@ namespace ofec {
 
                 outFile << m_mediating_pop[i][0] << " "
                     << m_mediating_pop[i][1] << " "
-                    << sol->objective(0) << " "
-                    << "mediating" << "\n";
+                    << sol->objective(0) << "\n";
             }
-
             outFile.close();
-        }
-
-        MPM_CoEA(std::shared_ptr<MPMMO_Benchmark> bench, std::shared_ptr<Environment> env,
-            int pop_size = 50, int med_pop_size = 100, int K = 3)
-            : m_bench(bench), m_env(env), m_pop_size(pop_size),
-            m_med_pop_size(med_pop_size), m_K(K) {
         }
 
         void initialize() {
             int dim = m_bench->getNumVariables();
             const int NBC_POP_SIZE = 500;
 
-            // Create large initial population for NBC
             std::vector<std::vector<double>> global_pop(NBC_POP_SIZE, std::vector<double>(dim));
             std::vector<std::vector<double>> global_fitness(m_bench->getNumDMs(),
                 std::vector<double>(NBC_POP_SIZE));
 
-            // Random initialization
             for (int i = 0; i < NBC_POP_SIZE; i++) {
                 for (int d = 0; d < dim; d++) {
                     global_pop[i][d] = (double)rand() / RAND_MAX;
@@ -262,13 +246,12 @@ namespace ofec {
                 for (int dm = 0; dm < m_bench->getNumDMs(); dm++) {
                     neutral_context[dm].resize(m_bench->getPartyIndices(dm).size(), 0.5);
                 }
-                
+
                 for (int dm = 0; dm < m_bench->getNumDMs(); dm++) {
                     global_fitness[dm][i] = m_bench->evaluateDM(dm, global_pop[i], neutral_context, m_env.get());
                 }
             }
 
-            // Apply NBC per DM → create subpopulations
             m_competing_pops.resize(m_bench->getNumDMs());
             m_competing_fitness.resize(m_bench->getNumDMs());
 
@@ -289,11 +272,9 @@ namespace ofec {
                 }
             }
 
-            // Initialize mediating population
             m_mediating_pop.resize(m_med_pop_size, std::vector<double>(dim));
             m_mediating_fitness.resize(m_med_pop_size);
 
-            // Collect top candidates
             std::vector<std::pair<double, std::vector<double>>> candidates;
             for (int dm = 0; dm < m_bench->getNumDMs(); dm++) {
                 for (size_t c = 0; c < m_competing_pops[dm].size(); c++) {
@@ -304,11 +285,9 @@ namespace ofec {
                 }
             }
 
-            // Sort by fitness (descending for maximization)
             std::sort(candidates.begin(), candidates.end(),
                 [](const auto& a, const auto& b) { return a.first > b.first; });
 
-            // Select diverse top solutions
             int selected = 0;
             for (size_t i = 0; i < candidates.size() && selected < m_med_pop_size; i++) {
                 bool is_duplicate = false;
@@ -318,7 +297,7 @@ namespace ofec {
                         double diff = candidates[i].second[d] - m_mediating_pop[j][d];
                         dist += diff * diff;
                     }
-                    if (std::sqrt(dist) < 0.05) { is_duplicate = true; break; }
+                    if (std::sqrt(dist) < 0.01) { is_duplicate = true; break; }
                 }
                 if (!is_duplicate) {
                     m_mediating_pop[selected] = candidates[i].second;
@@ -327,7 +306,6 @@ namespace ofec {
                 }
             }
 
-            // Fill remaining slots randomly if needed
             while (selected < m_med_pop_size) {
                 for (int d = 0; d < dim; d++) {
                     m_mediating_pop[selected][d] = (double)rand() / RAND_MAX;
@@ -339,15 +317,12 @@ namespace ofec {
                 selected++;
             }
 
-            // Initialize context vectors with RANDOM values (NOT 0.5!)
             m_context_vectors.resize(m_bench->getNumDMs());
             for (int dm = 0; dm < m_bench->getNumDMs(); dm++) {
                 const auto& indices = m_bench->getPartyIndices(dm);
                 m_context_vectors[dm].resize(indices.size());
-
-                // Use RANDOM initialization, not fixed 0.5
                 for (size_t i = 0; i < indices.size(); i++) {
-                    m_context_vectors[dm][i] = (double)rand() / RAND_MAX;  // Random [0,1]
+                    m_context_vectors[dm][i] = (double)rand() / RAND_MAX;
                 }
             }
         }
@@ -355,7 +330,6 @@ namespace ofec {
         void run_one_generation() {
             static int gen_count = 0;
 
-            // DEBUG: Print context at start of generation
             if (gen_count % 20 == 0) {
                 std::cout << "\n[DEBUG gen " << gen_count << "] Context vectors:" << std::endl;
                 for (int dm = 0; dm < m_bench->getNumDMs(); dm++) {
@@ -378,26 +352,22 @@ namespace ofec {
                 const auto& dm_indices = m_bench->getPartyIndices(dm);
 
                 for (size_t subpop = 0; subpop < m_competing_pops[dm].size(); subpop++) {
-                    // Simple Gaussian mutation on ALL variables
                     for (size_t i = 1; i < m_competing_pops[dm][subpop].size(); i++) {
                         for (int d = 0; d < dim; d++) {
-                            double mutation_rate = (dm == 0) ? 0.3 : 0.5;  // Higher mutation for DM1
-                            m_competing_pops[dm][subpop][i][d] += ((double)rand() / RAND_MAX - 0.5) * 0.3;
+                            m_competing_pops[dm][subpop][i][d] +=
+                                ((double)rand() / RAND_MAX - 0.5) * 0.3;
 
-                            // Boundary handling [0,1]
                             if (m_competing_pops[dm][subpop][i][d] < 0)
                                 m_competing_pops[dm][subpop][i][d] = 0;
                             if (m_competing_pops[dm][subpop][i][d] > 1)
                                 m_competing_pops[dm][subpop][i][d] = 1;
                         }
 
-                        // Evaluate with current context
                         m_competing_fitness[dm][subpop][i] =
                             m_bench->evaluateDM(dm, m_competing_pops[dm][subpop][i],
                                 m_context_vectors, m_env.get());
                     }
 
-                    // Sort subpopulation by fitness (elitism)
                     std::vector<size_t> indices(m_competing_pops[dm][subpop].size());
                     std::iota(indices.begin(), indices.end(), 0);
                     std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
@@ -405,7 +375,6 @@ namespace ofec {
                             m_competing_fitness[dm][subpop][b];
                         });
 
-                    // Reorder population
                     std::vector<std::vector<double>> new_pop;
                     std::vector<double> new_fit;
                     for (size_t idx : indices) {
@@ -423,7 +392,6 @@ namespace ofec {
                 std::vector<double> best_vars;
                 const auto& indices = m_bench->getPartyIndices(dm);
 
-                // Search ALL subpopulations for best individual
                 for (size_t subpop = 0; subpop < m_competing_pops[dm].size(); subpop++) {
                     if (m_competing_pops[dm][subpop].size() > 0 &&
                         m_competing_fitness[dm][subpop][0] > best_fit)
@@ -431,7 +399,6 @@ namespace ofec {
                         best_fit = m_competing_fitness[dm][subpop][0];
                         best_vars.clear();
 
-                        // Extract this DM's variables only from the full solution
                         for (size_t i = 0; i < indices.size(); i++) {
                             int var_idx = indices[i];
                             if (var_idx >= 0 && var_idx < dim) {
@@ -441,12 +408,10 @@ namespace ofec {
                     }
                 }
 
-                // always update context
                 if (best_vars.size() > 0) {
                     m_context_vectors[dm] = best_vars;
                 }
 
-                // DEBUG: Print context update
                 if (gen_count % 20 == 0 && dm == 0) {
                     std::cout << "[DEBUG context update] DM" << dm << " context=[";
                     for (size_t i = 0; i < m_context_vectors[dm].size(); i++) {
@@ -463,7 +428,6 @@ namespace ofec {
             std::vector<double> new_med_fit(m_med_pop_size);
 
             for (int i = 0; i < m_med_pop_size; i++) {
-                // DE/rand/1/bin mutation
                 int r1 = rand() % m_med_pop_size;
                 int r2 = rand() % m_med_pop_size;
                 int r3 = rand() % m_med_pop_size;
@@ -476,16 +440,14 @@ namespace ofec {
                         new_med_pop[i][d] = m_mediating_pop[r1][d] +
                             F * (m_mediating_pop[r2][d] - m_mediating_pop[r3][d]);
 
-                        // Boundary handling
                         if (new_med_pop[i][d] < 0) new_med_pop[i][d] = 0;
                         if (new_med_pop[i][d] > 1) new_med_pop[i][d] = 1;
                     }
                 }
 
-                // Use neutral_context so mediating pop's variables are actually evaluated
-                //std::vector<std::vector<double>> neutral_context(num_dms, std::vector<double>(1, 0.5));
+                // Use context vectors for proper coordination
                 new_med_fit[i] = m_bench->evaluateDM(0, new_med_pop[i],
-                    m_context_vectors, m_env.get());  // Changed from m_context_vectors
+                    m_context_vectors, m_env.get());
             }
 
             // Selection
@@ -508,37 +470,28 @@ namespace ofec {
         }
     };
 
-
-    // CEC2015 METRICS EVALUATION 
-
+    // CEC2015 METRICS EVALUATION
     struct CEC2015Metrics {
-        double SR = 0.0;    // Success Rate (%)
-        double ANOF = 0.0;  // Average Number of Optima Found
-        double SP = 0.0;    // Success Performance
-        double MPR = 0.0;   // Maximum Peak Ratio
+        double SR = 0.0;
+        double ANOF = 0.0;
+        double SP = 0.0;
+        double MPR = 0.0;
     };
 
-    
-
-    // CEC2015 METRICS EVALUATION (Complete Corrected Version)
     CEC2015Metrics evaluateCEC2015Metrics(
         const std::vector<std::vector<double>>& candidates,
         FreePeaks* problem,
         ofec::Environment* env,
-        double epsilon_x = 1e-2,   
-        double epsilon_f = 1.0)   
+        double epsilon_x = 1e-2,
+        double epsilon_f = 1.0)
     {
         CEC2015Metrics metrics;
-
-        // Get optima from problem
         auto optima_ptr = problem->optima();
 
-        // DEBUG: Print optima information
         std::cout << "\n>>> [DEBUG] Optima Information:" << std::endl;
         if (!optima_ptr) {
             std::cout << "    [WARNING] problem->optima() returned nullptr!" << std::endl;
-            std::cout << "    This means optima were not calculated during bindData()" << std::endl;
-            return metrics; // Returns zeros
+            return metrics;
         }
 
         int num_optima = optima_ptr->numberSolutions();
@@ -546,12 +499,10 @@ namespace ofec {
 
         if (num_optima == 0) {
             std::cout << "    [ERROR] No optima stored in problem!" << std::endl;
-            std::cout << "    Check if problem->bindData() was called after loading mpmmo_1.txt" << std::endl;
             return metrics;
         }
 
-        // Print optima positions and fitness
-        for (int i = 0; i < num_optima && i < 5; i++) { // Print first 5 optima
+        for (int i = 0; i < num_optima && i < 5; i++) {
             auto& opt_sol = optima_ptr->solution(i);
             auto& opt_vars = opt_sol.variable().vector();
             double opt_fitness = opt_sol.objective(0);
@@ -564,20 +515,14 @@ namespace ofec {
             }
             std::cout << "]" << std::endl;
         }
-        if (num_optima > 5) {
-            std::cout << "    ... and " << (num_optima - 5) << " more optima" << std::endl;
-        }
 
-        // Track found optima
         std::vector<bool> optima_found(num_optima, false);
         int total_found = 0;
 
-        // DEBUG: Print candidate information
         std::cout << "\n>>> [DEBUG] Candidate Solutions:" << std::endl;
         std::cout << "    Total candidates: " << candidates.size() << std::endl;
 
-        for (size_t c = 0; c < candidates.size() && c < 5; c++) { // Print first 5 candidates
-            // Evaluate candidate fitness
+        for (size_t c = 0; c < candidates.size() && c < 5; c++) {
             auto sol = problem->createSolution();
             auto& sol_typed = dynamic_cast<ofec::Solution<ofec::VariableVector<ofec::Real>>&>(*sol);
             sol_typed.variable().vector() = candidates[c];
@@ -592,11 +537,9 @@ namespace ofec {
             }
             std::cout << "]" << std::endl;
 
-            // Check against all true optima
             for (int i = 0; i < num_optima; i++) {
                 if (optima_found[i]) continue;
 
-                // Position distance
                 auto& opt_vars = optima_ptr->solution(i).variable().vector();
                 double pos_dist = 0.0;
                 for (size_t d = 0; d < candidates[c].size(); d++) {
@@ -605,11 +548,9 @@ namespace ofec {
                 }
                 pos_dist = std::sqrt(pos_dist);
 
-                // Fitness distance
                 double opt_fitness = optima_ptr->solution(i).objective(0);
                 double fit_dist = std::abs(cand_fitness - opt_fitness);
 
-                // Check if within tolerance
                 if (pos_dist < epsilon_x && fit_dist < epsilon_f) {
                     optima_found[i] = true;
                     total_found++;
@@ -619,21 +560,15 @@ namespace ofec {
                 }
             }
         }
-        if (candidates.size() > 5) {
-            std::cout << "    ... and " << (candidates.size() - 5) << " more candidates" << std::endl;
-        }
 
         std::cout << "\n>>> [DEBUG] Matching Summary:" << std::endl;
         std::cout << "    Optima found: " << total_found << "/" << num_optima << std::endl;
-        std::cout << "    Tolerance: epsilon_x=" << epsilon_x << ", epsilon_f=" << epsilon_f << std::endl;
 
-        // Compute metrics
         metrics.ANOF = static_cast<double>(total_found) / num_optima;
         metrics.SR = (total_found == num_optima) ? 100.0 : 0.0;
         metrics.SP = (metrics.SR > 0) ? (2000.0 * problem->numberVariables() * num_optima / 100.0)
             : std::numeric_limits<double>::infinity();
 
-        // MPR calculation (MAXIMIZATION version)
         double sum_num = 0.0, sum_den = 0.0;
         double global_opt_fitness = -std::numeric_limits<double>::max();
 
@@ -655,15 +590,17 @@ namespace ofec {
         return metrics;
     }
 
-    // CREATE SIMPLE 2D MPMMO PROBLEM FOR VISUALIZATION
 
-    void createSimple2DProblem(const std::string& problem_name = "mpmmo_simple_2d") {
+
+    void createComplex2DProblem(const std::string& problem_name = "complex_2d") {
         using namespace ofec;
         using namespace free_peaks;
 
-        std::string dirname = "multiparty_multimodal/";
-        int numDim = 2, numObj = 1, numCon = 0;
+        // Register custom transforms FIRST
+        registerCustomTransforms();
 
+        std::string dirname = "visualization/";
+        int numDim = 2, numObj = 1, numCon = 0;
         std::shared_ptr<ofec::Random> rnd(new Random(0.42));
 
         FreePeaks::registerFP();
@@ -672,8 +609,7 @@ namespace ofec {
         env->recordInputParameters();
         env->initialize();
         env->setProblem(generateProblemByFactory(freepeakName));
-
-        auto freepeak = CAST_FPs(env->problem());
+        auto freepeak = dynamic_cast<FreePeaks*>(env->problem());
 
         ParameterMap freepeak_param;
         freepeak_param["generation_type"] = std::string("assigned");
@@ -681,45 +617,65 @@ namespace ofec {
         freepeak->inputParameters().input(freepeak_param);
         freepeak->initialize(env.get());
 
-        std::shared_ptr<ofec::Random> pro_rnd(new Random(0.42));
-        freepeak->setRandom(pro_rnd);
+        freepeak->setRandom(rnd);
         freepeak->setSizes(numDim, numObj, numCon);
 
-        // KD-TREE: Defines the search space decomposition
-        // This defines the multimodal landscape (multiple optima)
+        // KD-tree: 2 decision-makers
         freepeak->setKDtree({
-            {"root", {
-                {"subspace_1", 0.5},
-                {"subspace_2", 0.5}
-            }}
+            {"root", { { "dm0_subspace", 0.5}, {"dm1_subspace", 0.5} } }
             });
 
-        // Create subproblems for the KD-tree subspaces
-        // BOTH subspaces represent the SAME objective function (multi-modal)
-        std::vector<std::string> subspaces = { "subspace_1", "subspace_2" };
+        std::vector<std::string> subspaces = { "dm0_subspace", "dm1_subspace" };
 
-        // Define MULTIPLE OPTIMA for the multimodal landscape
-        // These are the optima that BOTH parties need to find together
-        std::vector<std::vector<double>> peak_positions = {
-            {0.3, 0.7},  // Global optimum at [0.3, 0.7]
-            {0.7, 0.3},  // Local optimum at [0.7, 0.3]
-            {0.2, 0.2},  // Additional local optimum
-            {0.8, 0.8}   // Additional local optimum
+        // === ENHANCED: Multiple peaks with varying characteristics ===
+        // Format: {x, y, height, width_factor, rotation_angle}
+        struct PeakSpec {
+            std::vector<double> position;
+            double height;
+            double width;      // Smaller = sharper peak
+            double rotation;   // radians
         };
-        std::vector<double> peak_heights = { 90.0, 70.0, 50.0, 60.0 };
 
-        // Create a subproblem for each subspace in the KD-tree
+        std::vector<PeakSpec> global_peaks = {
+            // Global optimum
+            {{0.3, 0.7}, 90.0, 0.08, 0.0},
+            // Local optima with different characteristics
+            {{0.7, 0.3}, 70.0, 0.12, std::numbers::pi / 6},      // Rotated, wider
+            {{0.5, 0.5}, 50.0, 0.15, std::numbers::pi / 4},     // Center, wide, rotated
+            {{0.2, 0.2}, 45.0, 0.06, std::numbers::pi / 3},      // Sharp, rotated
+            {{0.8, 0.8}, 40.0, 0.10, std::numbers::pi / 6},     // Corner peak
+            {{0.15, 0.85}, 35.0, 0.09, 0.0},       // Edge peak
+            {{0.85, 0.15}, 30.0, 0.11, std::numbers::pi / 2},    // Asymmetric orientation
+        };
+
+        // === PARTY-SPECIFIC TRANSFORMATIONS ===
+        // Each DM sees peaks with slight positional biases and different landscape warping
+        struct PartyTransformSpec {
+            double rotation_angle;      // Global rotation for this party's view
+            double asymmetry;           // Basin asymmetry factor
+            double bias_magnitude;      // Peak position offset magnitude
+            double ill_condition;       // Conditioning number for scaling
+        };
+
+        std::vector<PartyTransformSpec> party_transforms = {
+            // DM0: Moderate rotation, mild asymmetry
+            {std::numbers::pi / 8, 0.2, 0.03, 50.0},
+            // DM1: Different rotation, stronger asymmetry  
+            {std::numbers::pi / 6, 0.4, 0.04, 100.0}
+        };
+
         for (size_t s = 0; s < subspaces.size(); s++) {
             std::string subspace_name = subspaces[s];
+            const auto& party_spec = party_transforms[s];
+
             ParameterMap subpro_param;
             subpro_param["subspace"] = subspace_name;
             subpro_param["generation_type"] = std::string("assigned");
             subpro_param["dataFile1"] = dirname + "/" + subspace_name + ".txt";
-
             auto subpro(Subproblem::create());
             subpro->initialize(subpro_param, freepeak);
 
-            // Distance: Euclidean
+            // Distance: Euclidean (could try Mahalanobis for more complexity)
             {
                 auto dis(FactoryFP<DistanceBase>::produce("Euclidean"));
                 ParameterMap dis_param;
@@ -727,35 +683,102 @@ namespace ofec {
                 subpro->setDistance(dis);
             }
 
-            // Function: One Peak Function
-            // Each subspace gets ALL peaks (multi-modal)
+            // Function: One Peak (we'll add multiple peaks)
             {
                 ParameterMap fun_param;
                 fun_param["generation_type"] = std::string("assigned");
                 fun_param["dataFile1"] = dirname + "/" + subspace_name + "_onepeak.txt";
-
                 auto func(FactoryFP<FunctionBase>::produce("one_peak"));
                 func->initialize(freepeak, subspace_name, fun_param);
                 auto onepeak_func = dynamic_cast<ofec::free_peaks::OnePeakFunction*>(func);
 
-                // Add ALL peaks to this subspace (multi-modal)
-                for (size_t p = 0; p < peak_positions.size(); p++) {
+                // Add ALL peaks with party-specific transformations applied
+                for (const auto& peak : global_peaks) {
                     auto onepeak(FactoryFP<OnePeakBase>::produce("s1"));
                     ParameterMap onepeak_param;
                     onepeak_param["center_type"] = std::string("assigned");
-                    onepeak_param["height"] = peak_heights[p];
+                    onepeak_param["height"] = peak.height;
 
-                    std::vector<Real> peak_position = {
-                        static_cast<Real>(peak_positions[p][0]),
-                        static_cast<Real>(peak_positions[p][1])
+                    // Apply party-specific bias to peak position
+                    std::vector<Real> biased_position = {
+                        static_cast<Real>(peak.position[0] + party_spec.bias_magnitude * std::sin(s * 2.1)),
+                        static_cast<Real>(peak.position[1] + party_spec.bias_magnitude * std::cos(s * 1.9))
                     };
-                    onepeak_param["center_postion"] = peak_position;
+                    // Wrap to [0, 1]
+                    for (auto& p : biased_position) {
+                        if (p < 0.0) p += 1.0;
+                        if (p > 1.0) p -= 1.0;
+                    }
+                    onepeak_param["center_postion"] = biased_position;
+
+                    // Width parameter (alpha in sphere function)
+                    onepeak_param["alpha"] = static_cast<Real>(peak.width);
 
                     onepeak->initialize(freepeak, subspace_name, onepeak_param);
                     onepeak_func->addOnePeaks(onepeak);
                 }
-
                 subpro->setFunction(func);
+            }
+
+            // TRANSFORMATION CHAIN
+
+            // 1. Party-specific bias (each DM sees peaks at slightly different locations)
+            {
+                auto trans(FactoryFP<X_TransformBase>::produce("MapXPartyBias"));
+                ParameterMap trans_param;
+                trans_param["party_id"] = static_cast<int>(s);
+                trans_param["magnitude"] = party_spec.bias_magnitude;
+                trans->initialize(freepeak, subspace_name, trans_param);
+                subpro->addVariableTransform(trans);
+            }
+
+            // 2. Rotation transform (creates non-separability between variables)
+            {
+                auto trans(FactoryFP<X_TransformBase>::produce("MapXRotation"));
+                ParameterMap trans_param;
+                trans_param["angle"] = party_spec.rotation_angle;
+                // Optional: add shift to move rotation center
+                std::vector<Real> shift = { 0.5, 0.5 };
+                trans_param["shift"] = shift;
+                trans->initialize(freepeak, subspace_name, trans_param);
+                subpro->addVariableTransform(trans);
+            }
+
+            // 3. Ill-conditioning (different scaling per dimension)
+            {
+                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXIllConditioning"));
+                ParameterMap trans_param;
+                trans_param["condition"] = party_spec.ill_condition;
+                trans->initialize(freepeak, subspace_name, trans_param);
+                subpro->addVariableTransform(trans);
+            }
+
+            // 4. Asymmetric basin warping (CEC2015-style)
+            {
+                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXAsymmetricBasin"));
+                ParameterMap trans_param;
+                trans_param["asymmetry"] = party_spec.asymmetry;
+                std::vector<Real> bias_dir = { 1.0, 0.5 };  // Direction of asymmetry
+                trans_param["bias_dir"] = bias_dir;
+                trans->initialize(freepeak, subspace_name, trans_param);
+                subpro->addVariableTransform(trans);
+            }
+
+            // 5. Additional non-linear warping
+            {
+                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXAssymetrix"));
+                ParameterMap trans_param;
+                trans_param["alpha"] = Real(0.3 + s * 0.2);  // Different per party
+                trans->initialize(freepeak, subspace_name, trans_param);
+                subpro->addVariableTransform(trans);
+            }
+
+            // Objective transformation (applies to fitness values)
+            {
+                auto obj_trans(FactoryFP<ofec::free_peaks::Y_TransformBase>::produce("map_objective"));
+                ParameterMap obj_trans_param;
+                obj_trans->initialize(freepeak, subspace_name, obj_trans_param);
+                subpro->addObjectiveTransform(obj_trans);
             }
 
             freepeak->setSubproblem(subspace_name, subpro);
@@ -763,15 +786,11 @@ namespace ofec {
 
         freepeak->bindData();
 
-        // Create directories and save files
-        std::cout << "freepeak path\t" << FreePeaks::directory() + dirname << std::endl;
+        // Save files
         std::filesystem::create_directories(FreePeaks::directory() + dirname);
-        std::cout << "Subproblem path\t" << Subproblem::directory() + dirname << std::endl;
         std::filesystem::create_directories(Subproblem::directory() + dirname);
-        std::cout << "OnePeakFunction path\t" << OnePeakFunction::directory() + dirname << std::endl;
         std::filesystem::create_directories(OnePeakFunction::directory() + dirname);
 
-        // Set generation type to read_file to save parameters
         freepeak->inputParameters().at("generation_type")->setValue("read_file");
         for (auto& it : freepeak->subspaceTree().name_box_subproblem) {
             if (it.second.second != nullptr) {
@@ -783,84 +802,88 @@ namespace ofec {
         freepeak->recordInputParameters();
         freepeak->outputTotalFile();
 
-        std::cout << ">>> Simple 2D MPMMO problem created: " << problem_name << std::endl;
-        std::cout << "    Number of optima: " << peak_positions.size() << std::endl;
-        for (size_t i = 0; i < peak_positions.size(); i++) {
-            std::cout << "    Optimum " << i << ": ["
-                << peak_positions[i][0] << ", "
-                << peak_positions[i][1] << "] fitness="
-                << peak_heights[i] << std::endl;
+        std::cout << ">>> Complex 2D problem created: " << problem_name << std::endl;
+        std::cout << "    Total peaks: " << global_peaks.size() << std::endl;
+        std::cout << "    Global optimum: [0.3, 0.7] fitness=90" << std::endl;
+        std::cout << "    Party-specific transformations applied:" << std::endl;
+        for (size_t s = 0; s < subspaces.size(); s++) {
+            std::cout << "      DM" << s << ": rotation=" << party_transforms[s].rotation_angle
+                << ", asymmetry=" << party_transforms[s].asymmetry
+                << ", bias=" << party_transforms[s].bias_magnitude << std::endl;
         }
     }
 
-    // OUTPUT FITNESS LANDSCAPE FOR VISUALIZATION
-    void outputFitnessLandscape(ofec::Environment* env, const std::string& filepath, int resolution = 100) {
+    void outputComplexLandscapes(ofec::Environment* env, const std::string& output_dir) {
         using namespace ofec;
+        std::filesystem::create_directories(output_dir);
+        int resolution = 150;  // Higher resolution for complex landscapes
 
-        auto con_pro = CAST_CONOP(env->problem());
-        std::vector<std::vector<double>> fitness_grid(resolution, std::vector<double>(resolution));
+        std::cout << "\n>>> Generating Complex Conditional Landscapes..." << std::endl;
 
-        std::cout << "\n>>> Generating fitness landscape (" << resolution << "x" << resolution << " grid)..." << std::endl;
+        // DM0: Vary x1, fix x2 at multiple values to show interaction effects
+        for (double x2_fixed : {0.2, 0.5, 0.8}) {
+            std::ofstream file(output_dir + "/landscape_dm0_x2_" +
+                std::to_string(x2_fixed).substr(0, 3) + ".txt");
+            file << std::fixed << std::setprecision(6);
+            file << "# DM0 landscape: varying x1, x2 fixed at " << x2_fixed << "\n";
+            file << "# Format: x1 fitness\n";
 
-        for (int i = 0; i < resolution; i++) {
-            for (int j = 0; j < resolution; j++) {
-                // Create solution at grid point
+            for (int i = 0; i < resolution; i++) {
+                double x1 = static_cast<double>(i) / (resolution - 1);
                 auto sol = env->problem()->createSolution();
                 auto& sol_vec = dynamic_cast<Solution<VariableVector<Real>>&>(*sol).variable().vector();
-
-                // Map grid coordinates to variable range [0, 1]
-                sol_vec[0] = static_cast<Real>(i) / (resolution - 1);
-                sol_vec[1] = static_cast<Real>(j) / (resolution - 1);
-
-                // Evaluate
+                sol_vec[0] = static_cast<Real>(x1);
+                sol_vec[1] = static_cast<Real>(x2_fixed);
                 sol->evaluate(env, false);
-                fitness_grid[i][j] = sol->objective(0);
+                file << x1 << " " << sol->objective(0) << "\n";
             }
-
-            if (i % 10 == 0) {
-                std::cout << "    Progress: " << (i * 100 / resolution) << "%" << std::endl;
-            }
+            file.close();
         }
 
-        // Save to file
-        std::ofstream outFile(filepath);
-        outFile << std::fixed << std::setprecision(6);
+        // Global grid landscape (for visualization)
+        std::ofstream global_file(output_dir + "/landscape_global_grid.txt");
+        global_file << std::fixed << std::setprecision(4);
 
-        // Write data
         for (int i = 0; i < resolution; i++) {
             for (int j = 0; j < resolution; j++) {
                 double x1 = static_cast<double>(i) / (resolution - 1);
                 double x2 = static_cast<double>(j) / (resolution - 1);
-                outFile << x1 << " " << x2 << " " << fitness_grid[i][j] << "\n";
-            }
-        }
 
-        outFile.close();
-        std::cout << ">>> Landscape saved to: " << filepath << std::endl;
+                auto sol = env->problem()->createSolution();
+                auto& sol_vec = dynamic_cast<Solution<VariableVector<Real>>&>(*sol).variable().vector();
+                sol_vec[0] = static_cast<Real>(x1);
+                sol_vec[1] = static_cast<Real>(x2);
+                sol->evaluate(env, false);
+
+                global_file << x1 << " " << x2 << " " << sol->objective(0) << "\n";
+            }
+            if (i % 15 == 0) std::cout << ".";
+        }
+        global_file.close();
+        std::cout << "\n    Saved global landscape grid (" << resolution << "x" << resolution << ")." << std::endl;
     }
 
     // MAIN SOLVER ENTRY POINT WITH VISUALIZATION
     void runMPMCoEAExperiment() {
         srand(static_cast<unsigned int>(time(nullptr)));
 
+        // Register all OFEC factories FIRST
         ofec::registerInstance();
 
-        std::cout << "\n>>> [MPM-CoEA] Starting experiment with visualization" << std::endl;
+        std::cout << "\n>>> [MPM-CoEA] Starting Experiment with Visualization" << std::endl;
 
         // Set working directory
         ofec::g_working_directory = R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Data\ofec_data_new)";
 
-        // Define output directory for visualization
-        std::string output_dir = "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization";
-        std::filesystem::create_directories(output_dir);
-
         // Step 0: Create simple 2D problem for visualization
-        std::cout << "\n>>> Creating simple 2D problem..." << std::endl;
-        createSimple2DProblem("simple_2d");
+        std::cout << "\n>>> Creating 2D problem..." << std::endl;
+        
+        createComplex2DProblem("complex_2d");
 
         // Step 1: Load the problem
         std::string freepeakName = "free_peaks";
 
+        // Use factory to create environment
         auto env = generateEnvironmentByFactory(freepeakName);
         env->recordInputParameters();
         env->initialize();
@@ -868,7 +891,7 @@ namespace ofec {
 
         ParameterMap params;
         params["generation_type"] = std::string("read_file");
-        params["dataFile1"] = std::string("visualization/simple_2d.txt");
+        params["dataFile1"] = std::string("multiparty_multimodal/complex_2d.txt");
         env->problem()->inputParameters().input(params);
         env->problem()->recordInputParameters();
         env->initializeProblem(0.5);
@@ -884,20 +907,19 @@ namespace ofec {
 
         // Step 2: Output fitness landscape (BEFORE optimization)
         std::cout << "\n>>> Generating fitness landscape..." << std::endl;
-        outputFitnessLandscape(env, output_dir + "/landscape_before.txt", 100);  
+        outputComplexLandscapes(env, "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/landscape_before");
 
         // Step 3: Create benchmark wrapper and solver
         auto benchmark = std::make_shared<MPMMO_Benchmark>(free_peaks_ptr, 2, env);
         auto env_shared = std::shared_ptr<Environment>(env, [](Environment*) {});  // No-op deleter
-        MPM_CoEA solver(benchmark, env_shared, 100, 300, 5, output_dir + "/solutions"); 
-
+        MPM_CoEA solver(benchmark, env_shared, 100, 300, 5, "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/solutions");
         solver.initialize();
 
         // Step 4: Save initial population (generation 0)
         solver.saveSolutionsAtGeneration(0);
 
         // Step 5: Run optimization with solution tracking
-        int max_generations = 200;
+        int max_generations = 100;
         std::cout << "\n>>> [MPM-CoEA] Starting optimization (" << max_generations << " generations)" << std::endl;
         for (int gen = 0; gen < max_generations; gen++) {
             solver.run_one_generation();
@@ -915,14 +937,12 @@ namespace ofec {
 
         // Step 6: Output final landscape (AFTER optimization)
         std::cout << "\n>>> Generating final fitness landscape..." << std::endl;
-        outputFitnessLandscape(env, output_dir + "/landscape_after.txt", 100);  
+        outputComplexLandscapes(env, "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/landscape_after");
 
         std::cout << "\n>>> [MPM-CoEA] Experiment complete!" << std::endl;
         std::cout << "    Visualization files saved to:" << std::endl;
-        std::cout << "    - " << output_dir << std::endl;
+        std::cout << "    - E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/" << std::endl;
     }
-
-    
 
 } // namespace ofec
 

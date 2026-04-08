@@ -3,19 +3,13 @@ number_of_objectives	1
 number_of_constraints	0
 subtree_number 	1
 subtree_name 	root
-num	2
-[ dm0_subspace , 0.5 ]	[ dm1_subspace , 0.5 ]	
+num	1
+[ global_subspace , 1 ]	
 
 
 ParameterMap_begin
-dataFile1 kString visualization//dm0_subspace.txt
+dataFile1 kString visualization//global_subspace.txt
 generation_type kString read_file
-subspace kString dm0_subspace
-ParameterMap_end
-
-ParameterMap_begin
-dataFile1 kString visualization//dm1_subspace.txt
-generation_type kString read_file
-subspace kString dm1_subspace
+subspace kString global_subspace
 ParameterMap_end
 

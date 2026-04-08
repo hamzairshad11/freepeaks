@@ -13,8 +13,21 @@ ParameterMap_end
 num_constraints	0
 
 
-num_trans_vars	0
+num_trans_vars	2
+
+ParameterMap_begin
+condition kReal 100
+transformX kString MapXIllConditioning
+ParameterMap_end
+
+ParameterMap_begin
+transformX kString MapXAssymetrix
+ParameterMap_end
 
 
-num_trans_objs	0
+num_trans_objs	1
+
+ParameterMap_begin
+transformY kString map_objective
+ParameterMap_end
 

@@ -73,7 +73,7 @@ namespace ofec {
 		}
 
 
-		// ===== friend �������� =====
+		// ===== friend operators =====
 		friend std::ostream& operator<<(std::ostream& os, const ParameterMap& pm);
 		friend std::istream& operator>>(std::istream& in, ParameterMap& pm);
 		friend bool operator==(const ParameterMap& lhs, const ParameterMap& rhs);

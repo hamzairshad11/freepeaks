@@ -321,6 +321,9 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp">
       <Filter>ofec_src\run</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\core\global.cpp">
@@ -496,6 +499,9 @@
     </ClCompile>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\run\main_solver.cpp">
       <Filter>ofec_src\run</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

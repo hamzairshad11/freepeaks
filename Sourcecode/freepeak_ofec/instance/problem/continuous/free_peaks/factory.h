@@ -2,7 +2,9 @@
 #define OFEC_FREE_PEAKS_FACTORY_H
 
 #include <map>
+#include <set>
 #include <functional>
+#include <iterator> 
 #include "../../../../core/problem/problem.h"
 
 namespace ofec {
