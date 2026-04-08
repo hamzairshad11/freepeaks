@@ -721,50 +721,22 @@ namespace ofec {
             }
 
             // TRANSFORMATION CHAIN
-
-            // 1. Party-specific bias (each DM sees peaks at slightly different locations)
+            // Using enhanced MapXPartyBias that combines multiple transformations
+            // This implements the two fitness landscapes requirement: each party sees a different landscape
+            
+            // 1. Enhanced Party-specific bias with rotation and ill-conditioning (all-in-one)
             {
                 auto trans(FactoryFP<X_TransformBase>::produce("MapXPartyBias"));
                 ParameterMap trans_param;
                 trans_param["party_id"] = static_cast<int>(s);
                 trans_param["magnitude"] = party_spec.bias_magnitude;
+                trans_param["rotation_angle"] = party_spec.rotation_angle;
+                trans_param["condition_number"] = party_spec.ill_condition;
                 trans->initialize(freepeak, subspace_name, trans_param);
                 subpro->addVariableTransform(trans);
             }
 
-            // 2. Rotation transform (creates non-separability between variables)
-            {
-                auto trans(FactoryFP<X_TransformBase>::produce("MapXRotation"));
-                ParameterMap trans_param;
-                trans_param["angle"] = party_spec.rotation_angle;
-                // Optional: add shift to move rotation center
-                std::vector<Real> shift = { 0.5, 0.5 };
-                trans_param["shift"] = shift;
-                trans->initialize(freepeak, subspace_name, trans_param);
-                subpro->addVariableTransform(trans);
-            }
-
-            // 3. Ill-conditioning (different scaling per dimension)
-            {
-                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXIllConditioning"));
-                ParameterMap trans_param;
-                trans_param["condition"] = party_spec.ill_condition;
-                trans->initialize(freepeak, subspace_name, trans_param);
-                subpro->addVariableTransform(trans);
-            }
-
-            // 4. Asymmetric basin warping (CEC2015-style)
-            {
-                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXAsymmetricBasin"));
-                ParameterMap trans_param;
-                trans_param["asymmetry"] = party_spec.asymmetry;
-                std::vector<Real> bias_dir = { 1.0, 0.5 };  // Direction of asymmetry
-                trans_param["bias_dir"] = bias_dir;
-                trans->initialize(freepeak, subspace_name, trans_param);
-                subpro->addVariableTransform(trans);
-            }
-
-            // 5. Additional non-linear warping
+            // 2. Additional asymmetric basin warping (CEC2015-style) - optional extra complexity
             {
                 auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXAssymetrix"));
                 ParameterMap trans_param;
