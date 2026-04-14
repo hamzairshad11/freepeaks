@@ -1,100 +1,10 @@
-﻿  main_solver.cpp
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\custom_method.hpp(228,13): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-  (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
+﻿  register_transform_x.cpp
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.h(33,18): error C3668: 'ofec::free_peaks::MapXPartyBias::addInputParameters': method with override specifier 'override' did not override any base class methods
+  (compiling source file '../../Sourcecode/freepeak_ofec/instance/problem/continuous/free_peaks/subproblem/transform/transform_x/register_transform_x.cpp')
   
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(115,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-  (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.h(40,25): error C3668: 'ofec::free_peaks::MapXPartyBias::getName': method with override specifier 'override' did not override any base class methods
+  (compiling source file '../../Sourcecode/freepeak_ofec/instance/problem/continuous/free_peaks/subproblem/transform/transform_x/register_transform_x.cpp')
   
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(164,72): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
-  (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
+E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.h(45,18): error C3668: 'ofec::free_peaks::MapXPartyBias::transfer': method with override specifier 'override' did not override any base class methods
+  (compiling source file '../../Sourcecode/freepeak_ofec/instance/problem/continuous/free_peaks/subproblem/transform/transform_x/register_transform_x.cpp')
   
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\mpmcoea_solver.hpp(497,24): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-  (compiling source file '../../Sourcecode/freepeak_ofec/run/main_solver.cpp')
-  
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(14,1): warning C4003: not enough arguments for function-like macro invocation 'REGISTER'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2039: 'Factory': is not a member of 'ofec::free_peaks::FactoryFP<ofec::free_peaks::X_TransformBase>'
-      E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\factory.h(13,10):
-      see declaration of 'ofec::free_peaks::FactoryFP<ofec::free_peaks::X_TransformBase>'
-  
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2059: syntax error: '<'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2039: 'register_': is not a member of '`global namespace''
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2143: syntax error: missing ';' before '{'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2059: syntax error: '>'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2562: 'ofec::free_peaks::registerCustomTransforms': 'void' function returning a value
-      E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(9,14):
-      see declaration of 'ofec::free_peaks::registerCustomTransforms'
-  
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(11,41): error C2059: syntax error: ','
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(16,23): error C2143: syntax error: missing ';' before '<<'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(16,18): error C4430: missing type specifier - int assumed. Note: C++ does not support default-int
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(16,18): error C2371: 'std::cout': redefinition; different basic types
-      C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\iostream(40,75):
-      see declaration of 'std::cout'
-  
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(20,1): error C2059: syntax error: '}'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(20,1): error C2143: syntax error: missing ';' before '}'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(22,12): error C2143: syntax error: missing ';' before '{'
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\run\main_solver.cpp(22,12): error C2447: '{': missing function header (old-style formal list?)
-  vector.cpp
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(244,42): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(244,42): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(244,42): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(244,42): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(244,42): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(250,42): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(250,42): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(250,42): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(250,42): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(250,42): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(256,43): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(256,43): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(256,43): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(256,43): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(256,43): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(262,43): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(262,43): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(262,43): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(262,43): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(262,43): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(268,43): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(268,43): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(268,43): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(268,43): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(268,43): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(274,43): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(274,43): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(274,43): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(274,43): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(274,43): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(304,36): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(304,36): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(304,36): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(304,36): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(304,36): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(310,36): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(310,36): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(310,36): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(310,36): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(310,36): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(316,36): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(316,36): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(316,36): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(316,36): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(316,36): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(322,36): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(322,36): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(322,36): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(322,36): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(322,36): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(328,36): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(328,36): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(328,36): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(328,36): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(328,36): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(334,36): warning C4244: 'argument': conversion from '_Ty' to 'const unsigned __int64', possible loss of data
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(334,36): warning C4244:         with
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(334,36): warning C4244:         [
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(334,36): warning C4244:             _Ty=double
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(334,36): warning C4244:         ]
-E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode\freepeak_ofec\utility\linear_algebra\vector.cpp(476,14): warning C4244: 'initializing': conversion from 'double' to 'size_t', possible loss of data
-  Generating Code...

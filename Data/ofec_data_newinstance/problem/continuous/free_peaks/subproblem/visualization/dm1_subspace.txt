@@ -4,7 +4,7 @@ ParameterMap_end
 
 
 ParameterMap_begin
-dataFile1 kString visualization//dm1_subspace_onepeak.txt
+dataFile1 kString visualization/dm1_subspace_onepeak.txt
 function kString one_peak
 generation_type kString read_file
 ParameterMap_end
@@ -16,8 +16,11 @@ num_constraints	0
 num_trans_vars	2
 
 ParameterMap_begin
-condition kReal 100
-transformX kString MapXIllConditioning
+condition_number kReal 100
+magnitude kReal 0.04
+party_id kInt 1
+rotation_angle kReal 0.523599
+transformX kString MapXPartyBias
 ParameterMap_end
 
 ParameterMap_begin

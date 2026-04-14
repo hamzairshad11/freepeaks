@@ -27,8 +27,12 @@ namespace ofec {
 
     namespace free_peaks {
 
-        void registerCustomTransforms();
-    }
+        inline void registerCustomTransforms() {
+            // MapXPartyBias is already registered via REGISTER_FP macro
+            // in register_transform_x.cpp, so no manual registration needed here.
+        }
+
+    } // namespace free_peaks
 
     // NEAREST-BETTER CLUSTERING (NBC)
     std::vector<std::vector<int>> nearestBetterClustering(
@@ -208,8 +212,7 @@ namespace ofec {
         }
 
         void saveSolutionsAtGeneration(int gen_num) {
-            std::string filename = output_directory + "/gen_" +
-                std::to_string(gen_num) + "_solutions.txt";
+            std::string filename = output_directory + "/gen_" + std::to_string(gen_num) + "_solutions.txt";
 
             std::ofstream outFile(filename);
             outFile << std::fixed << std::setprecision(6);
@@ -599,7 +602,21 @@ namespace ofec {
         // Register custom transforms FIRST
         registerCustomTransforms();
 
-        std::string dirname = "visualization/";
+        // Define simple relative subdirectories
+        std::string problem_dir = "multiparty_multimodal/";
+        std::string vis_dir = "visualization/";
+
+        // Create physical directories on disk relative to g_working_directory
+        std::string full_prob_dir = g_working_directory + "/instance/problem/continuous/free_peaks/" + problem_dir;
+        std::string full_vis_dir = g_working_directory + "/instance/problem/continuous/free_peaks/" + vis_dir;
+        std::string full_sub_vis_dir = full_vis_dir; // Subproblems save to same vis dir or specific subfolder
+
+        std::filesystem::create_directories(full_prob_dir);
+        std::filesystem::create_directories(full_vis_dir);
+        // Ensure subproblem visualization directories exist if the framework creates subfolders
+        std::filesystem::create_directories(g_working_directory + "/instance/problem/continuous/free_peaks/subproblem/" + vis_dir);
+        std::filesystem::create_directories(g_working_directory + "/instance/problem/continuous/free_peaks/subproblem/function/one_peak/" + vis_dir);
+
         int numDim = 2, numObj = 1, numCon = 0;
         std::shared_ptr<ofec::Random> rnd(new Random(0.42));
 
@@ -613,7 +630,7 @@ namespace ofec {
 
         ParameterMap freepeak_param;
         freepeak_param["generation_type"] = std::string("assigned");
-        freepeak_param["dataFile1"] = dirname + "/" + problem_name + ".txt";
+        freepeak_param["dataFile1"] = problem_dir + problem_name + ".txt";
         freepeak->inputParameters().input(freepeak_param);
         freepeak->initialize(env.get());
 
@@ -627,40 +644,38 @@ namespace ofec {
 
         std::vector<std::string> subspaces = { "dm0_subspace", "dm1_subspace" };
 
-        // === ENHANCED: Multiple peaks with varying characteristics ===
-        // Format: {x, y, height, width_factor, rotation_angle}
+        // Multiple peaks with varying characteristics
         struct PeakSpec {
             std::vector<double> position;
             double height;
-            double width;      // Smaller = sharper peak
-            double rotation;   // radians
+            double width;
+            double rotation;
         };
 
         std::vector<PeakSpec> global_peaks = {
             // Global optimum
             {{0.3, 0.7}, 90.0, 0.08, 0.0},
-            // Local optima with different characteristics
-            {{0.7, 0.3}, 70.0, 0.12, std::numbers::pi / 6},      // Rotated, wider
-            {{0.5, 0.5}, 50.0, 0.15, std::numbers::pi / 4},     // Center, wide, rotated
-            {{0.2, 0.2}, 45.0, 0.06, std::numbers::pi / 3},      // Sharp, rotated
-            {{0.8, 0.8}, 40.0, 0.10, std::numbers::pi / 6},     // Corner peak
-            {{0.15, 0.85}, 35.0, 0.09, 0.0},       // Edge peak
-            {{0.85, 0.15}, 30.0, 0.11, std::numbers::pi / 2},    // Asymmetric orientation
+            // Local optima
+            {{0.7, 0.3}, 70.0, 0.12, std::numbers::pi / 6},
+            {{0.5, 0.5}, 50.0, 0.15, std::numbers::pi / 4},
+            {{0.2, 0.2}, 45.0, 0.06, std::numbers::pi / 3},
+            {{0.8, 0.8}, 40.0, 0.10, std::numbers::pi / 6},
+            {{0.15, 0.85}, 35.0, 0.09, 0.0},
+            {{0.85, 0.15}, 30.0, 0.11, std::numbers::pi / 2},
         };
 
-        // === PARTY-SPECIFIC TRANSFORMATIONS ===
-        // Each DM sees peaks with slight positional biases and different landscape warping
+        // PARTY-SPECIFIC TRANSFORMATIONS
         struct PartyTransformSpec {
-            double rotation_angle;      // Global rotation for this party's view
-            double asymmetry;           // Basin asymmetry factor
-            double bias_magnitude;      // Peak position offset magnitude
-            double ill_condition;       // Conditioning number for scaling
+            double rotation_angle;
+            double asymmetry;
+            double bias_magnitude;
+            double ill_condition;
         };
 
         std::vector<PartyTransformSpec> party_transforms = {
-            // DM0: Moderate rotation, mild asymmetry
+            // DM0
             {std::numbers::pi / 8, 0.2, 0.03, 50.0},
-            // DM1: Different rotation, stronger asymmetry  
+            // DM1
             {std::numbers::pi / 6, 0.4, 0.04, 100.0}
         };
 
@@ -671,11 +686,12 @@ namespace ofec {
             ParameterMap subpro_param;
             subpro_param["subspace"] = subspace_name;
             subpro_param["generation_type"] = std::string("assigned");
-            subpro_param["dataFile1"] = dirname + "/" + subspace_name + ".txt";
+            // Simple relative path for subproblem config
+            subpro_param["dataFile1"] = vis_dir + subspace_name + ".txt";
             auto subpro(Subproblem::create());
             subpro->initialize(subpro_param, freepeak);
 
-            // Distance: Euclidean (could try Mahalanobis for more complexity)
+            // Distance: Euclidean
             {
                 auto dis(FactoryFP<DistanceBase>::produce("Euclidean"));
                 ParameterMap dis_param;
@@ -683,35 +699,32 @@ namespace ofec {
                 subpro->setDistance(dis);
             }
 
-            // Function: One Peak (we'll add multiple peaks)
+            // Function: One Peak
             {
                 ParameterMap fun_param;
                 fun_param["generation_type"] = std::string("assigned");
-                fun_param["dataFile1"] = dirname + "/" + subspace_name + "_onepeak.txt";
+                // Simple relative path for function config
+                fun_param["dataFile1"] = vis_dir + subspace_name + "_onepeak.txt";
                 auto func(FactoryFP<FunctionBase>::produce("one_peak"));
                 func->initialize(freepeak, subspace_name, fun_param);
                 auto onepeak_func = dynamic_cast<ofec::free_peaks::OnePeakFunction*>(func);
 
-                // Add ALL peaks with party-specific transformations applied
                 for (const auto& peak : global_peaks) {
                     auto onepeak(FactoryFP<OnePeakBase>::produce("s1"));
                     ParameterMap onepeak_param;
                     onepeak_param["center_type"] = std::string("assigned");
                     onepeak_param["height"] = peak.height;
 
-                    // Apply party-specific bias to peak position
+                    // Apply party-specific bias
                     std::vector<Real> biased_position = {
                         static_cast<Real>(peak.position[0] + party_spec.bias_magnitude * std::sin(s * 2.1)),
                         static_cast<Real>(peak.position[1] + party_spec.bias_magnitude * std::cos(s * 1.9))
                     };
-                    // Wrap to [0, 1]
                     for (auto& p : biased_position) {
                         if (p < 0.0) p += 1.0;
                         if (p > 1.0) p -= 1.0;
                     }
                     onepeak_param["center_postion"] = biased_position;
-
-                    // Width parameter (alpha in sphere function)
                     onepeak_param["alpha"] = static_cast<Real>(peak.width);
 
                     onepeak->initialize(freepeak, subspace_name, onepeak_param);
@@ -721,59 +734,25 @@ namespace ofec {
             }
 
             // TRANSFORMATION CHAIN
-
-            // 1. Party-specific bias (each DM sees peaks at slightly different locations)
             {
                 auto trans(FactoryFP<X_TransformBase>::produce("MapXPartyBias"));
                 ParameterMap trans_param;
                 trans_param["party_id"] = static_cast<int>(s);
                 trans_param["magnitude"] = party_spec.bias_magnitude;
+                trans_param["rotation_angle"] = party_spec.rotation_angle;
+                trans_param["condition_number"] = party_spec.ill_condition;
                 trans->initialize(freepeak, subspace_name, trans_param);
                 subpro->addVariableTransform(trans);
             }
 
-            // 2. Rotation transform (creates non-separability between variables)
-            {
-                auto trans(FactoryFP<X_TransformBase>::produce("MapXRotation"));
-                ParameterMap trans_param;
-                trans_param["angle"] = party_spec.rotation_angle;
-                // Optional: add shift to move rotation center
-                std::vector<Real> shift = { 0.5, 0.5 };
-                trans_param["shift"] = shift;
-                trans->initialize(freepeak, subspace_name, trans_param);
-                subpro->addVariableTransform(trans);
-            }
-
-            // 3. Ill-conditioning (different scaling per dimension)
-            {
-                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXIllConditioning"));
-                ParameterMap trans_param;
-                trans_param["condition"] = party_spec.ill_condition;
-                trans->initialize(freepeak, subspace_name, trans_param);
-                subpro->addVariableTransform(trans);
-            }
-
-            // 4. Asymmetric basin warping (CEC2015-style)
-            {
-                auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXAsymmetricBasin"));
-                ParameterMap trans_param;
-                trans_param["asymmetry"] = party_spec.asymmetry;
-                std::vector<Real> bias_dir = { 1.0, 0.5 };  // Direction of asymmetry
-                trans_param["bias_dir"] = bias_dir;
-                trans->initialize(freepeak, subspace_name, trans_param);
-                subpro->addVariableTransform(trans);
-            }
-
-            // 5. Additional non-linear warping
             {
                 auto trans(FactoryFP<ofec::free_peaks::X_TransformBase>::produce("MapXAssymetrix"));
                 ParameterMap trans_param;
-                trans_param["alpha"] = Real(0.3 + s * 0.2);  // Different per party
+                trans_param["alpha"] = Real(0.3 + s * 0.2);
                 trans->initialize(freepeak, subspace_name, trans_param);
                 subpro->addVariableTransform(trans);
             }
 
-            // Objective transformation (applies to fitness values)
             {
                 auto obj_trans(FactoryFP<ofec::free_peaks::Y_TransformBase>::produce("map_objective"));
                 ParameterMap obj_trans_param;
@@ -786,11 +765,7 @@ namespace ofec {
 
         freepeak->bindData();
 
-        // Save files
-        std::filesystem::create_directories(FreePeaks::directory() + dirname);
-        std::filesystem::create_directories(Subproblem::directory() + dirname);
-        std::filesystem::create_directories(OnePeakFunction::directory() + dirname);
-
+        // Set to read_file mode and save
         freepeak->inputParameters().at("generation_type")->setValue("read_file");
         for (auto& it : freepeak->subspaceTree().name_box_subproblem) {
             if (it.second.second != nullptr) {
@@ -803,6 +778,7 @@ namespace ofec {
         freepeak->outputTotalFile();
 
         std::cout << ">>> Complex 2D problem created: " << problem_name << std::endl;
+        std::cout << "    File location: " << full_prob_dir << problem_name << ".txt" << std::endl;
         std::cout << "    Total peaks: " << global_peaks.size() << std::endl;
         std::cout << "    Global optimum: [0.3, 0.7] fitness=90" << std::endl;
         std::cout << "    Party-specific transformations applied:" << std::endl;
@@ -816,17 +792,14 @@ namespace ofec {
     void outputComplexLandscapes(ofec::Environment* env, const std::string& output_dir) {
         using namespace ofec;
         std::filesystem::create_directories(output_dir);
-        int resolution = 150;  // Higher resolution for complex landscapes
+        int resolution = 150;
 
         std::cout << "\n>>> Generating Complex Conditional Landscapes..." << std::endl;
 
-        // DM0: Vary x1, fix x2 at multiple values to show interaction effects
         for (double x2_fixed : {0.2, 0.5, 0.8}) {
-            std::ofstream file(output_dir + "/landscape_dm0_x2_" +
-                std::to_string(x2_fixed).substr(0, 3) + ".txt");
+            std::ofstream file(output_dir + "/landscape_dm0_x2_" + std::to_string(x2_fixed).substr(0, 3) + ".txt");
             file << std::fixed << std::setprecision(6);
-            file << "# DM0 landscape: varying x1, x2 fixed at " << x2_fixed << "\n";
-            file << "# Format: x1 fitness\n";
+            
 
             for (int i = 0; i < resolution; i++) {
                 double x1 = static_cast<double>(i) / (resolution - 1);
@@ -840,7 +813,6 @@ namespace ofec {
             file.close();
         }
 
-        // Global grid landscape (for visualization)
         std::ofstream global_file(output_dir + "/landscape_global_grid.txt");
         global_file << std::fixed << std::setprecision(4);
 
@@ -867,7 +839,6 @@ namespace ofec {
     void runMPMCoEAExperiment() {
         srand(static_cast<unsigned int>(time(nullptr)));
 
-        // Register all OFEC factories FIRST
         ofec::registerInstance();
 
         std::cout << "\n>>> [MPM-CoEA] Starting Experiment with Visualization" << std::endl;
@@ -875,15 +846,13 @@ namespace ofec {
         // Set working directory
         ofec::g_working_directory = R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Data\ofec_data_new)";
 
-        // Step 0: Create simple 2D problem for visualization
+        // Create 2D problem for visualization
         std::cout << "\n>>> Creating 2D problem..." << std::endl;
-        
+
         createComplex2DProblem("complex_2d");
 
-        // Step 1: Load the problem
+        // Load the problem
         std::string freepeakName = "free_peaks";
-
-        // Use factory to create environment
         auto env = generateEnvironmentByFactory(freepeakName);
         env->recordInputParameters();
         env->initialize();
@@ -901,24 +870,24 @@ namespace ofec {
             throw std::runtime_error("Failed to cast problem to FreePeaks");
         }
 
-        std::cout << ">>> [MPM-CoEA] Loaded benchmark: simple_2d" << std::endl;
+        std::cout << ">>> [MPM-CoEA] Loaded benchmark: complex_2d" << std::endl;
         std::cout << "    Dimensions: " << free_peaks_ptr->numberVariables()
             << ", Decision-makers: 2" << std::endl;
 
-        // Step 2: Output fitness landscape (BEFORE optimization)
+        // Output fitness landscape (BEFORE optimization)
         std::cout << "\n>>> Generating fitness landscape..." << std::endl;
         outputComplexLandscapes(env, "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/landscape_before");
 
-        // Step 3: Create benchmark wrapper and solver
+        // Create benchmark wrapper and solver
         auto benchmark = std::make_shared<MPMMO_Benchmark>(free_peaks_ptr, 2, env);
-        auto env_shared = std::shared_ptr<Environment>(env, [](Environment*) {});  // No-op deleter
+        auto env_shared = std::shared_ptr<Environment>(env, [](Environment*) {});
         MPM_CoEA solver(benchmark, env_shared, 100, 300, 5, "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/solutions");
         solver.initialize();
 
-        // Step 4: Save initial population (generation 0)
+        // Save initial population (generation 0)
         solver.saveSolutionsAtGeneration(0);
 
-        // Step 5: Run optimization with solution tracking
+        // Run optimization with solution tracking
         int max_generations = 100;
         std::cout << "\n>>> [MPM-CoEA] Starting optimization (" << max_generations << " generations)" << std::endl;
         for (int gen = 0; gen < max_generations; gen++) {
@@ -935,13 +904,12 @@ namespace ofec {
             }
         }
 
-        // Step 6: Output final landscape (AFTER optimization)
+        // Output final landscape (AFTER optimization)
         std::cout << "\n>>> Generating final fitness landscape..." << std::endl;
         outputComplexLandscapes(env, "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/landscape_after");
 
         std::cout << "\n>>> [MPM-CoEA] Experiment complete!" << std::endl;
-        std::cout << "    Visualization files saved to:" << std::endl;
-        std::cout << "    - E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization/" << std::endl;
+       
     }
 
 } // namespace ofec
