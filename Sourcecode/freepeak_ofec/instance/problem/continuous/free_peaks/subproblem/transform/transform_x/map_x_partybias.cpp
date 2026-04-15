@@ -50,7 +50,7 @@ namespace ofec {
             m_initialized = true;
         }
 
-        void MapXPartyBias::transfer(std::vector<Real>& x) const {
+        void MapXPartyBias::transfer(std::vector<Real>& x), const std::vector<Real>& var) {
             if (!m_initialized || x.empty()) return;
 
             std::vector<Real> transformed = x;
