@@ -5,6 +5,18 @@
 namespace ofec {
     namespace free_peaks {
 
+        MapXPartyBias* MapXPartyBias::create() {
+            return new MapXPartyBias();
+        }
+
+        void MapXPartyBias::addInputParameters() {
+            X_TransformBase::addInputParameters();
+            m_input_parameters.add("party_id", new InputParameterValueTypeInt(m_party_id));
+            m_input_parameters.add("magnitude", new InputParameterValueTypeReal(m_magnitude));
+            m_input_parameters.add("rotation_angle", new InputParameterValueTypeReal(m_rotation_angle));
+            m_input_parameters.add("condition_number", new InputParameterValueTypeReal(m_condition_number));
+        }
+
         void MapXPartyBias::initialize(Problem* prob, const std::string& subspace_name, const ParameterMap& param) {
             X_TransformBase::initialize(prob, subspace_name, param);
 
@@ -50,7 +62,7 @@ namespace ofec {
             m_initialized = true;
         }
 
-        void MapXPartyBias::transfer(std::vector<Real>& x) const {
+        void MapXPartyBias::transfer(std::vector<Real>& x, const std::vector<Real>& var) {
             if (!m_initialized || x.empty()) return;
 
             std::vector<Real> transformed = x;

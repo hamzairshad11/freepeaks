@@ -59,7 +59,7 @@ namespace ofec {
 
 #define OFEC_ABSTRACT_INSTANCE(identifier)\
 protected:\
-	 identifier() {\
+	 inline identifier() {\
         setClassName(#identifier); \
 		addInputParameters();\
 	};\
@@ -67,9 +67,8 @@ private:
 
 #define OFEC_CONCRETE_INSTANCE(identifier)\
 public:\
-	static identifier* create() {\
-		return new identifier();\
-	};\
+	static identifier* create();\
+
 OFEC_ABSTRACT_INSTANCE(identifier)
 }
 

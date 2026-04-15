@@ -6,6 +6,10 @@
 
 namespace ofec::free_peaks {
 
+	MapXIllConditioning* MapXIllConditioning::create() {
+		return new MapXIllConditioning();
+	}
+
 	void MapXIllConditioning::addInputParameters() {
 		m_input_parameters.add("condition", new EnumeratedReal(m_condition, m_recommended_values, 100.0));
 	}

@@ -6,6 +6,10 @@
 
 namespace ofec::free_peaks {
 
+	Subproblem* Subproblem::create() {
+		return new Subproblem();
+	}
+
 	const std::string Subproblem::ms_file_dir = "instance/problem/continuous/free_peaks/subproblem/";
 	std::string Subproblem::directory() {
 		return g_working_directory + ms_file_dir;
