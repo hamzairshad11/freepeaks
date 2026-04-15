@@ -1,5 +1,5 @@
-#ifndef OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
-#define OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
+//#ifndef OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
+//#define OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
 
 #include "transform_x_base.h"
 #include "../transform_base.h" 
@@ -36,8 +36,7 @@ namespace ofec {
 
 
             void initialize(Problem* prob, const std::string& subspace_name, const ParameterMap& param) override;
-            void transfer(std::vector<Real>& x, const std::vector<Real>& var) override;
-
+            void transfer(std::vector<Real>& x) const override;
 
         private:
             void applyBias(std::vector<Real>& x) const;
@@ -55,4 +54,4 @@ namespace ofec {
     } // namespace free_peaks
 } // namespace ofec
 
-#endif // OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
+//#endif // OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
