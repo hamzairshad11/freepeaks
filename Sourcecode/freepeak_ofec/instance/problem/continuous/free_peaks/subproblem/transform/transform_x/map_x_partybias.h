@@ -1,5 +1,5 @@
-#ifndef OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
-#define OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
+//#ifndef OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
+//#define OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
 
 #include "transform_x_base.h"
 #include "../transform_base.h" 
@@ -14,6 +14,8 @@ namespace ofec {
     namespace free_peaks {
 
         class MapXPartyBias : public X_TransformBase {
+            OFEC_CONCRETE_INSTANCE(MapXPartyBias)
+
         protected:
             int m_party_id;
             double m_magnitude;
@@ -29,21 +31,19 @@ namespace ofec {
             MapXPartyBias() : m_party_id(0), m_magnitude(0.0), m_rotation_angle(0.0),
                 m_condition_number(1.0), m_initialized(false) {
             }
-
-            void addInputParameters() override {
+            
+            void addInputParameters() {
                 X_TransformBase::addInputParameters();
-                m_input_parameters.add("party_id", new InputParameterValueTypeInt(0));
-                m_input_parameters.add("magnitude", new InputParameterValueTypeReal(0.0));
-                m_input_parameters.add("rotation_angle", new InputParameterValueTypeReal(0.0));
-                m_input_parameters.add("condition_number", new InputParameterValueTypeReal(1.0));
+                m_input_parameters.add("party_id", new InputParameterValueTypeInt(m_party_id));
+                m_input_parameters.add("magnitude", new InputParameterValueTypeReal(m_magnitude));
+                m_input_parameters.add("rotation_angle", new InputParameterValueTypeReal(m_rotation_angle));
+                m_input_parameters.add("condition_number", new InputParameterValueTypeReal(m_condition_number));
             }
 
-            std::string getName() const override {
-                return "MapXPartyBias";
-            }
 
             void initialize(Problem* prob, const std::string& subspace_name, const ParameterMap& param) override;
-            void transfer(std::vector<Real>& x) const override;
+            void transfer(std::vector<Real>& x, const std::vector<Real>& var);
+
 
         private:
             void applyBias(std::vector<Real>& x) const;
@@ -55,4 +55,4 @@ namespace ofec {
     } // namespace free_peaks
 } // namespace ofec
 
-#endif // OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
+//#endif // OFEC_FREE_PEAKS_MAP_X_PARTY_BIAS_H
