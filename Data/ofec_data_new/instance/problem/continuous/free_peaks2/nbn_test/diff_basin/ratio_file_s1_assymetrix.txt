@@ -1,9 +1,0 @@
-subtree_number 	1
-subtree_name 	root
-num	1
-[ s0 , 1 ]	
-_%BEGIN%
-file	sop/diff_basin/s1_flat_assymetrix
-generation	read_file
-subspace	s0
-_%END%

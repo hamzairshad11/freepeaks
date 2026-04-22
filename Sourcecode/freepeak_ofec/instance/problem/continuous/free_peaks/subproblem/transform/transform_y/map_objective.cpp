@@ -2,6 +2,7 @@
 #include "../../../free_peaks.h"
 
 namespace ofec::free_peaks {
+
 	void MapObjective::initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param) {
 		TransformBase::initialize(pro, subspace_name, param);
 		//bindData();

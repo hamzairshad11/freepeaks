@@ -3,10 +3,6 @@
 
 namespace ofec::free_peaks {
 
-	MapXAssymetrix* MapXAssymetrix::create() {
-		return new MapXAssymetrix();
-	}
-
 	void MapXAssymetrix::initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param) {
 		MapXBase::initialize(pro, subspace_name, param);
 	//	bindData();

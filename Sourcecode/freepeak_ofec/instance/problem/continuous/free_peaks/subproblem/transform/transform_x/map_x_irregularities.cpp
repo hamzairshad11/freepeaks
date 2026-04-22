@@ -4,10 +4,6 @@
 
 namespace ofec::free_peaks {
 
-	MapXIrregularity* MapXIrregularity::create() {
-		return new MapXIrregularity();
-	}
-
 	void MapXIrregularity::initialize(Problem* pro, const std::string& subspace_name, const ParameterMap& param) {
 		TransformBase::initialize(pro, subspace_name, param);
 	}

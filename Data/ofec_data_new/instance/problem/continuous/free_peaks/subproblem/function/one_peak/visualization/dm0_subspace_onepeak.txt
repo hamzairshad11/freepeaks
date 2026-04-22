@@ -1,8 +1,8 @@
 num_one_peaks	7
 
 ParameterMap_begin
-alpha kReal 0.08
-center_postion kVectorReal 2 0.3 0.73
+alpha kReal 1
+center_postion kVectorReal 2 0 6
 center_type kString assigned
 height kReal 90
 map_flag kInt 0
@@ -10,44 +10,44 @@ one_peak kString s1
 ParameterMap_end
 
 ParameterMap_begin
-alpha kReal 0.12
-center_postion kVectorReal 2 0.7 0.33
+alpha kReal 1
+center_postion kVectorReal 2 40 36
 center_type kString assigned
 height kReal 70
 map_flag kInt 0
+one_peak kString s2
+ParameterMap_end
+
+ParameterMap_begin
+alpha kReal 1
+center_postion kVectorReal 2 -40 -24
+center_type kString assigned
+height kReal 60
+map_flag kInt 0
 one_peak kString s1
 ParameterMap_end
 
 ParameterMap_begin
-alpha kReal 0.15
-center_postion kVectorReal 2 0.5 0.53
+alpha kReal 1
+center_postion kVectorReal 2 50 -34
 center_type kString assigned
 height kReal 50
 map_flag kInt 0
-one_peak kString s1
+one_peak kString s3
 ParameterMap_end
 
 ParameterMap_begin
-alpha kReal 0.06
-center_postion kVectorReal 2 0.2 0.23
+alpha kReal 1
+center_postion kVectorReal 2 -50 46
 center_type kString assigned
 height kReal 45
 map_flag kInt 0
-one_peak kString s1
+one_peak kString s2
 ParameterMap_end
 
 ParameterMap_begin
-alpha kReal 0.1
-center_postion kVectorReal 2 0.8 0.83
-center_type kString assigned
-height kReal 40
-map_flag kInt 0
-one_peak kString s1
-ParameterMap_end
-
-ParameterMap_begin
-alpha kReal 0.09
-center_postion kVectorReal 2 0.15 0.88
+alpha kReal 1
+center_postion kVectorReal 2 20 -54
 center_type kString assigned
 height kReal 35
 map_flag kInt 0
@@ -55,12 +55,12 @@ one_peak kString s1
 ParameterMap_end
 
 ParameterMap_begin
-alpha kReal 0.11
-center_postion kVectorReal 2 0.85 0.18
+alpha kReal 1
+center_postion kVectorReal 2 -20 66
 center_type kString assigned
 height kReal 30
 map_flag kInt 0
-one_peak kString s1
+one_peak kString s3
 ParameterMap_end
 
 

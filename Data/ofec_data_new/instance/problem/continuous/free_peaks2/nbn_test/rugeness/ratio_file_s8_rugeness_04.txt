@@ -1,9 +1,0 @@
-subtree_number 	1
-subtree_name 	root
-num	1
-[ s0 , 1 ]	
-_%BEGIN%
-file	sop/rugenss_alpha/s8_flat_WeierstrassRugeness_04
-generation	read_file
-subspace	s0
-_%END%

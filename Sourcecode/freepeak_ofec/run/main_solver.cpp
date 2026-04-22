@@ -1,5 +1,5 @@
 #include "mpmcoea_solver.hpp"
-#include "instance/problem/continuous/free_peaks/factory.h"
+#include "instance/problem/continuous/free_peaks/factory.h" 
 
 int main() {
     try {

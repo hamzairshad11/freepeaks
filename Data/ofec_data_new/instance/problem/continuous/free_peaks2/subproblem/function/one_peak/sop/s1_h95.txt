@@ -1,7 +1,0 @@
-num_objs	1
-
-_%BEGIN%
-one_peak	s1
-center		default
-height		95.0
-_%END%

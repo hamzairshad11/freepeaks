@@ -22,54 +22,53 @@
 #include "random/newran.h"
 
 namespace ofec {
-	class Instance {
-	public:
+    class Instance {
+    public:
 
 
-		virtual ~Instance() = default;
+        virtual ~Instance() = default;
 
-		/* Ready-only methods */
-		const std::string& name() const { return m_name; }
-		const std::string& className() const { return m_className; }
-		const std::shared_ptr<Random>& random() { return m_random; }
-		const InputParameterMap& inputParameters() const { return m_input_parameters; }
-		const ParameterMap& archivedParameters() const { return m_archived_parameters; }
+        //Ready-only methods
+        const std::string& name() const { return m_name; }
+        const std::string& className() const { return m_className; }
+        const std::shared_ptr<Random>& random() { return m_random; }
+        const InputParameterMap& inputParameters() const { return m_input_parameters; }
+        const ParameterMap& archivedParameters() const { return m_archived_parameters; }
 
-		/* Write methods */
-		void setClassName(const std::string& class_name) { m_className = class_name; }
-		void setName(const std::string& name) { m_name = name; }
-		void setRandom(const std::shared_ptr<Random>& random) { m_random = random; }
+        //Write methods
+        void setClassName(const std::string& class_name) { m_className = class_name; }
+        void setName(const std::string& name) { m_name = name; }
+        void setRandom(const std::shared_ptr<Random>& random) { m_random = random; }
 
-		virtual void recordInputParameters();
-		virtual void restoreInputParameters();
+        virtual void recordInputParameters();
+        virtual void restoreInputParameters();
 
-	protected:
-		virtual void registerName() {}
-	protected:
-		Instance() = default;
+    protected:
+        virtual void registerName() {}
+    protected:
+        Instance() = default;
 
-		std::shared_ptr<Random> m_random;
-		InputParameterMap m_input_parameters;
-		ParameterMap m_archived_parameters;
+        std::shared_ptr<Random> m_random;
+        InputParameterMap m_input_parameters;
+        ParameterMap m_archived_parameters;
 
-	private:
-		std::string m_name;// instacne name
-		std::string m_className; // to save the class name of the instance
-	};
+    private:
+        std::string m_name;// instacne name
+        std::string m_className; // to save the class name of the instance
+    };
 
 #define OFEC_ABSTRACT_INSTANCE(identifier)\
-protected:\
-	 inline identifier() {\
+public:\
+        inline identifier() {\
         setClassName(#identifier); \
-		addInputParameters();\
-	};\
-private:
+                addInputParameters();\
+        }
 
 #define OFEC_CONCRETE_INSTANCE(identifier)\
 public:\
-	static identifier* create();\
-
-OFEC_ABSTRACT_INSTANCE(identifier)
+        static inline identifier* create() { return new identifier(); }\
+OFEC_ABSTRACT_INSTANCE(identifier)\
+private:
 }
 
-#endif
+#endif OFEC_INSTANCE_H
