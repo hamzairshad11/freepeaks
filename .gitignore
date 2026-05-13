@@ -1,3 +1,14 @@
+# Visual Studio user-specific files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.ipch
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
 ```
 # Build artifacts
 *.o

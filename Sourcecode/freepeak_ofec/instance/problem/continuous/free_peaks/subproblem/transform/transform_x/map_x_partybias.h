@@ -28,7 +28,7 @@ namespace ofec {
         protected:
             // Parameters registered with the input-parameter subsystem
             int  m_party_id = 0;
-            Real m_magnitude = 0.05;   // shift amplitude (domain units)
+            Real m_magnitude = 5.0;   // shift amplitude (domain units)
             Real m_rotation_angle = 0.0;    // plane-rotation angle (radians)
             Real m_condition_number = 1.0;  // axis-stretch ratio (>= 1)
 
@@ -59,8 +59,6 @@ namespace ofec {
             void applyRotation(std::vector<Real>& x) const;
             void applyIllConditioning(std::vector<Real>& x) const;
 
-            // Clamp to [0, 1] — wrapping would introduce artificial discontinuities.
-            static void clampToUnitInterval(Real& val);
         };
 
     } // namespace free_peaks

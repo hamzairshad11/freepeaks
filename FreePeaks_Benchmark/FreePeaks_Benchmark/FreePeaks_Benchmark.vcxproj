@@ -76,6 +76,8 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_base.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_ill_conditioning.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_irregularities.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_deceptive.h" />
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_linkage.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\register_transform_x.h" />
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\transform_x_base.h" />
@@ -145,6 +147,8 @@
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_base.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_ill_conditioning.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_irregularities.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_deceptive.cpp" />
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_linkage.cpp" />
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Sourcecode;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

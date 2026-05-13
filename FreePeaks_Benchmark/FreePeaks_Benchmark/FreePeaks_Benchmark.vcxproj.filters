@@ -183,9 +183,6 @@
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subspace_kdtree.h">
       <Filter>ofec_src\instance\problem\continuous\free_peaks</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\type.h">
-      <Filter>ofec_src\instance\problem\continuous\free_peaks</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\subproblem.h">
       <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem</Filter>
     </ClInclude>
@@ -322,6 +319,15 @@
       <Filter>ofec_src\run</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\type.h">
+      <Filter>ofec_src\instance\problem\continuous</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_linkage.h">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_deceptive.h">
       <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
     </ClInclude>
   </ItemGroup>
@@ -501,6 +507,12 @@
       <Filter>ofec_src\run</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_partybias.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_deceptive.cpp">
+      <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Sourcecode\freepeak_ofec\instance\problem\continuous\free_peaks\subproblem\transform\transform_x\map_x_linkage.cpp">
       <Filter>ofec_src\instance\problem\continuous\free_peaks\subproblem\transform\transform_x</Filter>
     </ClCompile>
   </ItemGroup>
