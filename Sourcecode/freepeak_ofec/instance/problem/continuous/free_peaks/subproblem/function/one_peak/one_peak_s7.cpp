@@ -16,6 +16,10 @@ namespace ofec::free_peaks {
 	}
 
 	Real OnePeakS7::evaluate_(Real dummy, size_t var_size) {
+		// Guard: if radius is zero or negative (from degenerate transforms),
+		// return the peak height to avoid cos(pi/0) = NaN.
+		if (m_radius <= Real(1e-12))
+			return m_height;
 		if (dummy <= m_radius)
 			return m_height * cos(OFEC_PI * dummy / m_radius);
 		else

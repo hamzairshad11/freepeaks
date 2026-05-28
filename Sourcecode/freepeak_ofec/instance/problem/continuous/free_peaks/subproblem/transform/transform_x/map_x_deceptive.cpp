@@ -24,8 +24,8 @@ namespace ofec {
             if (!m_initialized || x.empty()) return;
             for (size_t i = 0; i < x.size(); ++i) {
                 double xi = static_cast<double>(x[i]);
-                double yi = xi + static_cast<double>(m_alpha) * std::sin(2.0 * 3.14159265358979323846 * xi);
-                x[i] = static_cast<Real>(std::max(0.0, std::min(1.0, yi)));
+                x[i] = static_cast<Real>(xi * (1.0 + static_cast<double>(m_alpha) * std::sin(xi)));
+                // NO clamping — residuals must remain in function domain
             }
         }
     } // namespace free_peaks

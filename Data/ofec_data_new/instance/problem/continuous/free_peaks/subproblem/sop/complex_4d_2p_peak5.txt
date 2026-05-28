@@ -13,7 +13,7 @@ ParameterMap_end
 num_constraints	0
 
 
-num_trans_vars	3
+num_trans_vars	5
 
 ParameterMap_begin
 condition_number kReal 1
@@ -30,6 +30,16 @@ ParameterMap_end
 
 ParameterMap_begin
 transformX kString MapXIrregularity
+ParameterMap_end
+
+ParameterMap_begin
+alpha kReal 0.13
+transformX kString MapXDeceptive
+ParameterMap_end
+
+ParameterMap_begin
+beta kReal 0.1
+transformX kString MapXLinkage
 ParameterMap_end
 
 

@@ -15,9 +15,13 @@ namespace ofec::free_peaks {
 	}
 
 	Real OnePeakS8::evaluate_(Real dummy, size_t var_size) {
+		// Guard: if radius is zero (from degenerate transforms), return peak height.
+		if (m_radius <= Real(1e-12))
+			return m_height;
 		if (dummy <= m_radius) {
-			int n = floor(m_m * dummy / m_radius);
-			return m_height * (cos(m_m * OFEC_PI * (dummy - n * m_radius / m_m) / m_radius) - m_eta * n) / (sqrt(dummy + 1));
+			int n = static_cast<int>(floor(m_m * dummy / m_radius));
+			return m_height * (cos(m_m * OFEC_PI * (dummy - n * m_radius / m_m) / m_radius)
+				- m_eta * n) / (sqrt(dummy + 1));
 		}
 		else {
 			return m_height * (-1 - m_eta * (m_m - 1)) / (sqrt(m_radius + 1)) - (dummy - m_radius);
