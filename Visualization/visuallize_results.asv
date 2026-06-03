@@ -1,0 +1,628 @@
+% MPM-CoEA Visualization Script
+% Comprehensive visualization for MPM-CoEA algorithm outputs
+% Place this script in: E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\
+% It will read from the 'solutions' subfolder
+% NOTE: In MATLAB, all function definitions must be at the END of the script.
+
+clear; close all; clc;
+
+%% Configuration
+baseDir = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\';
+solDir = [baseDir 'solutions\'];
+
+% Problem parameters
+numPeaks = 8;
+numParties = 2;
+partyVars = {[0, 2], [1, 3]}; % From code output: Party 0 -> vars [0, 2], Party 1 -> vars [1, 3]
+dim = 4;
+
+% Known peak centers (from your output)
+peakCenters = [
+    0.3050, 0.2951, 0.2778, 0.5000;  % Peak 1: 90.0
+    0.4270, 0.2066, 0.8556, 0.3750;  % Peak 2: 75.0
+    0.1525, 0.8770, 0.1430, 0.6750;  % Peak 3: 65.0
+    0.3813, 0.8463, 0.8200, 0.6250;  % Peak 4: 55.0
+    0.7465, 0.1885, 0.1833, 0.3500;  % Peak 5: 50.0
+    0.9220, 0.1346, 0.8929, 0.2750;  % Peak 6: 42.0
+    0.7660, 0.9077, 0.2361, 0.7750;  % Peak 7: 35.0
+    0.9610, 0.9538, 0.9444, 0.9000;  % Peak 8: 80.0
+];
+peakFitness = [90, 75, 65, 55, 50, 42, 35, 80];
+
+%% Color scheme
+colors = lines(8);
+partyColors = {[0.2 0.4 0.8], [0.8 0.3 0.2]}; % Blue for party 0, Red for party 1
+
+fprintf('=== MPM-CoEA Visualization ===\n');
+fprintf('Reading files from: %s\n', solDir);
+
+%% ============================================================================
+% 1. CONVERGENCE CURVE
+%% ============================================================================
+fprintf('\n[1/7] Plotting convergence curve...\n');
+
+convFile = [solDir 'convergence.txt'];
+if exist(convFile, 'file')
+    fid = fopen(convFile, 'r');
+    % Skip header
+    fgetl(fid);
+    data = textscan(fid, '%d %f');
+    fclose(fid);
+
+    gen = data{1};
+    bestFit = data{2};
+
+    figure('Name', 'Convergence', 'Position', [100 100 900 500]);
+    plot(gen, bestFit, 'b-', 'LineWidth', 1.5);
+    hold on;
+
+    % Mark restart points (where stagnation resets)
+    restarts = find(diff(gen) > 1) + 1;
+    if ~isempty(restarts)
+        plot(gen(restarts), bestFit(restarts), 'ro', 'MarkerSize', 8, 'MarkerFaceColor', 'r');
+        legend('Best Fitness', 'Restart Points', 'Location', 'best');
+    else
+        legend('Best Fitness', 'Location', 'best');
+    end
+
+    xlabel('Generation');
+    ylabel('Best Joint Fitness');
+    title('MPM-CoEA Convergence Curve');
+    grid on;
+
+    % Add horizontal lines for peak fitness values
+    for i = 1:numPeaks
+        yline(peakFitness(i), '--', sprintf('Peak %d (%.0f)', i, peakFitness(i)), ...
+              'Color', colors(i,:), 'Alpha', 0.5, 'LabelHorizontalAlignment', 'left');
+    end
+
+    saveas(gcf, [baseDir 'fig_convergence.png']);
+    fprintf('  Saved: fig_convergence.png\n');
+else
+    fprintf('  WARNING: convergence.txt not found\n');
+end
+
+%% ============================================================================
+% 2. PARTY LANDSCAPES (Before vs After)
+%% ============================================================================
+fprintf('\n[2/7] Plotting party landscapes...\n');
+
+for party = 0:1
+    beforeFile = sprintf('%sparty%d_landscape_before.txt', solDir, party);
+    afterFile = sprintf('%sparty%d_landscape_after.txt', solDir, party);
+
+    if ~exist(beforeFile, 'file') || ~exist(afterFile, 'file')
+        fprintf('  WARNING: Party %d landscape files not found\n', party);
+        continue;
+    end
+
+    % Read before landscape
+    dataBefore = readLandscapeFile(beforeFile);
+    % Read after landscape
+    dataAfter = readLandscapeFile(afterFile);
+
+    vars = partyVars{party+1};
+
+    % Create figure with subplots: Before | After | Difference
+    figure('Name', sprintf('Party %d Landscape', party), 'Position', [100 100 1500 500]);
+
+    % Before
+    subplot(1, 3, 1);
+    plotLandscape(dataBefore.X, dataBefore.Y, dataBefore.F, ...
+                  sprintf('Before - Party %d (vars %d, %d)', party, vars(1), vars(2)));
+    hold on;
+    % Mark known peak projections with small dots
+    for p = 1:numPeaks
+        x = peakCenters(p, vars(1)+1); % +1 because MATLAB is 1-indexed
+        y = peakCenters(p, vars(2)+1);
+        plot(x, y, '.', 'MarkerSize', 18, 'Color', colors(p,:));
+    end
+
+    % After
+    subplot(1, 3, 2);
+    plotLandscape(dataAfter.X, dataAfter.Y, dataAfter.F, ...
+                  sprintf('After - Party %d (vars %d, %d)', party, vars(1), vars(2)));
+    hold on;
+    for p = 1:numPeaks
+        x = peakCenters(p, vars(1)+1);
+        y = peakCenters(p, vars(2)+1);
+        plot(x, y, '.', 'MarkerSize', 18, 'Color', colors(p,:));
+    end
+
+    % Difference (After - Before)
+    subplot(1, 3, 3);
+    Fdiff = dataAfter.F - dataBefore.F;
+    plotLandscape(dataBefore.X, dataBefore.Y, Fdiff, ...
+                  sprintf('Difference (After - Before) - Party %d', party), true);
+
+    saveas(gcf, sprintf('%sfig_party%d_landscape.png', baseDir, party));
+    fprintf('  Saved: fig_party%d_landscape.png\n', party);
+end
+
+%% ============================================================================
+% 3. PARTY LANDSCAPE COMPARISON (Party 0 vs Party 1)
+%% ============================================================================
+fprintf('\n[3/7] Plotting party comparison...\n');
+
+% Compare party landscapes side by side (after co-evolution)
+figure('Name', 'Party Comparison (After)', 'Position', [100 100 1200 550]);
+
+for party = 0:1
+    afterFile = sprintf('%sparty%d_landscape_after.txt', solDir, party);
+    if ~exist(afterFile, 'file')
+        continue;
+    end
+
+    data = readLandscapeFile(afterFile);
+    vars = partyVars{party+1};
+
+    subplot(1, 2, party+1);
+    plotLandscape(data.X, data.Y, data.F, ...
+                  sprintf('Party %d (vars %d, %d)', party, vars(1), vars(2)));
+    hold on;
+
+    % Mark peak centers with small dots
+    for p = 1:numPeaks
+        x = peakCenters(p, vars(1)+1);
+        y = peakCenters(p, vars(2)+1);
+        plot(x, y, '.', 'MarkerSize', 20, 'Color', colors(p,:));
+    end
+
+    % Add legend for peaks
+    if party == 1
+        legendStrings = arrayfun(@(x) sprintf('Peak %d (%.0f)', x, peakFitness(x)), 1:numPeaks, 'UniformOutput', false);
+        legend(legendStrings, 'Location', 'bestoutside', 'FontSize', 8);
+    end
+end
+
+saveas(gcf, [baseDir 'fig_party_comparison.png']);
+fprintf('  Saved: fig_party_comparison.png\n');
+
+%% ============================================================================
+% 4. FULL LANDSCAPE SLICES (Before vs After)
+%% ============================================================================
+fprintf('\n[4/7] Plotting full landscape slices...\n');
+
+beforeDir = [solDir 'landscape_full_before\'];
+afterDir = [solDir 'landscape_full_after\'];
+
+% Get all slice files
+if exist(beforeDir, 'dir') && exist(afterDir, 'dir')
+    beforeFiles = dir([beforeDir 'slice_*.txt']);
+    afterFiles = dir([afterDir 'slice_*.txt']);
+
+    numSlices = min(length(beforeFiles), length(afterFiles));
+
+    % Create a large figure with all slices
+    rows = ceil(sqrt(numSlices));
+    cols = ceil(numSlices / rows);
+
+    % Before slices
+    figure('Name', 'Full Landscape Slices - Before', 'Position', [50 50 1800 1400]);
+    for i = 1:numSlices
+        subplot(rows, cols, i);
+        data = readLandscapeFile([beforeDir beforeFiles(i).name]);
+        % Extract dimension indices from filename
+        tokens = regexp(beforeFiles(i).name, 'slice_d(\d+)_d(\d+)', 'tokens');
+        d1 = str2double(tokens{1}{1});
+        d2 = str2double(tokens{1}{2});
+
+        plotLandscape(data.X, data.Y, data.F, sprintf('x%d vs x%d', d1, d2));
+        hold on;
+        % Mark peak projections with small dots
+        for p = 1:numPeaks
+            plot(peakCenters(p, d1+1), peakCenters(p, d2+1), '.', ...
+                 'MarkerSize', 14, 'Color', colors(p,:));
+        end
+    end
+    saveas(gcf, [baseDir 'fig_full_landscape_before.png']);
+    fprintf('  Saved: fig_full_landscape_before.png\n');
+
+    % After slices
+    figure('Name', 'Full Landscape Slices - After', 'Position', [50 50 1800 1400]);
+    for i = 1:numSlices
+        subplot(rows, cols, i);
+        data = readLandscapeFile([afterDir afterFiles(i).name]);
+        tokens = regexp(afterFiles(i).name, 'slice_d(\d+)_d(\d+)', 'tokens');
+        d1 = str2double(tokens{1}{1});
+        d2 = str2double(tokens{1}{2});
+
+        plotLandscape(data.X, data.Y, data.F, sprintf('x%d vs x%d', d1, d2));
+        hold on;
+        for p = 1:numPeaks
+            plot(peakCenters(p, d1+1), peakCenters(p, d2+1), '.', ...
+                 'MarkerSize', 14, 'Color', colors(p,:));
+        end
+    end
+    saveas(gcf, [baseDir 'fig_full_landscape_after.png']);
+    fprintf('  Saved: fig_full_landscape_after.png\n');
+
+    % Difference slices
+    figure('Name', 'Full Landscape Slices - Difference', 'Position', [50 50 1800 1400]);
+    for i = 1:numSlices
+        subplot(rows, cols, i);
+        dataBefore = readLandscapeFile([beforeDir beforeFiles(i).name]);
+        dataAfter = readLandscapeFile([afterDir afterFiles(i).name]);
+        tokens = regexp(afterFiles(i).name, 'slice_d(\d+)_d(\d+)', 'tokens');
+        d1 = str2double(tokens{1}{1});
+        d2 = str2double(tokens{1}{2});
+
+        Fdiff = dataAfter.F - dataBefore.F;
+        plotLandscape(dataBefore.X, dataBefore.Y, Fdiff, ...
+                      sprintf('x%d vs x%d (After-Before)', d1, d2), true);
+    end
+    saveas(gcf, [baseDir 'fig_full_landscape_diff.png']);
+    fprintf('  Saved: fig_full_landscape_diff.png\n');
+else
+    fprintf('  WARNING: Full landscape directories not found\n');
+end
+
+% 5. SOLUTION EVOLUTION (Gen 10, 50, 100, 200, 300, 400, 500, 600)
+fprintf('\n[5/7] Plotting solution evolution...\n');
+
+genSnapshots = [10, 50, 100, 200, 300, 400, 500, 600];
+availableGens = [];
+
+for g = genSnapshots
+    fname = sprintf('%sgen_%d_solutions.txt', solDir, g);
+    if exist(fname, 'file')
+        availableGens = [availableGens, g];
+    end
+end
+
+if ~isempty(availableGens)
+    % Plot 2D projections of solutions at different generations
+    % Focus on most important pairs: (0,1), (0,2), (1,3), (2,3)
+    keyPairs = [0 1; 0 2; 1 3; 2 3];
+    pairNames = {'x0-x1', 'x0-x2', 'x1-x3', 'x2-x3'};
+
+    for pairIdx = 1:size(keyPairs, 1)
+        d1 = keyPairs(pairIdx, 1);
+        d2 = keyPairs(pairIdx, 2);
+
+        figure('Name', sprintf('Solution Evolution - %s', pairNames{pairIdx}), ...
+               'Position', [100 100 1500 900]);
+
+        numPlots = length(availableGens);
+        rows = 2; cols = ceil(numPlots/2);
+
+        for i = 1:numPlots
+            subplot(rows, cols, i);
+            g = availableGens(i);
+            [sol, fit, osaSol, osaFit] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
+
+            % Plot mediating population
+            scatter(sol(:, d1+1), sol(:, d2+1), 30, fit, 'filled');
+            hold on;
+
+            % Plot OSA solutions
+            if ~isempty(osaSol)
+                scatter(osaSol(:, d1+1), osaSol(:, d2+1), 60, osaFit, 'filled', ...
+                        'MarkerEdgeColor', 'k', 'LineWidth', 1.5);
+            end
+
+            % Mark known peaks with small dots
+            for p = 1:numPeaks
+                plot(peakCenters(p, d1+1), peakCenters(p, d2+1), '.', ...
+                     'MarkerSize', 22, 'Color', colors(p,:));
+            end
+
+            colormap(jet);
+            colorbar;
+            xlabel(sprintf('x%d', d1));
+            ylabel(sprintf('x%d', d2));
+            title(sprintf('Gen %d (n=%d, osa=%d)', g, length(fit), length(osaFit)));
+            axis([0 1 0 1]);
+            grid on;
+        end
+
+        sgtitle(sprintf('Solution Evolution in %s Plane', pairNames{pairIdx}));
+        saveas(gcf, sprintf('%sfig_evolution_%s.png', baseDir, pairNames{pairIdx}));
+        fprintf('  Saved: fig_evolution_%s.png\n', pairNames{pairIdx});
+    end
+
+    % Create animation-ready figure showing all generations
+    figure('Name', 'Solution Density Evolution', 'Position', [100 100 1200 800]);
+    for i = 1:length(availableGens)
+        g = availableGens(i);
+        [sol, fit, ~, ~] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
+
+        subplot(2, 3, i);
+        % 2D histogram/density plot
+        hist3([sol(:, 1), sol(:, 2)], [20 20]);
+        set(gcf, 'renderer', 'opengl');
+        set(get(gca, 'child'), 'FaceColor', 'interp', 'CDataMode', 'auto');
+        title(sprintf('Gen %d', g));
+        xlabel('x0'); ylabel('x1');
+    end
+    saveas(gcf, [baseDir 'fig_solution_density.png']);
+    fprintf('  Saved: fig_solution_density.png\n');
+else
+    fprintf('  WARNING: No generation files found\n');
+end
+
+% 6. FITNESS DISTRIBUTION ANALYSIS
+fprintf('\n[6/7] Plotting fitness distribution analysis...\n');
+
+if ~isempty(availableGens)
+    figure('Name', 'Fitness Distribution', 'Position', [100 100 1200 500]);
+
+    % Fitness distribution over generations
+    subplot(1, 2, 1);
+    allFitness = {};
+    genLabels = {};
+    for i = 1:length(availableGens)
+        g = availableGens(i);
+        [~, fit, ~, osaFit] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
+        allFitness{i} = fit;
+        genLabels{i} = sprintf('Gen %d', g);
+    end
+
+    boxplot(cell2mat(allFitness'), genLabels);
+    ylabel('Fitness');
+    title('Fitness Distribution per Generation');
+    xlabel('Generation');
+    grid on;
+
+    % OSA size growth
+    subplot(1, 2, 2);
+    osaSizes = zeros(length(availableGens), 1);
+    for i = 1:length(availableGens)
+        g = availableGens(i);
+        [~, ~, ~, osaFit] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
+        osaSizes(i) = length(osaFit);
+    end
+
+    bar(availableGens, osaSizes, 'FaceColor', [0.3 0.6 0.3]);
+    xlabel('Generation');
+    ylabel('OSA Archive Size');
+    title('Optimal Solution Archive Growth');
+    grid on;
+
+    saveas(gcf, [baseDir 'fig_fitness_distribution.png']);
+    fprintf('  Saved: fig_fitness_distribution.png\n');
+end
+
+% 7. PEAK DISCOVERY ANALYSIS
+fprintf('\n[7/7] Plotting peak discovery analysis...\n');
+
+% Analyze which peaks are found at each generation
+if ~isempty(availableGens)
+    figure('Name', 'Peak Discovery Timeline', 'Position', [100 100 1400 600]);
+
+    discoveryMatrix = zeros(length(availableGens), numPeaks);
+    eps_x = 0.05; % Loose threshold for visualization
+
+    for i = 1:length(availableGens)
+        g = availableGens(i);
+        [sol, ~, osaSol, ~] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
+        allSol = [sol; osaSol];
+
+        for p = 1:numPeaks
+            for s = 1:size(allSol, 1)
+                dist = norm(allSol(s, :) - peakCenters(p, :));
+                if dist < eps_x
+                    discoveryMatrix(i, p) = 1;
+                    break;
+                end
+            end
+        end
+    end
+
+    % Heatmap
+    subplot(2, 1, 1);
+    imagesc(discoveryMatrix');
+    colormap(gca, [0.9 0.3 0.3; 0.3 0.8 0.3]); % Red = not found, Green = found
+    set(gca, 'YTick', 1:numPeaks, 'YTickLabel', arrayfun(@(x) sprintf('Peak %d (%.0f)', x, peakFitness(x)), ...
+          1:numPeaks, 'UniformOutput', false));
+    set(gca, 'XTick', 1:length(availableGens), 'XTickLabel', arrayfun(@(x) sprintf('%d', x), availableGens, 'UniformOutput', false));
+    xlabel('Generation');
+    title('Peak Discovery Timeline (Green = Found, Red = Not Found)');
+    colorbar('off');
+
+    % Cumulative discovery count
+    subplot(2, 1, 2);
+    cumulativeFound = sum(discoveryMatrix, 2);
+    plot(availableGens, cumulativeFound, 'b-o', 'LineWidth', 2, 'MarkerSize', 8);
+    hold on;
+    yline(numPeaks, 'r--', 'Target (8 peaks)', 'LineWidth', 1.5);
+    xlabel('Generation');
+    ylabel('Peaks Found');
+    title('Cumulative Peak Discovery');
+    ylim([0 numPeaks+1]);
+    grid on;
+    legend('Peaks Found', 'Target', 'Location', 'best');
+
+    saveas(gcf, [baseDir 'fig_peak_discovery.png']);
+    fprintf('  Saved: fig_peak_discovery.png\n');
+end
+
+% 8. 3D Surface Plots for Key Party Landscapes
+fprintf('\nCreating 3D surface plots...\n');
+
+for party = 0:1
+    afterFile = sprintf('%sparty%d_landscape_after.txt', solDir, party);
+    if ~exist(afterFile, 'file')
+        continue;
+    end
+
+    data = readLandscapeFile(afterFile);
+    vars = partyVars{party+1};
+
+    figure('Name', sprintf('3D Surface - Party %d', party), 'Position', [100 100 1000 700]);
+    surf(data.X, data.Y, data.F, 'EdgeColor', 'none');
+    hold on;
+
+    % Mark peaks as small dots
+    for p = 1:numPeaks
+        x = peakCenters(p, vars(1)+1);
+        y = peakCenters(p, vars(2)+1);
+        % Find approximate fitness at peak center
+        [~, xi] = min(abs(data.X(1,:) - x));
+        [~, yi] = min(abs(data.Y(:,1) - y));
+        z = data.F(yi, xi);
+        plot3(x, y, z + 2, '.', 'MarkerSize', 20, 'Color', colors(p,:));
+    end
+
+    xlabel(sprintf('x%d', vars(1)));
+    ylabel(sprintf('x%d', vars(2)));
+    zlabel('Fitness');
+    title(sprintf('Party %d Landscape (3D) - vars [%d, %d]', party, vars(1), vars(2)));
+    colorbar;
+    colormap(jet);
+    view(-45, 30);
+    shading interp;
+    lighting gouraud;
+    camlight;
+
+    saveas(gcf, sprintf('%sfig_party%d_3d.png', baseDir, party));
+    fprintf('  Saved: fig_party%d_3d.png\n', party);
+end
+
+fprintf('\n=== Visualization Complete ===\n');
+fprintf('All figures saved to: %s\n', baseDir);
+
+% LOCAL FUNCTION DEFINITIONS (must be at the END of the script)
+
+function data = readLandscapeFile(filename)
+    % Read landscape file: 3 columns (x, y, fitness)
+    % Data is gridded with resolution ~100-200
+    fid = fopen(filename, 'r');
+    if fid == -1
+        error('Cannot open file: %s', filename);
+    end
+
+    % Read line by line to properly skip headers and avoid losing first data line
+    rawData = [];
+    while true
+        line = fgetl(fid);
+        if ~ischar(line), break; end
+
+        line = strtrim(line);
+        if isempty(line) || startsWith(line, '#')
+            continue;
+        end
+
+        vals = sscanf(line, '%f');
+        if length(vals) >= 3
+            rawData = [rawData; vals(1:3)'];
+        end
+    end
+    fclose(fid);
+
+    n = size(rawData, 1);
+    if n == 0
+        error('No data found in file: %s', filename);
+    end
+
+    % Determine grid size (should be perfect square: 100x100 or 200x200)
+    res = sqrt(n);
+    if abs(res - round(res)) > 0.1
+        % Not a perfect square, try to infer from unique x values
+        uniqueX = unique(rawData(:,1));
+        res = length(uniqueX);
+    else
+        res = round(res);
+    end
+
+    % Verify reshape dimensions
+    if res * res ~= n
+        uniqueY = unique(rawData(:,2));
+        resY = length(uniqueY);
+        if res * resY == n
+            data.X = reshape(rawData(:,1), resY, res);
+            data.Y = reshape(rawData(:,2), resY, res);
+            data.F = reshape(rawData(:,3), resY, res);
+            return;
+        else
+            error('Cannot reshape %d elements into grid (res=%d, res*res=%d). File: %s', ...
+                  n, res, res*res, filename);
+        end
+    end
+
+    data.X = reshape(rawData(:,1), res, res);
+    data.Y = reshape(rawData(:,2), res, res);
+    data.F = reshape(rawData(:,3), res, res);
+end
+
+function plotLandscape(X, Y, F, titleStr, isDiff)
+    if nargin < 5, isDiff = false; end
+
+    if isDiff
+        % Use diverging colormap for differences
+        maxAbs = max(abs(F(:)));
+        if maxAbs < 1e-12
+            % All values are essentially zero - use a flat gray color
+            surf(X, Y, F, 'EdgeColor', 'none');
+            colormap(gca, [0.5 0.5 0.5]);
+            c = colorbar;
+            c.Label.String = 'Fitness Difference (no change)';
+            caxis([-1 1]);
+        else
+            surf(X, Y, F, 'EdgeColor', 'none');
+            colormap(gca, jet);
+            c = colorbar;
+            c.Label.String = 'Fitness Difference';
+            caxis([-maxAbs, maxAbs]);
+        end
+    else
+        surf(X, Y, F, 'EdgeColor', 'none');
+        colormap(gca, jet);
+        c = colorbar;
+        c.Label.String = 'Fitness';
+    end
+
+    title(titleStr);
+    xlabel('x');
+    ylabel('y');
+    view(2); % Top-down view
+    axis([0 1 0 1]);
+    shading interp;
+    grid on;
+end
+
+function [sol, fit, osaSol, osaFit] = readSolutionFile(filename)
+    % Read solution file format:
+    % Lines starting with # are comments
+    % First section: mediating population (x0..xd, fitness)
+    % After "# OSA solutions": OSA archive (x0..xd, fitness)
+
+    fid = fopen(filename, 'r');
+    if fid == -1
+        error('Cannot open file: %s', filename);
+    end
+
+    sol = [];
+    fit = [];
+    osaSol = [];
+    osaFit = [];
+
+    inOSA = false;
+
+    while true
+        line = fgetl(fid);
+        if ~ischar(line), break; end
+
+        if startsWith(line, '# OSA')
+            inOSA = true;
+            continue;
+        end
+
+        if startsWith(line, '#') || isempty(strtrim(line))
+            continue;
+        end
+
+        vals = sscanf(line, '%f')';
+        if length(vals) >= 2
+            if inOSA
+                osaSol = [osaSol; vals(1:end-1)];
+                osaFit = [osaFit; vals(end)];
+            else
+                sol = [sol; vals(1:end-1)];
+                fit = [fit; vals(end)];
+            end
+        end
+    end
+
+    fclose(fid);
+end

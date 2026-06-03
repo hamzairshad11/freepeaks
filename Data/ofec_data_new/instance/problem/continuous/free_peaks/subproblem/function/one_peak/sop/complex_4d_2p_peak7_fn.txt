@@ -6,7 +6,7 @@ center_postion kVectorReal 4 -20 60 -15 55
 center_type kString assigned
 height kReal 35
 map_flag kInt 0
-one_peak kString s4
+one_peak kString s1
 ParameterMap_end
 
 
