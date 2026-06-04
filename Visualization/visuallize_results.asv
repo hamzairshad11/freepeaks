@@ -1,628 +1,723 @@
-% MPM-CoEA Visualization Script
-% Comprehensive visualization for MPM-CoEA algorithm outputs
-% Place this script in: E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\
-% It will read from the 'solutions' subfolder
-% NOTE: In MATLAB, all function definitions must be at the END of the script.
+function visualizeMPMCoEA(visBase)
+%VISUALIZEMPMCOEA  MPM-CoEA visualisation suite.
+%
+%   USAGE
+%       visualizeMPMCoEA()         % uses the hard-coded default path
+%       visualizeMPMCoEA(visBase)  % custom base directory
+%
+%   Requires MATLAB R2016b+; no external toolboxes needed.
 
-clear; close all; clc;
-
-%% Configuration
-baseDir = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\';
-solDir = [baseDir 'solutions\'];
-
-% Problem parameters
-numPeaks = 8;
-numParties = 2;
-partyVars = {[0, 2], [1, 3]}; % From code output: Party 0 -> vars [0, 2], Party 1 -> vars [1, 3]
-dim = 4;
-
-% Known peak centers (from your output)
-peakCenters = [
-    0.3050, 0.2951, 0.2778, 0.5000;  % Peak 1: 90.0
-    0.4270, 0.2066, 0.8556, 0.3750;  % Peak 2: 75.0
-    0.1525, 0.8770, 0.1430, 0.6750;  % Peak 3: 65.0
-    0.3813, 0.8463, 0.8200, 0.6250;  % Peak 4: 55.0
-    0.7465, 0.1885, 0.1833, 0.3500;  % Peak 5: 50.0
-    0.9220, 0.1346, 0.8929, 0.2750;  % Peak 6: 42.0
-    0.7660, 0.9077, 0.2361, 0.7750;  % Peak 7: 35.0
-    0.9610, 0.9538, 0.9444, 0.9000;  % Peak 8: 80.0
-];
-peakFitness = [90, 75, 65, 55, 50, 42, 35, 80];
-
-%% Color scheme
-colors = lines(8);
-partyColors = {[0.2 0.4 0.8], [0.8 0.3 0.2]}; % Blue for party 0, Red for party 1
-
-fprintf('=== MPM-CoEA Visualization ===\n');
-fprintf('Reading files from: %s\n', solDir);
-
-%% ============================================================================
-% 1. CONVERGENCE CURVE
-%% ============================================================================
-fprintf('\n[1/7] Plotting convergence curve...\n');
-
-convFile = [solDir 'convergence.txt'];
-if exist(convFile, 'file')
-    fid = fopen(convFile, 'r');
-    % Skip header
-    fgetl(fid);
-    data = textscan(fid, '%d %f');
-    fclose(fid);
-
-    gen = data{1};
-    bestFit = data{2};
-
-    figure('Name', 'Convergence', 'Position', [100 100 900 500]);
-    plot(gen, bestFit, 'b-', 'LineWidth', 1.5);
-    hold on;
-
-    % Mark restart points (where stagnation resets)
-    restarts = find(diff(gen) > 1) + 1;
-    if ~isempty(restarts)
-        plot(gen(restarts), bestFit(restarts), 'ro', 'MarkerSize', 8, 'MarkerFaceColor', 'r');
-        legend('Best Fitness', 'Restart Points', 'Location', 'best');
-    else
-        legend('Best Fitness', 'Location', 'best');
+    if nargin < 1
+        visBase = 'E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Visualization';
     end
 
-    xlabel('Generation');
-    ylabel('Best Joint Fitness');
-    title('MPM-CoEA Convergence Curve');
-    grid on;
+    solDir    = fullfile(visBase, 'solutions');
+    beforeDir = fullfile(visBase, 'landscape_before');
+    afterDir  = fullfile(visBase, 'landscape_after');
+    figDir    = fullfile(visBase, 'figures');
+    if ~exist(figDir,'dir'), mkdir(figDir); end
 
-    % Add horizontal lines for peak fitness values
-    for i = 1:numPeaks
-        yline(peakFitness(i), '--', sprintf('Peak %d (%.0f)', i, peakFitness(i)), ...
-              'Color', colors(i,:), 'Alpha', 0.5, 'LabelHorizontalAlignment', 'left');
+    fprintf('\n MPM-CoEA Visualisation Suite\nOutput -> %s\n\n', figDir);
+
+    % Unicode convenience chars (avoids hex-escape warnings in title/text)
+    EM = char(8212);   % em dash  —
+    EN = char(8211);   % en dash  –
+
+    origDefs = setGlobalDefaults();
+
+    % Colour palette  (Tableau-10 inspired, print-safe)
+    COL = [0.122 0.467 0.706;   % 1  steel-blue
+           0.839 0.153 0.157;   % 2  crimson
+           0.173 0.627 0.173;   % 3  forest-green
+           1.000 0.498 0.055;   % 4  amber
+           0.580 0.404 0.741;   % 5  purple
+           0.090 0.745 0.812;   % 6  teal
+           0.498 0.498 0.498;   % 7  grey
+           0.737 0.741 0.133;   % 8  olive
+           0.850 0.325 0.098;   % 9  burnt-orange
+           0.635 0.078 0.184];  % 10 dark-red
+
+    LMAP = buildColormap('viridis', 256);   % landscapes / scatter
+    DMAP = buildColormap('diverge', 256);   % difference maps
+
+    dimPairs  = [0 1; 0 2; 0 3; 1 2; 1 3; 2 3];
+    pairNames = {'x_0-x_1','x_0-x_2','x_0-x_3','x_1-x_2','x_1-x_3','x_2-x_3'};
+    partyVars = {'x_0','x_2'; 'x_1','x_3'};
+    partyCol  = [COL(1,:); COL(2,:)];
+
+    % Sort generation snapshot files (used in Figs 7 & 10)
+    genFiles = dir(fullfile(solDir,'gen_*_solutions.txt'));
+    nGens    = numel(genFiles);
+    genNums  = [];
+    if nGens > 0
+        genNums = arrayfun(@(f) str2double(regexp(f.name,'\d+','match','once')), genFiles);
+        [genNums, si] = sort(genNums);
+        genFiles = genFiles(si);
     end
 
-    saveas(gcf, [baseDir 'fig_convergence.png']);
-    fprintf('  Saved: fig_convergence.png\n');
-else
-    fprintf('  WARNING: convergence.txt not found\n');
-end
-
-%% ============================================================================
-% 2. PARTY LANDSCAPES (Before vs After)
-%% ============================================================================
-fprintf('\n[2/7] Plotting party landscapes...\n');
-
-for party = 0:1
-    beforeFile = sprintf('%sparty%d_landscape_before.txt', solDir, party);
-    afterFile = sprintf('%sparty%d_landscape_after.txt', solDir, party);
-
-    if ~exist(beforeFile, 'file') || ~exist(afterFile, 'file')
-        fprintf('  WARNING: Party %d landscape files not found\n', party);
-        continue;
-    end
-
-    % Read before landscape
-    dataBefore = readLandscapeFile(beforeFile);
-    % Read after landscape
-    dataAfter = readLandscapeFile(afterFile);
-
-    vars = partyVars{party+1};
-
-    % Create figure with subplots: Before | After | Difference
-    figure('Name', sprintf('Party %d Landscape', party), 'Position', [100 100 1500 500]);
-
-    % Before
-    subplot(1, 3, 1);
-    plotLandscape(dataBefore.X, dataBefore.Y, dataBefore.F, ...
-                  sprintf('Before - Party %d (vars %d, %d)', party, vars(1), vars(2)));
-    hold on;
-    % Mark known peak projections with small dots
-    for p = 1:numPeaks
-        x = peakCenters(p, vars(1)+1); % +1 because MATLAB is 1-indexed
-        y = peakCenters(p, vars(2)+1);
-        plot(x, y, '.', 'MarkerSize', 18, 'Color', colors(p,:));
-    end
-
-    % After
-    subplot(1, 3, 2);
-    plotLandscape(dataAfter.X, dataAfter.Y, dataAfter.F, ...
-                  sprintf('After - Party %d (vars %d, %d)', party, vars(1), vars(2)));
-    hold on;
-    for p = 1:numPeaks
-        x = peakCenters(p, vars(1)+1);
-        y = peakCenters(p, vars(2)+1);
-        plot(x, y, '.', 'MarkerSize', 18, 'Color', colors(p,:));
-    end
-
-    % Difference (After - Before)
-    subplot(1, 3, 3);
-    Fdiff = dataAfter.F - dataBefore.F;
-    plotLandscape(dataBefore.X, dataBefore.Y, Fdiff, ...
-                  sprintf('Difference (After - Before) - Party %d', party), true);
-
-    saveas(gcf, sprintf('%sfig_party%d_landscape.png', baseDir, party));
-    fprintf('  Saved: fig_party%d_landscape.png\n', party);
-end
-
-%% ============================================================================
-% 3. PARTY LANDSCAPE COMPARISON (Party 0 vs Party 1)
-%% ============================================================================
-fprintf('\n[3/7] Plotting party comparison...\n');
-
-% Compare party landscapes side by side (after co-evolution)
-figure('Name', 'Party Comparison (After)', 'Position', [100 100 1200 550]);
-
-for party = 0:1
-    afterFile = sprintf('%sparty%d_landscape_after.txt', solDir, party);
-    if ~exist(afterFile, 'file')
-        continue;
-    end
-
-    data = readLandscapeFile(afterFile);
-    vars = partyVars{party+1};
-
-    subplot(1, 2, party+1);
-    plotLandscape(data.X, data.Y, data.F, ...
-                  sprintf('Party %d (vars %d, %d)', party, vars(1), vars(2)));
-    hold on;
-
-    % Mark peak centers with small dots
-    for p = 1:numPeaks
-        x = peakCenters(p, vars(1)+1);
-        y = peakCenters(p, vars(2)+1);
-        plot(x, y, '.', 'MarkerSize', 20, 'Color', colors(p,:));
-    end
-
-    % Add legend for peaks
-    if party == 1
-        legendStrings = arrayfun(@(x) sprintf('Peak %d (%.0f)', x, peakFitness(x)), 1:numPeaks, 'UniformOutput', false);
-        legend(legendStrings, 'Location', 'bestoutside', 'FontSize', 8);
-    end
-end
-
-saveas(gcf, [baseDir 'fig_party_comparison.png']);
-fprintf('  Saved: fig_party_comparison.png\n');
-
-%% ============================================================================
-% 4. FULL LANDSCAPE SLICES (Before vs After)
-%% ============================================================================
-fprintf('\n[4/7] Plotting full landscape slices...\n');
-
-beforeDir = [solDir 'landscape_full_before\'];
-afterDir = [solDir 'landscape_full_after\'];
-
-% Get all slice files
-if exist(beforeDir, 'dir') && exist(afterDir, 'dir')
-    beforeFiles = dir([beforeDir 'slice_*.txt']);
-    afterFiles = dir([afterDir 'slice_*.txt']);
-
-    numSlices = min(length(beforeFiles), length(afterFiles));
-
-    % Create a large figure with all slices
-    rows = ceil(sqrt(numSlices));
-    cols = ceil(numSlices / rows);
-
-    % Before slices
-    figure('Name', 'Full Landscape Slices - Before', 'Position', [50 50 1800 1400]);
-    for i = 1:numSlices
-        subplot(rows, cols, i);
-        data = readLandscapeFile([beforeDir beforeFiles(i).name]);
-        % Extract dimension indices from filename
-        tokens = regexp(beforeFiles(i).name, 'slice_d(\d+)_d(\d+)', 'tokens');
-        d1 = str2double(tokens{1}{1});
-        d2 = str2double(tokens{1}{2});
-
-        plotLandscape(data.X, data.Y, data.F, sprintf('x%d vs x%d', d1, d2));
-        hold on;
-        % Mark peak projections with small dots
-        for p = 1:numPeaks
-            plot(peakCenters(p, d1+1), peakCenters(p, d2+1), '.', ...
-                 'MarkerSize', 14, 'Color', colors(p,:));
+    % Nested helper: save figure as PNG
+    function saveFigure(fh, name)
+        pth = fullfile(figDir, [name '.png']);
+        try
+            exportgraphics(fh, pth, 'Resolution', 180);
+        catch
+            print(fh, pth, '-dpng', '-r180');
         end
+        fprintf('  Saved: %s.png\n', name);
     end
-    saveas(gcf, [baseDir 'fig_full_landscape_before.png']);
-    fprintf('  Saved: fig_full_landscape_before.png\n');
 
-    % After slices
-    figure('Name', 'Full Landscape Slices - After', 'Position', [50 50 1800 1400]);
-    for i = 1:numSlices
-        subplot(rows, cols, i);
-        data = readLandscapeFile([afterDir afterFiles(i).name]);
-        tokens = regexp(afterFiles(i).name, 'slice_d(\d+)_d(\d+)', 'tokens');
-        d1 = str2double(tokens{1}{1});
-        d2 = str2double(tokens{1}{2});
 
-        plotLandscape(data.X, data.Y, data.F, sprintf('x%d vs x%d', d1, d2));
-        hold on;
-        for p = 1:numPeaks
-            plot(peakCenters(p, d1+1), peakCenters(p, d2+1), '.', ...
-                 'MarkerSize', 14, 'Color', colors(p,:));
+    % ------------------------------------------------------------------
+    % FIG 1 – Per-party fitness landscapes  (Before / After / Improvement)
+    % ------------------------------------------------------------------
+    fprintf('[1/11] Per-Party Fitness Landscapes ...\n');
+    fig1 = figure('Color','w','Position',[20 20 1800 900]);
+
+    for dm = 0:1
+        fBef = fullfile(solDir, sprintf('party%d_landscape_before.txt', dm));
+        fAft = fullfile(solDir, sprintf('party%d_landscape_after.txt',  dm));
+        [Xb,Yb,Zb] = loadPartyLandscape(fBef);
+        [Xa,Ya,Za] = loadPartyLandscape(fAft);
+
+        allZ = [Zb(:); Za(:)];
+        cLim = [min(allZ), max(allZ)];
+
+        ax1 = subplot(2,3, dm*3+1);
+        if ~isempty(Xb)
+            surf(Xb,Yb,Zb,'EdgeColor','none');
+            shading interp;  view(-38,30);
+            camlight('headlight');  lighting phong;
+            caxis(cLim);
+            title(sprintf('Party %d  %s  Before\n(neutral context [0.5, 0.5])', dm, EM), ...
+                  'FontSize',12,'FontWeight','bold','Color',partyCol(dm+1,:));
+            xlabel(partyVars{dm+1,1},'FontSize',11);
+            ylabel(partyVars{dm+1,2},'FontSize',11);
+            zlabel('Fitness','FontSize',11);
+            cb = colorbar;  cb.Label.String = 'Fitness';  cb.FontSize = 9;
+            colormap(ax1, LMAP);  axis tight;
+            set(ax1,'FontSize',11);
         end
-    end
-    saveas(gcf, [baseDir 'fig_full_landscape_after.png']);
-    fprintf('  Saved: fig_full_landscape_after.png\n');
 
-    % Difference slices
-    figure('Name', 'Full Landscape Slices - Difference', 'Position', [50 50 1800 1400]);
-    for i = 1:numSlices
-        subplot(rows, cols, i);
-        dataBefore = readLandscapeFile([beforeDir beforeFiles(i).name]);
-        dataAfter = readLandscapeFile([afterDir afterFiles(i).name]);
-        tokens = regexp(afterFiles(i).name, 'slice_d(\d+)_d(\d+)', 'tokens');
-        d1 = str2double(tokens{1}{1});
-        d2 = str2double(tokens{1}{2});
+        ax2 = subplot(2,3, dm*3+2);
+        if ~isempty(Xa)
+            surf(Xa,Ya,Za,'EdgeColor','none');
+            shading interp;  view(-38,30);
+            camlight('headlight');  lighting phong;
+            caxis(cLim);
+            title(sprintf('Party %d  %s  After\n(optimised context)', dm, EM), ...
+                  'FontSize',12,'FontWeight','bold','Color',partyCol(dm+1,:));
+            xlabel(partyVars{dm+1,1},'FontSize',11);
+            ylabel(partyVars{dm+1,2},'FontSize',11);
+            zlabel('Fitness','FontSize',11);
+            cb = colorbar;  cb.Label.String = 'Fitness';  cb.FontSize = 9;
+            colormap(ax2, LMAP);  axis tight;
+            set(ax2,'FontSize',11);
+        end
 
-        Fdiff = dataAfter.F - dataBefore.F;
-        plotLandscape(dataBefore.X, dataBefore.Y, Fdiff, ...
-                      sprintf('x%d vs x%d (After-Before)', d1, d2), true);
-    end
-    saveas(gcf, [baseDir 'fig_full_landscape_diff.png']);
-    fprintf('  Saved: fig_full_landscape_diff.png\n');
-else
-    fprintf('  WARNING: Full landscape directories not found\n');
-end
-
-% 5. SOLUTION EVOLUTION (Gen 10, 50, 100, 200, 300, 400, 500, 600)
-fprintf('\n[5/7] Plotting solution evolution...\n');
-
-genSnapshots = [10, 50, 100, 200, 300, 400, 500, 600];
-availableGens = [];
-
-for g = genSnapshots
-    fname = sprintf('%sgen_%d_solutions.txt', solDir, g);
-    if exist(fname, 'file')
-        availableGens = [availableGens, g];
-    end
-end
-
-if ~isempty(availableGens)
-    % Plot 2D projections of solutions at different generations
-    % Focus on most important pairs: (0,1), (0,2), (1,3), (2,3)
-    keyPairs = [0 1; 0 2; 1 3; 2 3];
-    pairNames = {'x0-x1', 'x0-x2', 'x1-x3', 'x2-x3'};
-
-    for pairIdx = 1:size(keyPairs, 1)
-        d1 = keyPairs(pairIdx, 1);
-        d2 = keyPairs(pairIdx, 2);
-
-        figure('Name', sprintf('Solution Evolution - %s', pairNames{pairIdx}), ...
-               'Position', [100 100 1500 900]);
-
-        numPlots = length(availableGens);
-        rows = 2; cols = ceil(numPlots/2);
-
-        for i = 1:numPlots
-            subplot(rows, cols, i);
-            g = availableGens(i);
-            [sol, fit, osaSol, osaFit] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
-
-            % Plot mediating population
-            scatter(sol(:, d1+1), sol(:, d2+1), 30, fit, 'filled');
+        ax3 = subplot(2,3, dm*3+3);
+        if ~isempty(Xb) && ~isempty(Xa)
+            Zdiff  = Za - Zb;
+            absMax = max(abs(Zdiff(:)));
+            surf(Xb,Yb,Zdiff,'EdgeColor','none');
+            shading interp;  view(0,90);
+            if absMax > 0, caxis([-absMax absMax]); end
+            title(sprintf('Party %d  %s  Improvement\n(After - Before)', dm, EM), ...
+                  'FontSize',12,'FontWeight','bold');
+            xlabel(partyVars{dm+1,1},'FontSize',11);
+            ylabel(partyVars{dm+1,2},'FontSize',11);
+            cb = colorbar;  cb.Label.String = '\DeltaFitness';  cb.FontSize = 9;
+            colormap(ax3, DMAP);
             hold on;
+            contour(Xb,Yb,Zdiff,[0 0],'k-','LineWidth',2);
+            hold off;
+            axis tight;  set(ax3,'FontSize',11);
+        end
+    end
 
-            % Plot OSA solutions
-            if ~isempty(osaSol)
-                scatter(osaSol(:, d1+1), osaSol(:, d2+1), 60, osaFit, 'filled', ...
-                        'MarkerEdgeColor', 'k', 'LineWidth', 1.5);
+    sgtitle('Per-Party Fitness Landscapes: Effect of Context Optimisation', ...
+            'FontSize',16,'FontWeight','bold');
+    saveFigure(fig1,'01_Party_Landscapes_Before_After');
+
+
+    % FIG 2 – Full 4-D landscape slices  (Before optimisation)
+    fprintf('[2/11] Full Landscape Slices (Before) ...\n');
+    fig2 = figure('Color','w','Position',[30 30 1500 1000]);
+    plotSliceGrid(beforeDir, dimPairs, pairNames, ['Before ' EM ' neutral context'], LMAP, COL);
+    sgtitle(['Full 4-D Problem Landscape Slices  ' EM '  Before Optimisation'], ...
+            'FontSize',16,'FontWeight','bold');
+    saveFigure(fig2,'02_Full_Slices_Before');
+
+
+    % FIG 3 – Full 4-D landscape slices  (After optimisation)
+    fprintf('[3/11] Full Landscape Slices (After) ...\n');
+    fig3 = figure('Color','w','Position',[40 40 1500 1000]);
+    plotSliceGrid(afterDir, dimPairs, pairNames, ['After ' EM ' optimised context'], LMAP, COL);
+    sgtitle(['Full 4-D Problem Landscape Slices  ' EM '  After Optimisation'], ...
+            'FontSize',16,'FontWeight','bold');
+    saveFigure(fig3,'03_Full_Slices_After');
+
+
+    % FIG 4 – Scalar convergence curve
+    fprintf('[4/11] Convergence Curve ...\n');
+    fig4 = figure('Color','w','Position',[60 560 980 540]);
+    convFile = fullfile(solDir,'convergence.txt');
+    if isfile(convFile)
+        C = loadTxtSkipComments(convFile);
+        if ~isempty(C)
+            ax = gca;
+            % Shaded fill under curve — excluded from legend
+            fill([C(:,1); flipud(C(:,1))], ...
+                 [C(:,2); repmat(min(C(:,2))-1, size(C,1), 1)], ...
+                 COL(1,:), 'FaceAlpha',0.12, 'EdgeColor','none', ...
+                 'HandleVisibility','off');
+            hold on;
+            plot(C(:,1), C(:,2), '-', 'Color',COL(1,:), 'LineWidth',2.5, ...
+                 'DisplayName','Best Joint Fitness');
+            % Mark each meaningful improvement step
+            stepIdx = find(diff(C(:,2)) > 0.05);
+            if ~isempty(stepIdx)
+                scatter(C(stepIdx,1), C(stepIdx,2), 80, COL(4,:), 'v', 'filled', ...
+                        'MarkerEdgeColor','k','LineWidth',0.8, ...
+                        'DisplayName','Improvement event');
             end
-
-            % Mark known peaks with small dots
-            for p = 1:numPeaks
-                plot(peakCenters(p, d1+1), peakCenters(p, d2+1), '.', ...
-                     'MarkerSize', 22, 'Color', colors(p,:));
+            yline(90,'--','Color',COL(2,:),'LineWidth',2.5,'DisplayName','Global Optimum (90)');
+            % Annotate first convergence generation — excluded from legend
+            convIdx = find(C(:,2) >= 90, 1);
+            if ~isempty(convIdx)
+                xline(C(convIdx,1),'-.','Color',COL(3,:),'LineWidth',2.0, ...
+                      'Label',sprintf(' Converged at gen %d', C(convIdx,1)), ...
+                      'LabelVerticalAlignment','bottom', ...
+                      'LabelHorizontalAlignment','right','FontSize',10, ...
+                      'HandleVisibility','off');
             end
+            xlabel('Generation',         'FontSize',13,'FontWeight','bold');
+            ylabel('Best Joint Fitness', 'FontSize',13,'FontWeight','bold');
+            title('MPM-CoEA Convergence: Best Joint Fitness Over Generations', ...
+                  'FontSize',14,'FontWeight','bold');
+            legend('Location','southeast','FontSize',11,'Box','on');
+            ylim([min(C(:,2))-2, 93]);
+            set(ax,'FontSize',12,'LineWidth',1.5);
+        end
+    end
+    saveFigure(fig4,'04_Convergence_Curve');
 
-            colormap(jet);
-            colorbar;
-            xlabel(sprintf('x%d', d1));
-            ylabel(sprintf('x%d', d2));
-            title(sprintf('Gen %d (n=%d, osa=%d)', g, length(fit), length(osaFit)));
-            axis([0 1 0 1]);
-            grid on;
+
+    % FIG 5 – Multi-objective convergence metrics
+    fprintf('[5/11] Multi-Objective Convergence ...\n');
+    fig5 = figure('Color','w','Position',[1050 560 980 540]);
+    moFile = fullfile(solDir,'mo_convergence.txt');
+    if isfile(moFile)
+        M = loadTxtSkipComments(moFile);
+        if ~isempty(M) && size(M,2) >= 3
+            ax = gca;
+            yyaxis left;
+            area(M(:,1), M(:,2), 'FaceColor',COL(1,:), 'FaceAlpha',0.22, ...
+                 'EdgeColor',COL(1,:), 'LineWidth',2, 'DisplayName','PA Size');
+            ylabel('Pareto Archive Size','FontSize',13,'FontWeight','bold','Color',COL(1,:));
+            ylim([0, max(M(:,2))*1.15]);
+            set(ax,'YColor',COL(1,:));
+
+            yyaxis right;
+            plot(M(:,1), M(:,3), '-', 'Color',COL(2,:), 'LineWidth',2.5, ...
+                 'DisplayName','Best Fitness');
+            yline(90,'--','Color',COL(2,:),'LineWidth',1.8,'HandleVisibility','off');
+            ylabel('Best Joint Fitness','FontSize',13,'FontWeight','bold','Color',COL(2,:));
+            ylim([0, 96]);
+            set(ax,'YColor',COL(2,:));
+
+            xlabel('Generation','FontSize',13,'FontWeight','bold');
+            title('Multi-Objective Convergence Metrics','FontSize',14,'FontWeight','bold');
+            legend({'PA Size','Best Fitness'},'Location','east','FontSize',11,'Box','on');
+            set(ax,'FontSize',12,'LineWidth',1.5);
+        end
+    end
+    saveFigure(fig5,'05_MO_Convergence');
+
+
+    % FIG 6 – Pareto front in per-party objective space
+    fprintf('[6/11] Pareto Front ...\n');
+    fig6 = figure('Color','w','Position',[1000 30 860 760]);
+    pfFile = fullfile(solDir,'pareto_front.txt');
+    if isfile(pfFile)
+        PF = loadTxtSkipComments(pfFile);
+        if ~isempty(PF) && size(PF,2) >= 7
+            f0 = PF(:,6);  f1 = PF(:,7);  jf = PF(:,5);
+            lo = min([f0;f1])-0.5;
+            hi = max([f0;f1])+0.5;
+            ax = gca;
+            plot([lo hi],[lo hi],'--','Color',[0.55 0.55 0.55],'LineWidth',2.5, ...
+                 'DisplayName','Nash Line (F_0 = F_1)');
+            hold on;
+            scatter(f0, f1, 120, jf, 'filled', ...
+                    'MarkerEdgeColor','k','LineWidth',1, 'DisplayName','Pareto solutions');
+            colormap(ax, LMAP);
+            cb = colorbar;
+            cb.Label.String     = 'Joint Fitness';
+            cb.Label.FontSize   = 11;
+            cb.Label.FontWeight = 'bold';
+            [~,bi] = max(jf);
+            scatter(f0(bi), f1(bi), 280, COL(4,:), 'o', 'filled', ...
+                    'MarkerEdgeColor','k','LineWidth',2,'DisplayName','Best solution');
+            text(f0(bi)+0.05, f1(bi)+0.05, ...
+                 sprintf(' Best\n F_0=%.1f, F_1=%.1f\n JF=%.2f', f0(bi),f1(bi),jf(bi)), ...
+                 'FontSize',10,'FontWeight','bold','Color',COL(2,:));
+            xlabel('Party 0 Objective  F_0(x)','FontSize',13,'FontWeight','bold');
+            ylabel('Party 1 Objective  F_1(x)','FontSize',13,'FontWeight','bold');
+            title('Pareto Front: Per-Party Objective Space','FontSize',14,'FontWeight','bold');
+            legend('Location','northwest','FontSize',11,'Box','on');
+            axis equal;  xlim([lo hi]);  ylim([lo hi]);
+            set(ax,'FontSize',12,'LineWidth',1.5);
+        end
+    end
+    saveFigure(fig6,'06_Pareto_Front');
+
+
+    % FIG 7 – Solution evolution across generations
+    fprintf('[7/11] Solution Evolution ...\n');
+    fig7 = figure('Color','w','Position',[70 70 1500 1100]);
+    if nGens > 0
+        skip = max(1, floor(nGens/7));
+        sel  = unique([1:skip:nGens, nGens]);
+        nSel = numel(sel);
+        nC   = min(nSel, 4);
+        nR   = ceil(nSel / nC);
+
+        % Pre-compute global fitness range so colour scale is consistent
+        allFit = [];
+        for idx = 1:nSel
+            G = loadTxtSkipComments(fullfile(genFiles(sel(idx)).folder, ...
+                                             genFiles(sel(idx)).name));
+            if ~isempty(G) && size(G,2) >= 5
+                allFit = [allFit; G(:,5)]; %#ok<AGROW>
+            end
+        end
+        gFitLim = [min(allFit)-0.01, max(allFit)+0.01];
+
+        for idx = 1:nSel
+            gi = sel(idx);
+            G  = loadTxtSkipComments(fullfile(genFiles(gi).folder, genFiles(gi).name));
+            ax = subplot(nR, nC, idx);
+            if ~isempty(G) && size(G,2) >= 5
+                fit = G(:,5);
+                scatter(G(:,1),G(:,2), 55, fit, 'filled', ...
+                        'MarkerEdgeColor','none','MarkerFaceAlpha',0.75);
+                colormap(ax, LMAP);
+                clim(gFitLim);
+                hold on;
+                [~,bi] = max(fit);
+                scatter(G(bi,1),G(bi,2), 200, COL(4,:), 'o', 'filled', ...
+                        'MarkerEdgeColor','k','LineWidth',1.5);
+                cb = colorbar;  cb.FontSize = 9;  cb.Label.String = 'Fitness';
+                xlabel('x_0','FontSize',10,'FontWeight','bold');
+                ylabel('x_1','FontSize',10,'FontWeight','bold');
+                title(sprintf('Gen %d  (best = %.2f)', genNums(gi), fit(bi)), ...
+                      'FontSize',11,'FontWeight','bold');
+                xlim([0 1]);  ylim([0 1]);  axis square;
+                set(ax,'FontSize',10,'LineWidth',1.2);
+            end
+        end
+        sgtitle(['Mediating Population Evolution  (projected to x_0' EN 'x_1 plane)'], ...
+                'FontSize',15,'FontWeight','bold');
+    end
+    saveFigure(fig7,'07_Solution_Evolution');
+
+
+    % FIG 8 – Party landscape contour comparison  (Before | After | Improvement)
+    fprintf('[8/11] Party Contour Comparison ...\n');
+    fig8 = figure('Color','w','Position',[80 80 1800 900]);
+
+    for dm = 0:1
+        [Xb,Yb,Zb] = loadPartyLandscape(fullfile(solDir, sprintf('party%d_landscape_before.txt',dm)));
+        [Xa,Ya,Za] = loadPartyLandscape(fullfile(solDir, sprintf('party%d_landscape_after.txt',dm)));
+        allZ = [Zb(:); Za(:)];
+        cLim = [min(allZ), max(allZ)];
+
+        ax1 = subplot(2,3, dm*3+1);
+        if ~isempty(Xb)
+            contourf(Xb,Yb,Zb, 30,'LineColor','none');
+            colormap(ax1, LMAP);  clim(cLim);
+            cb = colorbar;  cb.Label.String = 'Fitness';  cb.FontSize = 9;
+            title(sprintf('Party %d  %s  Before', dm, EM), ...
+                  'FontSize',12,'FontWeight','bold','Color',partyCol(dm+1,:));
+            xlabel(partyVars{dm+1,1},'FontSize',11);
+            ylabel(partyVars{dm+1,2},'FontSize',11);
+            axis equal tight;  set(ax1,'FontSize',11);
         end
 
-        sgtitle(sprintf('Solution Evolution in %s Plane', pairNames{pairIdx}));
-        saveas(gcf, sprintf('%sfig_evolution_%s.png', baseDir, pairNames{pairIdx}));
-        fprintf('  Saved: fig_evolution_%s.png\n', pairNames{pairIdx});
+        ax2 = subplot(2,3, dm*3+2);
+        if ~isempty(Xa)
+            contourf(Xa,Ya,Za, 30,'LineColor','none');
+            colormap(ax2, LMAP);  caxis(cLim);
+            cb = colorbar;  cb.Label.String = 'Fitness';  cb.FontSize = 9;
+            title(sprintf('Party %d  %s  After', dm, EM), ...
+                  'FontSize',12,'FontWeight','bold','Color',partyCol(dm+1,:));
+            xlabel(partyVars{dm+1,1},'FontSize',11);
+            ylabel(partyVars{dm+1,2},'FontSize',11);
+            axis equal tight;  set(ax2,'FontSize',11);
+        end
+
+        ax3 = subplot(2,3, dm*3+3);
+        if ~isempty(Xb) && ~isempty(Xa)
+            Zdiff  = Za - Zb;
+            absMax = max(abs(Zdiff(:)));
+            contourf(Xb,Yb,Zdiff, 30,'LineColor','none');
+            if absMax > 0, caxis([-absMax absMax]); end
+            colormap(ax3, DMAP);
+            cb = colorbar;  cb.Label.String = '\DeltaFitness';  cb.FontSize = 9;
+            title(sprintf('Party %d  %s  Improvement', dm, EM), ...
+                  'FontSize',12,'FontWeight','bold');
+            xlabel(partyVars{dm+1,1},'FontSize',11);
+            ylabel(partyVars{dm+1,2},'FontSize',11);
+            hold on;
+            contour(Xb,Yb,Zdiff,[0 0],'k-','LineWidth',2);
+            hold off;
+            axis equal tight;  set(ax3,'FontSize',11);
+        end
     end
+    sgtitle('Party Landscape Contours: Before  |  After  |  Improvement', ...
+            'FontSize',15,'FontWeight','bold');
+    saveFigure(fig8,'08_Party_Contour_Comparison');
 
-    % Create animation-ready figure showing all generations
-    figure('Name', 'Solution Density Evolution', 'Position', [100 100 1200 800]);
-    for i = 1:length(availableGens)
-        g = availableGens(i);
-        [sol, fit, ~, ~] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
 
-        subplot(2, 3, i);
-        % 2D histogram/density plot
-        hist3([sol(:, 1), sol(:, 2)], [20 20]);
-        set(gcf, 'renderer', 'opengl');
-        set(get(gca, 'child'), 'FaceColor', 'interp', 'CDataMode', 'auto');
-        title(sprintf('Gen %d', g));
-        xlabel('x0'); ylabel('x1');
-    end
-    saveas(gcf, [baseDir 'fig_solution_density.png']);
-    fprintf('  Saved: fig_solution_density.png\n');
-else
-    fprintf('  WARNING: No generation files found\n');
-end
-
-% 6. FITNESS DISTRIBUTION ANALYSIS
-fprintf('\n[6/7] Plotting fitness distribution analysis...\n');
-
-if ~isempty(availableGens)
-    figure('Name', 'Fitness Distribution', 'Position', [100 100 1200 500]);
-
-    % Fitness distribution over generations
-    subplot(1, 2, 1);
-    allFitness = {};
-    genLabels = {};
-    for i = 1:length(availableGens)
-        g = availableGens(i);
-        [~, fit, ~, osaFit] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
-        allFitness{i} = fit;
-        genLabels{i} = sprintf('Gen %d', g);
-    end
-
-    boxplot(cell2mat(allFitness'), genLabels);
-    ylabel('Fitness');
-    title('Fitness Distribution per Generation');
-    xlabel('Generation');
-    grid on;
-
-    % OSA size growth
-    subplot(1, 2, 2);
-    osaSizes = zeros(length(availableGens), 1);
-    for i = 1:length(availableGens)
-        g = availableGens(i);
-        [~, ~, ~, osaFit] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
-        osaSizes(i) = length(osaFit);
-    end
-
-    bar(availableGens, osaSizes, 'FaceColor', [0.3 0.6 0.3]);
-    xlabel('Generation');
-    ylabel('OSA Archive Size');
-    title('Optimal Solution Archive Growth');
-    grid on;
-
-    saveas(gcf, [baseDir 'fig_fitness_distribution.png']);
-    fprintf('  Saved: fig_fitness_distribution.png\n');
-end
-
-% 7. PEAK DISCOVERY ANALYSIS
-fprintf('\n[7/7] Plotting peak discovery analysis...\n');
-
-% Analyze which peaks are found at each generation
-if ~isempty(availableGens)
-    figure('Name', 'Peak Discovery Timeline', 'Position', [100 100 1400 600]);
-
-    discoveryMatrix = zeros(length(availableGens), numPeaks);
-    eps_x = 0.05; % Loose threshold for visualization
-
-    for i = 1:length(availableGens)
-        g = availableGens(i);
-        [sol, ~, osaSol, ~] = readSolutionFile(sprintf('%sgen_%d_solutions.txt', solDir, g));
-        allSol = [sol; osaSol];
-
-        for p = 1:numPeaks
-            for s = 1:size(allSol, 1)
-                dist = norm(allSol(s, :) - peakCenters(p, :));
-                if dist < eps_x
-                    discoveryMatrix(i, p) = 1;
-                    break;
+    % FIG 9 – OSA archive fitness distribution
+    fprintf('[9/11] OSA Archive Distribution ...\n');
+    fig9 = figure('Color','w','Position',[90 90 820 580]);
+    gen600File = fullfile(solDir,'gen_600_solutions.txt');
+    osaData = [];
+    if isfile(gen600File)
+        fid   = fopen(gen600File,'r');
+        raw   = textscan(fid,'%s','Delimiter','\n');  fclose(fid);
+        lines = raw{1};
+        osaStart = find(contains(lines,'# OSA solutions'),1);
+        if ~isempty(osaStart)
+            for i = osaStart+1:numel(lines)
+                ln = lines{i};
+                if startsWith(ln,'#'), continue; end
+                nums = sscanf(ln,'%f');
+                if numel(nums) >= 5
+                    osaData(end+1) = nums(end); %#ok<AGROW>
                 end
             end
         end
     end
-
-    % Heatmap
-    subplot(2, 1, 1);
-    imagesc(discoveryMatrix');
-    colormap(gca, [0.9 0.3 0.3; 0.3 0.8 0.3]); % Red = not found, Green = found
-    set(gca, 'YTick', 1:numPeaks, 'YTickLabel', arrayfun(@(x) sprintf('Peak %d (%.0f)', x, peakFitness(x)), ...
-          1:numPeaks, 'UniformOutput', false));
-    set(gca, 'XTick', 1:length(availableGens), 'XTickLabel', arrayfun(@(x) sprintf('%d', x), availableGens, 'UniformOutput', false));
-    xlabel('Generation');
-    title('Peak Discovery Timeline (Green = Found, Red = Not Found)');
-    colorbar('off');
-
-    % Cumulative discovery count
-    subplot(2, 1, 2);
-    cumulativeFound = sum(discoveryMatrix, 2);
-    plot(availableGens, cumulativeFound, 'b-o', 'LineWidth', 2, 'MarkerSize', 8);
-    hold on;
-    yline(numPeaks, 'r--', 'Target (8 peaks)', 'LineWidth', 1.5);
-    xlabel('Generation');
-    ylabel('Peaks Found');
-    title('Cumulative Peak Discovery');
-    ylim([0 numPeaks+1]);
-    grid on;
-    legend('Peaks Found', 'Target', 'Location', 'best');
-
-    saveas(gcf, [baseDir 'fig_peak_discovery.png']);
-    fprintf('  Saved: fig_peak_discovery.png\n');
-end
-
-% 8. 3D Surface Plots for Key Party Landscapes
-fprintf('\nCreating 3D surface plots...\n');
-
-for party = 0:1
-    afterFile = sprintf('%sparty%d_landscape_after.txt', solDir, party);
-    if ~exist(afterFile, 'file')
-        continue;
+    if ~isempty(osaData)
+        ax = gca;
+        histogram(osaData, 25, 'FaceColor',COL(1,:), 'EdgeColor','w', ...
+                  'FaceAlpha',0.85, 'LineWidth',0.8);
+        hold on;
+        xline(90,'--','Color',COL(2,:),'LineWidth',2.5, ...
+              'Label','Global Opt = 90', ...
+              'LabelVerticalAlignment','top','LabelHorizontalAlignment','left', ...
+              'FontSize',10,'FontWeight','bold');
+        mn = mean(osaData);
+        xline(mn,'-.','Color',COL(3,:),'LineWidth',2.2, ...
+              'Label',sprintf('Mean = %.2f', mn), ...
+              'LabelVerticalAlignment','top','LabelHorizontalAlignment','right', ...
+              'FontSize',10,'FontWeight','bold');
+        xlabel('OSA Solution Fitness','FontSize',13,'FontWeight','bold');
+        ylabel('Count',               'FontSize',13,'FontWeight','bold');
+        title('Distribution of OSA Archive Fitness Values (Generation 600)', ...
+              'FontSize',14,'FontWeight','bold');
+        pctHigh = 100 * mean(osaData >= 89);
+        % Build stats cell using concatenation so \mu/\sigma are TeX, not sprintf escapes
+        statStr = {sprintf('n  = %d',     numel(osaData)), ...
+                   ['\mu = '    sprintf('%.2f', mn)], ...
+                   ['\sigma = ' sprintf('%.2f', std(osaData))], ...
+                   sprintf('Max = %.2f',  max(osaData)), ...
+                   sprintf('>=89: %.1f%%', pctHigh)};
+        text(0.97, 0.95, statStr, ...
+             'Units','normalized', ...
+             'HorizontalAlignment','right','VerticalAlignment','top', ...
+             'FontSize',11,'BackgroundColor','w', ...
+             'EdgeColor',[0.7 0.7 0.7],'Margin',5,'LineWidth',1.2);
+        set(ax,'FontSize',12,'LineWidth',1.5);
     end
+    saveFigure(fig9,'09_OSA_Distribution');
 
-    data = readLandscapeFile(afterFile);
-    vars = partyVars{party+1};
 
-    figure('Name', sprintf('3D Surface - Party %d', party), 'Position', [100 100 1000 700]);
-    surf(data.X, data.Y, data.F, 'EdgeColor', 'none');
-    hold on;
-
-    % Mark peaks as small dots
-    for p = 1:numPeaks
-        x = peakCenters(p, vars(1)+1);
-        y = peakCenters(p, vars(2)+1);
-        % Find approximate fitness at peak center
-        [~, xi] = min(abs(data.X(1,:) - x));
-        [~, yi] = min(abs(data.Y(:,1) - y));
-        z = data.F(yi, xi);
-        plot3(x, y, z + 2, '.', 'MarkerSize', 20, 'Color', colors(p,:));
-    end
-
-    xlabel(sprintf('x%d', vars(1)));
-    ylabel(sprintf('x%d', vars(2)));
-    zlabel('Fitness');
-    title(sprintf('Party %d Landscape (3D) - vars [%d, %d]', party, vars(1), vars(2)));
-    colorbar;
-    colormap(jet);
-    view(-45, 30);
-    shading interp;
-    lighting gouraud;
-    camlight;
-
-    saveas(gcf, sprintf('%sfig_party%d_3d.png', baseDir, party));
-    fprintf('  Saved: fig_party%d_3d.png\n', party);
-end
-
-fprintf('\n=== Visualization Complete ===\n');
-fprintf('All figures saved to: %s\n', baseDir);
-
-% LOCAL FUNCTION DEFINITIONS (must be at the END of the script)
-
-function data = readLandscapeFile(filename)
-    % Read landscape file: 3 columns (x, y, fitness)
-    % Data is gridded with resolution ~100-200
-    fid = fopen(filename, 'r');
-    if fid == -1
-        error('Cannot open file: %s', filename);
-    end
-
-    % Read line by line to properly skip headers and avoid losing first data line
-    rawData = [];
-    while true
-        line = fgetl(fid);
-        if ~ischar(line), break; end
-
-        line = strtrim(line);
-        if isempty(line) || startsWith(line, '#')
-            continue;
-        end
-
-        vals = sscanf(line, '%f');
-        if length(vals) >= 3
-            rawData = [rawData; vals(1:3)'];
-        end
-    end
-    fclose(fid);
-
-    n = size(rawData, 1);
-    if n == 0
-        error('No data found in file: %s', filename);
-    end
-
-    % Determine grid size (should be perfect square: 100x100 or 200x200)
-    res = sqrt(n);
-    if abs(res - round(res)) > 0.1
-        % Not a perfect square, try to infer from unique x values
-        uniqueX = unique(rawData(:,1));
-        res = length(uniqueX);
-    else
-        res = round(res);
-    end
-
-    % Verify reshape dimensions
-    if res * res ~= n
-        uniqueY = unique(rawData(:,2));
-        resY = length(uniqueY);
-        if res * resY == n
-            data.X = reshape(rawData(:,1), resY, res);
-            data.Y = reshape(rawData(:,2), resY, res);
-            data.F = reshape(rawData(:,3), resY, res);
-            return;
-        else
-            error('Cannot reshape %d elements into grid (res=%d, res*res=%d). File: %s', ...
-                  n, res, res*res, filename);
-        end
-    end
-
-    data.X = reshape(rawData(:,1), res, res);
-    data.Y = reshape(rawData(:,2), res, res);
-    data.F = reshape(rawData(:,3), res, res);
-end
-
-function plotLandscape(X, Y, F, titleStr, isDiff)
-    if nargin < 5, isDiff = false; end
-
-    if isDiff
-        % Use diverging colormap for differences
-        maxAbs = max(abs(F(:)));
-        if maxAbs < 1e-12
-            % All values are essentially zero - use a flat gray color
-            surf(X, Y, F, 'EdgeColor', 'none');
-            colormap(gca, [0.5 0.5 0.5]);
-            c = colorbar;
-            c.Label.String = 'Fitness Difference (no change)';
-            caxis([-1 1]);
-        else
-            surf(X, Y, F, 'EdgeColor', 'none');
-            colormap(gca, jet);
-            c = colorbar;
-            c.Label.String = 'Fitness Difference';
-            caxis([-maxAbs, maxAbs]);
-        end
-    else
-        surf(X, Y, F, 'EdgeColor', 'none');
-        colormap(gca, jet);
-        c = colorbar;
-        c.Label.String = 'Fitness';
-    end
-
-    title(titleStr);
-    xlabel('x');
-    ylabel('y');
-    view(2); % Top-down view
-    axis([0 1 0 1]);
-    shading interp;
-    grid on;
-end
-
-function [sol, fit, osaSol, osaFit] = readSolutionFile(filename)
-    % Read solution file format:
-    % Lines starting with # are comments
-    % First section: mediating population (x0..xd, fitness)
-    % After "# OSA solutions": OSA archive (x0..xd, fitness)
-
-    fid = fopen(filename, 'r');
-    if fid == -1
-        error('Cannot open file: %s', filename);
-    end
-
-    sol = [];
-    fit = [];
-    osaSol = [];
-    osaFit = [];
-
-    inOSA = false;
-
-    while true
-        line = fgetl(fid);
-        if ~ischar(line), break; end
-
-        if startsWith(line, '# OSA')
-            inOSA = true;
-            continue;
-        end
-
-        if startsWith(line, '#') || isempty(strtrim(line))
-            continue;
-        end
-
-        vals = sscanf(line, '%f')';
-        if length(vals) >= 2
-            if inOSA
-                osaSol = [osaSol; vals(1:end-1)];
-                osaFit = [osaFit; vals(end)];
-            else
-                sol = [sol; vals(1:end-1)];
-                fit = [fit; vals(end)];
+    % FIG 10 – Best solution trajectory  (colour-coded by generation)
+    fprintf('[10/11] Best Solution Trajectory ...\n');
+    fig10 = figure('Color','w','Position',[100 100 1400 680]);
+    if nGens > 0
+        bestTraj = NaN(nGens,6);
+        for i = 1:nGens
+            G = loadTxtSkipComments(fullfile(genFiles(i).folder, genFiles(i).name));
+            if ~isempty(G) && size(G,2) >= 5
+                [~,bi] = max(G(:,5));
+                bestTraj(i,:) = [genNums(i), G(bi,1:4), G(bi,5)];
             end
         end
+        valid = ~any(isnan(bestTraj),2);
+        BT    = bestTraj(valid,:);
+        t     = BT(:,1);
+        tn    = (t - min(t)) ./ (max(t)-min(t)+eps);   % normalised to [0,1]
+
+        for k = 1:2
+            subplot(1,2,k);
+            if k == 1
+                X1=BT(:,2); Y1=BT(:,3); Z1=BT(:,4);
+                xl='x_0'; yl='x_1'; zl='x_2';
+                ttl = 'Trajectory: x_0 - x_1 - x_2';
+            else
+                X1=BT(:,3); Y1=BT(:,4); Z1=BT(:,5);
+                xl='x_1'; yl='x_2'; zl='x_3';
+                ttl = 'Trajectory: x_1 - x_2 - x_3';
+            end
+            hold on;
+            % Segments coloured blue (early) -> red (late)
+            for j = 1:size(BT,1)-1
+                clr = (1-tn(j))*COL(1,:) + tn(j)*COL(2,:);
+                plot3([X1(j) X1(j+1)],[Y1(j) Y1(j+1)],[Z1(j) Z1(j+1)], ...
+                      '-','LineWidth',2.8,'Color',clr);
+            end
+            % Floor shadow projection
+            zFloor = min(Z1) - 0.03*(max(Z1)-min(Z1)+eps);
+            plot3(X1,Y1,repmat(zFloor,size(X1)),':','Color',[0.75 0.75 0.75],'LineWidth',1.2);
+            % Start / end markers (circles)
+            scatter3(X1(1),  Y1(1),  Z1(1),  280, COL(3,:),'o','filled', ...
+                     'MarkerEdgeColor','k','LineWidth',2,'DisplayName','Start');
+            scatter3(X1(end),Y1(end),Z1(end),280, COL(4,:),'o','filled', ...
+                     'MarkerEdgeColor','k','LineWidth',2,'DisplayName','End');
+            xlabel(xl,'FontSize',12,'FontWeight','bold');
+            ylabel(yl,'FontSize',12,'FontWeight','bold');
+            zlabel(zl,'FontSize',12,'FontWeight','bold');
+            title(ttl,'FontSize',13,'FontWeight','bold');
+            legend({'Start','End'},'Location','best','FontSize',11,'Box','on');
+            grid on;  box on;
+            set(gca,'FontSize',11,'LineWidth',1.5);
+            view(-35,28);
+        end
+        sgtitle({'Evolution of Best Solution in Decision Space', ...
+                 '(line colour: blue = early generation  \rightarrow  red = late)'}, ...
+                'FontSize',15,'FontWeight','bold');
+    end
+    saveFigure(fig10,'10_Best_Solution_Trajectory');
+
+
+    % FIG 11 – Before | After | Improvement for all 6 dimension pairs
+    fprintf('[11/11] Full Before vs After Comparison ...\n');
+    % Wider figure + no axis-equal keeps each panel filling its subplot cell
+    fig11 = figure('Color','w','Position',[50 10 1800 3600]);
+
+    for i = 1:6
+        fnB = fullfile(beforeDir, sprintf('slice_d%d_d%d.txt',dimPairs(i,1),dimPairs(i,2)));
+        fnA = fullfile(afterDir,  sprintf('slice_d%d_d%d.txt',dimPairs(i,1),dimPairs(i,2)));
+        [Xb,Yb,Zb] = loadLandscapeSlice(fnB);
+        [Xa,Ya,Za] = loadLandscapeSlice(fnA);
+        allZ = [Zb(:); Za(:)];
+        cLim = [min(allZ), max(allZ)];
+
+        % Before
+        ax = subplot(6,3,(i-1)*3+1);
+        if ~isempty(Xb)
+            contourf(Xb,Yb,Zb, 20,'LineColor','none');
+            colormap(ax, LMAP);  caxis(cLim);
+            cb = colorbar;  cb.FontSize = 8;
+            title(sprintf('%s  %s  Before', pairNames{i}, EM), ...
+                  'FontSize',10,'FontWeight','bold','Color',COL(1,:));
+            xlabel(sprintf('x_{%d}',dimPairs(i,1)),'FontSize',9);
+            ylabel(sprintf('x_{%d}',dimPairs(i,2)),'FontSize',9);
+            axis tight;  set(ax,'FontSize',9);
+        end
+
+        % After
+        ax2 = subplot(6,3,(i-1)*3+2);
+        if ~isempty(Xa)
+            contourf(Xa,Ya,Za, 20,'LineColor','none');
+            colormap(ax2, LMAP);  caxis(cLim);
+            cb = colorbar;  cb.FontSize = 8;
+            title(sprintf('%s  %s  After', pairNames{i}, EM), ...
+                  'FontSize',10,'FontWeight','bold','Color',COL(2,:));
+            xlabel(sprintf('x_{%d}',dimPairs(i,1)),'FontSize',9);
+            ylabel(sprintf('x_{%d}',dimPairs(i,2)),'FontSize',9);
+            axis tight;  set(ax2,'FontSize',9);
+        end
+
+        % Improvement
+        ax3 = subplot(6,3,(i-1)*3+3);
+        if ~isempty(Xb) && ~isempty(Xa)
+            Zdiff  = Za - Zb;
+            absMax = max(abs(Zdiff(:)));
+            colormap(ax3, DMAP);
+            if absMax > 1e-8
+                % Meaningful change: contour + zero-crossing line
+                contourf(Xb,Yb,Zdiff, 20,'LineColor','none');
+                caxis([-absMax absMax]);
+                cb = colorbar;  cb.FontSize = 8;
+                hold on;
+                contour(Xb,Yb,Zdiff,[0 0],'k-','LineWidth',1.5);
+                hold off;
+            else
+                % Landscapes are effectively identical; show a neutral panel
+                xRange = [min(Xb(:)) max(Xb(:))];
+                yRange = [min(Yb(:)) max(Yb(:))];
+                fill([xRange(1) xRange(2) xRange(2) xRange(1)], ...
+                     [yRange(1) yRange(1) yRange(2) yRange(2)], ...
+                     [0.93 0.93 0.93],'EdgeColor','none');
+                caxis([-1 1]);
+                cb = colorbar;  cb.FontSize = 8;
+                text(0.5,0.5,'No measurable change','Units','normalized', ...
+                     'HorizontalAlignment','center','FontSize',8,'Color',[0.45 0.45 0.45]);
+            end
+            cb.Label.String = '\DeltaFitness';
+            title(sprintf('%s  %s  Improvement', pairNames{i}, EM), ...
+                  'FontSize',10,'FontWeight','bold','Color',COL(3,:));
+            xlabel(sprintf('x_{%d}',dimPairs(i,1)),'FontSize',9);
+            ylabel(sprintf('x_{%d}',dimPairs(i,2)),'FontSize',9);
+            axis tight;  set(ax3,'FontSize',9);
+        end
     end
 
-    fclose(fid);
+    sgtitle({'Full Landscape Slices: Before  |  After  |  Improvement', ...
+             '(all 6 dimension pairs; shared colour scale per row)'}, ...
+            'FontSize',14,'FontWeight','bold');
+    saveFigure(fig11,'11_Before_vs_After_Comparison');
+
+    restoreDefaults(origDefs);
+    fprintf('\n All 11 figures saved to: %s\n\n', figDir);
+
+end   % end of main function
+
+
+function oldVals = setGlobalDefaults()
+    props = {'defaultAxesFontSize','defaultAxesFontName', ...
+             'defaultAxesLineWidth','defaultAxesXGrid','defaultAxesYGrid', ...
+             'defaultAxesGridAlpha','defaultAxesBox','defaultLineLineWidth'};
+    oldVals = struct();
+    for k = 1:numel(props)
+        try oldVals.(props{k}) = get(groot, props{k}); catch, end
+    end
+    set(groot, ...
+        'defaultAxesFontSize',  12, ...
+        'defaultAxesFontName',  'Arial', ...
+        'defaultAxesLineWidth', 1.4, ...
+        'defaultAxesXGrid',     'on', ...
+        'defaultAxesYGrid',     'on', ...
+        'defaultAxesGridAlpha', 0.22, ...
+        'defaultAxesBox',       'on', ...
+        'defaultLineLineWidth',  2.0);
+end
+
+function restoreDefaults(oldVals)
+    fields = fieldnames(oldVals);
+    for k = 1:numel(fields)
+        try set(groot, fields{k}, oldVals.(fields{k})); catch, end
+    end
+end
+
+function plotSliceGrid(sliceDir, dimPairs, pairNames, contextLabel, cmap, COL)
+% Render a 3x2 grid of 2-D landscape contour slices with peak centre markers.
+    for i = 1:6
+        fname = fullfile(sliceDir, ...
+                         sprintf('slice_d%d_d%d.txt', dimPairs(i,1), dimPairs(i,2)));
+        [Xs,Ys,Zs] = loadLandscapeSlice(fname);
+        ax = subplot(3,2,i);
+        if ~isempty(Xs)
+            contourf(Xs,Ys,Zs, 30,'LineColor','none');
+            hold on;
+            plotPeakCenters_clean(dimPairs(i,1), dimPairs(i,2), COL);
+            xlabel(sprintf('x_{%d}',dimPairs(i,1)),'FontSize',11,'FontWeight','bold');
+            ylabel(sprintf('x_{%d}',dimPairs(i,2)),'FontSize',11,'FontWeight','bold');
+            title(sprintf('Slice  %s  [%s]', pairNames{i}, contextLabel), ...
+                  'FontSize',12,'FontWeight','bold');
+            cb = colorbar;  cb.Label.String = 'Fitness';  cb.FontSize = 10;
+            colormap(ax, cmap);
+            axis equal tight;
+            set(ax,'FontSize',11,'LineWidth',1.2);
+        end
+    end
+end
+
+function M = loadTxtSkipComments(filepath)
+% Load numeric data from a text file, skipping lines that start with #.
+    M = [];
+    if ~isfile(filepath)
+        fprintf('[WARN] File not found: %s\n', filepath);
+        return;
+    end
+    fid = fopen(filepath,'r');
+    if fid == -1, return; end
+    raw = textscan(fid,'%s','Delimiter','\n');  fclose(fid);
+    rows = [];
+    for i = 1:numel(raw{1})
+        ln = strtrim(raw{1}{i});
+        if isempty(ln) || ln(1)=='#', continue; end
+        v = sscanf(ln,'%f');
+        if ~isempty(v)
+            rows = [rows; v']; %#ok<AGROW>
+        end
+    end
+    M = rows;
+end
+
+function [X,Y,Z] = loadPartyLandscape(filepath)
+% Load a square-grid landscape file (3 columns: x y z).
+    X = [];  Y = [];  Z = [];
+    M = loadTxtSkipComments(filepath);
+    if isempty(M) || size(M,2) < 3, return; end
+    n = round(sqrt(size(M,1)));
+    if n*n ~= size(M,1)
+        fprintf('[WARN] Grid size mismatch in: %s\n', filepath);
+        return;
+    end
+    X = reshape(M(:,1), n, n);
+    Y = reshape(M(:,2), n, n);
+    Z = reshape(M(:,3), n, n);
+end
+
+function [X,Y,Z] = loadLandscapeSlice(filepath)
+    [X,Y,Z] = loadPartyLandscape(filepath);
+end
+
+function plotPeakCenters_clean(d1, d2, colors)
+% Draw circle markers at known ground-truth peak centres.
+    centers = [ 0    0    0    0;
+                40  -30   35  -25;
+               -50   40  -45   35;
+                25   25   25   25;
+               -30  -30  -30  -30;
+                60  -50   55  -45;
+               -20   60  -15   55;
+                80   80   75   80 ];
+    cNorm = (centers + 100) / 200;
+
+    for i = 1:size(centers,1)
+        x = cNorm(i, d1+1);
+        y = cNorm(i, d2+1);
+        if x >= 0 && x <= 1 && y >= 0 && y <= 1
+            ci = mod(i-1, size(colors,1)) + 1;
+            scatter(x, y, 120, colors(ci,:), 'o', 'filled', ...
+                    'MarkerEdgeColor','w', 'LineWidth',1.2);
+            text(x+0.02, y+0.02, sprintf('P%d',i), ...
+                 'Color', colors(ci,:), 'FontSize',9, 'FontWeight','bold');
+        end
+    end
+end
+
+function cmap = buildColormap(name, n)
+
+    switch lower(name)
+        case 'viridis'
+            c = [0.267 0.005 0.329;
+                 0.283 0.141 0.458;
+                 0.254 0.265 0.530;
+                 0.207 0.372 0.553;
+                 0.164 0.471 0.558;
+                 0.128 0.567 0.551;
+                 0.135 0.659 0.518;
+                 0.267 0.749 0.441;
+                 0.478 0.821 0.318;
+                 0.741 0.873 0.150;
+                 0.993 0.906 0.144];
+        case 'diverge'
+            c = [0.017 0.267 0.600;
+                 0.400 0.620 0.890;
+                 1.000 1.000 1.000;
+                 0.950 0.580 0.380;
+                 0.700 0.085 0.085];
+        otherwise
+            cmap = parula(n);
+            return;
+    end
+    cmap = max(0, min(1, interp1(linspace(0,1,size(c,1)), c, linspace(0,1,n))));
 end

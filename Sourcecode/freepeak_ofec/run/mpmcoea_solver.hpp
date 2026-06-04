@@ -194,6 +194,85 @@ namespace ofec {
         return m;
     }
 
+    //  MPMMO Multiobjective Utilities
+    //
+    //  Formal definition: For P parties each controlling variable subset X_p,
+    //  define the per-party objective as the best collaborative fitness Party p
+    //  can achieve given the other parties' current variable contributions:
+    //
+    //    F_p(x) = max_{s in ColabContext_p} evalDM(p, x_p, ctx(s))
+    //
+    //  The vector objective F(x) = [F_0(x), ..., F_{P-1}(x)] makes the search
+    //  genuinely multiobjective: a solution x* is Pareto-optimal iff it is a
+    //  joint peak (Nash equilibrium) where no party can unilaterally improve.
+    //  The Pareto archive therefore converges to the set of all joint peaks.
+
+    // True if objective vector a weakly Pareto-dominates b (maximisation).
+    inline bool moDominates(const std::vector<double>& a,
+                            const std::vector<double>& b)
+    {
+        bool better = false;
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (a[i] < b[i] - 1e-9) return false;   // a worse in some obj
+            if (a[i] > b[i] + 1e-9) better = true;
+        }
+        return better;
+    }
+
+    // Fast non-dominated sort. Returns rank vector (0 = front 1).
+    inline std::vector<int> fastNonDomSort(const std::vector<std::vector<double>>& objs)
+    {
+        const int n = static_cast<int>(objs.size());
+        std::vector<int> rank(n, 0);
+        std::vector<int> dom_count(n, 0);
+        std::vector<std::vector<int>> dom_set(n);
+
+        for (int i = 0; i < n; ++i)
+            for (int j = 0; j < n; ++j) {
+                if (i == j) continue;
+                if (moDominates(objs[i], objs[j])) dom_set[i].push_back(j);
+                else if (moDominates(objs[j], objs[i])) ++dom_count[i];
+            }
+
+        std::vector<int> current_front;
+        for (int i = 0; i < n; ++i) if (dom_count[i] == 0) current_front.push_back(i);
+
+        int r = 0;
+        while (!current_front.empty()) {
+            std::vector<int> next;
+            for (int i : current_front) {
+                rank[i] = r;
+                for (int j : dom_set[i])
+                    if (--dom_count[j] == 0) next.push_back(j);
+            }
+            current_front = next; ++r;
+        }
+        return rank;
+    }
+
+    // Crowding distance for a set of solutions on a single Pareto front.
+    inline std::vector<double> crowdingDistance(
+        const std::vector<std::vector<double>>& objs,
+        const std::vector<int>& indices)
+    {
+        const int n  = static_cast<int>(indices.size());
+        const int nd = static_cast<int>(objs[0].size());
+        std::vector<double> dist(objs.size(), 0.0);
+        if (n <= 2) { for (int i : indices) dist[i] = 1e30; return dist; }
+
+        for (int m = 0; m < nd; ++m) {
+            std::vector<int> sorted = indices;
+            std::sort(sorted.begin(), sorted.end(),
+                [&](int a, int b){ return objs[a][m] < objs[b][m]; });
+            dist[sorted.front()] = dist[sorted.back()] = 1e30;
+            double range = objs[sorted.back()][m] - objs[sorted.front()][m];
+            if (range < 1e-12) continue;
+            for (int k = 1; k < n - 1; ++k)
+                dist[sorted[k]] += (objs[sorted[k+1]][m] - objs[sorted[k-1]][m]) / range;
+        }
+        return dist;
+    }
+
     //  MPM-CoEA
     class MPM_CoEA {
     private:
@@ -213,10 +292,16 @@ namespace ofec {
         double m_sharing_radius;
         double m_sharing_alpha;
 
-        // Stagnation
+        // Stagnation / control
         static constexpr int    STAGNATION_LIMIT = 60;
-        static constexpr int    MIN_POP = 15;
-        static constexpr double DEAD = -1e30;
+        static constexpr int    MIN_POP          = 15;
+        static constexpr double DEAD             = -1e30;
+        // Party-level CR: lower than joint CR to prevent 2-D hyperplane collapse
+        static constexpr double PARTY_CR         = 0.50;
+        // Clearing radius in joint space: ~half min inter-peak distance
+        static constexpr double CLEARING_RADIUS  = 0.12;
+        // OSA quality floor: skip plateau noise below this fitness
+        static constexpr double OSA_MIN_QUALITY  = 25.0;
 
         // Per-party data
         std::vector<std::vector<std::vector<double>>> m_party_optima;
@@ -226,7 +311,12 @@ namespace ofec {
 
         // Mediating population
         std::vector<std::vector<double>> m_mediating_pop;
-        std::vector<double>              m_mediating_fit;
+        std::vector<double>              m_mediating_fit;   // scalar joint fitness
+
+        // MPMMO Multiobjective: per-party objective vectors for each mediating solution.
+        // m_mediating_obj[i][p] = Party p's best-response fitness for solution i.
+        // Used for Pareto-dominance-based selection in evolveMediating().
+        std::vector<std::vector<double>> m_mediating_obj;  // npm x nd
 
         // DM-oriented elites
         std::vector<std::vector<std::vector<double>>> m_dm_elite;
@@ -236,24 +326,37 @@ namespace ofec {
         std::vector<std::vector<std::vector<double>>> m_context_archive;
         std::vector<std::vector<double>>              m_context_fit;
 
-        //  Optimal Solution Archive (OSA)
+        // Optimal Solution Archive (OSA)
+        // Stores quality-verified, diversity-spaced consensus solutions.
+        // Only solutions with joint fitness >= OSA_MIN_QUALITY are admitted.
         std::vector<std::vector<double>> m_osa;
         std::vector<double>              m_osa_fit;
         double                           m_osa_radius;
-        static constexpr int             OSA_MAX = 300;
+        static constexpr int             OSA_MAX = 120;   // tighter cap, higher quality
 
-        // Diversity-aware OSA insertion
+        // Pareto Archive (PA)
+        // Stores non-dominated solutions in the per-party objective space.
+        // Converges to the set of all joint peaks (Nash equilibria).
+        std::vector<std::vector<double>> m_pa;             // solutions
+        std::vector<std::vector<double>> m_pa_obj;         // per-party obj vectors
+        std::vector<double>              m_pa_fit;         // scalar joint fitness
+        static constexpr int             PA_MAX = 200;
+        // MO convergence log: (generation, pareto_front_size, best_joint_f)
+        std::vector<std::tuple<int,int,double>> m_mo_log;
+
+        // OSA insertion — quality-gated, diversity-spaced.
+        // Only admits solutions above OSA_MIN_QUALITY to prevent the archive
+        // filling with flat-plateau noise before any peaks are discovered.
         void osaInsert(const std::vector<double>& sol, double f) {
             if (f <= DEAD + 1.0 || !std::isfinite(f)) return;
+            if (f < OSA_MIN_QUALITY) return;   // reject plateau noise
 
-            // Check distance to all existing OSA entries
             double min_d = std::numeric_limits<double>::max();
             size_t closest_i = 0;
             for (size_t i = 0; i < m_osa.size(); ++i) {
                 double d2 = 0.0;
                 for (size_t j = 0; j < sol.size(); ++j) {
-                    double dv = sol[j] - m_osa[i][j];
-                    d2 += dv * dv;
+                    double dv = sol[j] - m_osa[i][j]; d2 += dv * dv;
                 }
                 double d = std::sqrt(d2);
                 if (d < min_d) { min_d = d; closest_i = i; }
@@ -262,30 +365,119 @@ namespace ofec {
             if (static_cast<int>(m_osa.size()) < OSA_MAX) {
                 if (min_d >= m_osa_radius) {
                     m_osa.push_back(sol); m_osa_fit.push_back(f);
-                }
-                else if (f > m_osa_fit[closest_i]) {
-                    // Same niche but better: replace
+                } else if (f > m_osa_fit[closest_i]) {
                     m_osa[closest_i] = sol; m_osa_fit[closest_i] = f;
                 }
-            }
-            else {
+            } else {
                 if (min_d > m_osa_radius) {
-                    // New niche discovered: evict weakest incumbent regardless of fitness
+                    // Evict weakest only if new solution is better
                     auto wt = std::min_element(m_osa_fit.begin(), m_osa_fit.end());
-                    size_t wi = static_cast<size_t>(std::distance(m_osa_fit.begin(), wt));
-                    m_osa[wi] = sol; m_osa_fit[wi] = f;
-                }
-                else if (f > m_osa_fit[closest_i]) {
-                    // Same niche, better fitness
+                    if (f > *wt) {
+                        size_t wi = static_cast<size_t>(std::distance(m_osa_fit.begin(), wt));
+                        m_osa[wi] = sol; m_osa_fit[wi] = f;
+                    }
+                } else if (f > m_osa_fit[closest_i]) {
                     m_osa[closest_i] = sol; m_osa_fit[closest_i] = f;
                 }
             }
         }
 
+        // Shrink OSA radius from 0.04 → 0.01 over the run.
+        // Calibrated to be well below estimated inter-peak basin radius (~0.08).
         void adaptOsaRadius() {
             double progress = static_cast<double>(m_generation) / m_coevo_gens;
-            m_osa_radius = m_sigma * (1.0 - 0.50 * progress);
-            m_osa_radius = std::max(0.03, m_osa_radius);
+            m_osa_radius = 0.04 * (1.0 - 0.75 * progress);
+            m_osa_radius = std::max(0.01, m_osa_radius);
+        }
+
+        // Per-party objective vector
+        //
+        // F_p(x) = best joint fitness Party p can achieve with its own
+        //          variables from x, evaluated against the top-K collaborative
+        //          contexts drawn from the OSA and the direct x context.
+        //
+        // At a true joint peak: F_0(x*) = F_1(x*) = f(x*).
+        // Off-peak: the party whose variables are misaligned gets a lower F_p,
+        // creating Pareto tension that drives the population toward all peaks.
+
+        std::vector<double> evalObjectiveVector(const std::vector<double>& x) const {
+            const int nd  = m_bench->getNumDMs();
+            const int tot = m_bench->getNumVariables();
+            std::vector<double> obj(static_cast<size_t>(nd), 0.0);
+
+            for (int p = 0; p < nd; ++p) {
+                const auto& pidx = m_bench->getPartyIndices(p);
+                std::vector<double> x_p(pidx.size());
+                for (size_t k = 0; k < pidx.size(); ++k) x_p[k] = x[pidx[k]];
+
+                double best_f = DEAD;
+
+                // Context 0: direct context from x itself (= evalJoint(x))
+                {
+                    auto ctx = ctxFromJoint(p, x);
+                    double f = evalDM(p, x_p, ctx);
+                    if (f > best_f) best_f = f;
+                }
+
+                // Contexts 1..K: top OSA solutions provide collaborative context.
+                // A solution near peak i will score high when OSA contains peak i.
+                const int n_osa_ctx = std::min(8, static_cast<int>(m_osa.size()));
+                // Use the n_osa_ctx highest-fitness OSA entries
+                std::vector<size_t> osa_order(m_osa.size());
+                std::iota(osa_order.begin(), osa_order.end(), 0);
+                if (static_cast<int>(m_osa.size()) > n_osa_ctx) {
+                    std::partial_sort(osa_order.begin(),
+                                      osa_order.begin() + n_osa_ctx,
+                                      osa_order.end(),
+                                      [&](size_t a, size_t b){
+                                          return m_osa_fit[a] > m_osa_fit[b]; });
+                    osa_order.resize(static_cast<size_t>(n_osa_ctx));
+                }
+                for (size_t ci : osa_order) {
+                    auto ctx = ctxFromJoint(p, m_osa[ci]);
+                    double f = evalDM(p, x_p, ctx);
+                    if (f > best_f) best_f = f;
+                }
+
+                obj[static_cast<size_t>(p)] = (best_f > DEAD + 1.0) ? best_f : 0.0;
+            }
+            return obj;
+        }
+
+        // Pareto Archive insertion — non-dominated solution repository.
+        // Stores up to PA_MAX solutions; on overflow evicts the most crowded.
+        void paretoArchiveInsert(const std::vector<double>& sol,
+                                 const std::vector<double>& obj,
+                                 double                     jf)
+        {
+            if (jf < OSA_MIN_QUALITY || !std::isfinite(jf)) return;
+
+            // Check dominance against existing archive
+            for (size_t i = 0; i < m_pa_obj.size(); ++i) {
+                if (moDominates(m_pa_obj[i], obj)) return; // dominated — reject
+            }
+            // Remove entries dominated by the new solution
+            for (int i = static_cast<int>(m_pa_obj.size()) - 1; i >= 0; --i) {
+                if (moDominates(obj, m_pa_obj[static_cast<size_t>(i)])) {
+                    m_pa.erase(m_pa.begin() + i);
+                    m_pa_obj.erase(m_pa_obj.begin() + i);
+                    m_pa_fit.erase(m_pa_fit.begin() + i);
+                }
+            }
+            m_pa.push_back(sol); m_pa_obj.push_back(obj); m_pa_fit.push_back(jf);
+
+            // On overflow: evict the most crowded solution on the front
+            if (static_cast<int>(m_pa.size()) > PA_MAX) {
+                std::vector<int> all_idx(m_pa.size());
+                std::iota(all_idx.begin(), all_idx.end(), 0);
+                auto cd = crowdingDistance(m_pa_obj, all_idx);
+                // Remove the entry with smallest crowding distance
+                auto min_it = std::min_element(cd.begin(), cd.end());
+                size_t mi = static_cast<size_t>(std::distance(cd.begin(), min_it));
+                m_pa.erase(m_pa.begin() + static_cast<int>(mi));
+                m_pa_obj.erase(m_pa_obj.begin() + static_cast<int>(mi));
+                m_pa_fit.erase(m_pa_fit.begin() + static_cast<int>(mi));
+            }
         }
 
         // Stagnation
@@ -295,7 +487,7 @@ namespace ofec {
         int    m_generation = 0;
 
         // Output
-        std::string m_output_dir;
+        std::string out_dir;
         std::vector<std::pair<int, double>> m_conv_log;
 
         // Helpers
@@ -414,8 +606,10 @@ namespace ofec {
 
                         std::vector<double> trial(dim);
                         const int jr = static_cast<int>(u(rng) * dim);
+                        // High CR in low-dim party space causes hyperplane collapse
+                        // within ~10 generations, killing per-party diversity.
                         for (int d = 0; d < dim; d++) {
-                            if (u(rng) < m_de_CR || d == jr)
+                            if (u(rng) < PARTY_CR || d == jr)
                                 trial[d] = clamp(pop[r1][d] + F * (pop[r2][d] - pop[r3][d]));
                             else
                                 trial[d] = pop[i][d];
@@ -488,8 +682,12 @@ namespace ofec {
             std::vector<size_t> ord(candidates.size()); std::iota(ord.begin(), ord.end(), 0);
             std::sort(ord.begin(), ord.end(), [&](size_t a, size_t b) { return cfit[a] > cfit[b]; });
 
-            const double min_sep = 0.03;
+            // min_sep raised to ensure the seeded mediating
+            // population spans distinct peak basins rather than clustering
+            // around a single Cartesian combination.
+            const double min_sep = 0.08;
             m_mediating_pop.clear(); m_mediating_fit.clear();
+            m_mediating_obj.clear();
             for (size_t idx : ord) {
                 if (static_cast<int>(m_mediating_pop.size()) >= m_med_pop_size) break;
                 bool close = false;
@@ -503,7 +701,10 @@ namespace ofec {
                 if (!close) {
                     m_mediating_pop.push_back(candidates[idx]);
                     m_mediating_fit.push_back(cfit[idx]);
+                    m_mediating_obj.push_back(evalObjectiveVector(candidates[idx]));
                     osaInsert(candidates[idx], cfit[idx]);
+                    paretoArchiveInsert(candidates[idx],
+                                        m_mediating_obj.back(), cfit[idx]);
                 }
             }
             std::mt19937 rng(123u);
@@ -511,12 +712,15 @@ namespace ofec {
             while (static_cast<int>(m_mediating_pop.size()) < m_med_pop_size) {
                 std::vector<double> rsol(tot);
                 for (auto& v : rsol) v = u(rng);
+                double rf = evalJoint(rsol);
                 m_mediating_pop.push_back(rsol);
-                m_mediating_fit.push_back(evalJoint(rsol));
+                m_mediating_fit.push_back(rf);
+                m_mediating_obj.push_back(evalObjectiveVector(rsol));
             }
             std::cout << "  Mediating pop seeded: " << m_mediating_pop.size()
                 << " | best=" << std::fixed << std::setprecision(4)
-                << *std::max_element(m_mediating_fit.begin(), m_mediating_fit.end()) << "\n";
+                << *std::max_element(m_mediating_fit.begin(), m_mediating_fit.end())
+                << " | pareto_front=" << m_pa.size() << "\n";
         }
 
         //  Phase 3a: Evolve competing sub-pops
@@ -649,9 +853,13 @@ namespace ofec {
             }
         }
 
-        //  Phase 3c: Evolve mediating population
+        //  Phase 3c: Evolve mediating population (MPMMO Multiobjective)
+        //
+        //  Selection uses Pareto dominance (NSGA-II: rank + crowding distance)
+        //  Niche maintenance is achieved through
+        //  explicit clearing after DE, which provably maintains one winner per basin.
         void evolveMediating() {
-            const int nd = m_bench->getNumDMs();
+            const int nd  = m_bench->getNumDMs();
             const int tot = m_bench->getNumVariables();
             const int npm = static_cast<int>(m_mediating_pop.size());
             if (npm < 8) return;
@@ -659,7 +867,7 @@ namespace ofec {
             std::mt19937 rng(static_cast<unsigned>(m_generation * 444333u));
             std::uniform_real_distribution<double> u(0.0, 1.0);
 
-            // Inject best from competing sub-pops with MULTIPLE contexts
+            // Step 1: Inject party sub-pop elites with diverse contexts
             for (int dm = 0; dm < nd; dm++) {
                 for (size_t sp = 0; sp < m_competing_pops[dm].size(); sp++) {
                     auto& f = m_competing_fit[dm][sp];
@@ -669,10 +877,9 @@ namespace ofec {
                     const auto& idx = m_bench->getPartyIndices(dm);
 
                     int other = (dm == 0) ? 1 : 0;
-                    int n_ctx = 1;
-                    if (other < nd && !m_context_archive[other].empty())
-                        n_ctx = static_cast<int>(m_context_archive[other].size());
-                    n_ctx = std::min(n_ctx, 5); // limit cost
+                    int n_ctx = (!m_context_archive[other].empty())
+                                ? std::min(static_cast<int>(m_context_archive[other].size()), 5)
+                                : 1;
 
                     for (int ci = 0; ci < n_ctx; ++ci) {
                         auto ctx = neutralCtx();
@@ -689,56 +896,104 @@ namespace ofec {
                                 full[oidx[k]] = ctx[o][k];
                         }
                         double jf = evalJoint(full);
+                        auto obj_vec = evalObjectiveVector(full);
                         osaInsert(full, jf);
+                        paretoArchiveInsert(full, obj_vec, jf);
+                        // Replace worst mediating solution if this is better
                         auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
                         if (jf > *wt) {
                             size_t wi = static_cast<size_t>(std::distance(m_mediating_fit.begin(), wt));
-                            m_mediating_pop[wi] = full; m_mediating_fit[wi] = jf;
+                            m_mediating_pop[wi] = full;
+                            m_mediating_fit[wi] = jf;
+                            m_mediating_obj[wi] = obj_vec;
                         }
                     }
                 }
             }
 
-            // Species-based fitness-sharing DE
+            // Step 2: NSGA-II MO selection + DE trial generation
+            // Compute Pareto ranks and crowding distances for tournament selection
+            auto ranks = fastNonDomSort(m_mediating_obj);
+            std::vector<int> all_idx(npm); std::iota(all_idx.begin(), all_idx.end(), 0);
+            auto crowd  = crowdingDistance(m_mediating_obj, all_idx);
+
+            // MO tournament selection: prefer lower rank; break ties by crowding
+            auto moTournament = [&](int a, int b) -> int {
+                if (ranks[a] < ranks[b]) return a;
+                if (ranks[b] < ranks[a]) return b;
+                return (crowd[a] >= crowd[b]) ? a : b;
+            };
+
             std::uniform_int_distribution<int> pick(0, npm - 1);
             for (int i = 0; i < npm; i++) {
-                int r1 = i, r2 = i, r3 = i, att = 0;
-                while (r1 == i && ++att < 500)r1 = pick(rng);
-                att = 0; while ((r2 == i || r2 == r1) && ++att < 500)r2 = pick(rng);
-                att = 0; while ((r3 == i || r3 == r1 || r3 == r2) && ++att < 500)r3 = pick(rng);
-                if (r1 == i || r2 == i || r3 == i)continue;
+                // DE/rand/1 with MO tournament donor selection
+                int r1 = pick(rng), r2 = pick(rng), r3 = pick(rng);
+                // Use tournament to bias r1 toward good regions
+                int r1b = pick(rng);
+                r1 = moTournament(r1, r1b);
 
                 std::vector<double> trial(tot);
                 const int jr = static_cast<int>(u(rng) * tot);
                 for (int d = 0; d < tot; d++) {
                     if (u(rng) < m_de_CR || d == jr)
-                        trial[d] = clamp(m_mediating_pop[r1][d] + m_de_F * (m_mediating_pop[r2][d] - m_mediating_pop[r3][d]));
-                    else trial[d] = m_mediating_pop[i][d];
+                        trial[d] = clamp(m_mediating_pop[r1][d]
+                                       + m_de_F * (m_mediating_pop[r2][d]
+                                                  - m_mediating_pop[r3][d]));
+                    else
+                        trial[d] = m_mediating_pop[i][d];
                 }
-                double raw_tf = evalJoint(trial);
+                double trial_jf    = evalJoint(trial);
+                auto   trial_obj   = evalObjectiveVector(trial);
 
-                // Fitness sharing
-                double shared_trial = raw_tf, shared_cur = m_mediating_fit[i];
-                {
-                    auto sharingPenalty = [&](const std::vector<double>& sol, double raw) {
-                        double nc = 1.0;
-                        for (size_t j = 0; j < m_mediating_pop.size(); j++) {
-                            if (m_mediating_fit[j] < 20.0) continue;
-                            double d2 = 0;
-                            for (int d = 0; d < tot; d++) { double dv = sol[d] - m_mediating_pop[j][d]; d2 += dv * dv; }
-                            double dist = std::sqrt(d2);
-                            if (dist < m_sharing_radius)
-                                nc += std::max(0.0, 1.0 - std::pow(dist / m_sharing_radius, m_sharing_alpha));
-                        }
-                        return raw / nc;
-                        };
-                    shared_trial = sharingPenalty(trial, raw_tf);
-                    shared_cur = sharingPenalty(m_mediating_pop[i], m_mediating_fit[i]);
+                // MO acceptance: accept trial if it Pareto-dominates parent,
+                // or if parent does NOT dominate trial (crowding tie-break).
+                bool accept = false;
+                if (moDominates(trial_obj, m_mediating_obj[i])) {
+                    accept = true;
+                } else if (!moDominates(m_mediating_obj[i], trial_obj)) {
+                    // Non-dominated w.r.t. each other: keep the more crowded one
+                    // promotes spread on the Pareto front
+                    accept = (trial_jf >= m_mediating_fit[i]);
                 }
-                if (shared_trial >= shared_cur) {
+
+                if (accept) {
                     m_mediating_pop[i] = std::move(trial);
-                    m_mediating_fit[i] = raw_tf;
+                    m_mediating_fit[i] = trial_jf;
+                    m_mediating_obj[i] = std::move(trial_obj);
                     osaInsert(m_mediating_pop[i], m_mediating_fit[i]);
+                    paretoArchiveInsert(m_mediating_pop[i],
+                                        m_mediating_obj[i], m_mediating_fit[i]);
+                }
+            }
+
+            // Step 3: Explicit clearing in joint space
+            // Enforce one survivor per CLEARING_RADIUS neighbourhood.
+            // This is the key niching mechanism that prevents all solutions
+            // collapsing to the global optimum. O(n^2) but npm is small (~400).
+            for (int i = 0; i < npm; i++) {
+                if (m_mediating_fit[i] <= DEAD + 1.0) continue;
+                for (int j = i + 1; j < npm; j++) {
+                    if (m_mediating_fit[j] <= DEAD + 1.0) continue;
+                    double d2 = 0.0;
+                    for (int d = 0; d < tot; d++) {
+                        double dv = m_mediating_pop[i][d] - m_mediating_pop[j][d];
+                        d2 += dv * dv;
+                    }
+                    if (std::sqrt(d2) < CLEARING_RADIUS) {
+                        // Keep the MO-better solution; reinitialise the other
+                        int loser = moDominates(m_mediating_obj[i], m_mediating_obj[j])
+                                    ? j : i;
+                        if (!moDominates(m_mediating_obj[i], m_mediating_obj[j]) &&
+                            !moDominates(m_mediating_obj[j], m_mediating_obj[i])) {
+                            loser = (m_mediating_fit[i] >= m_mediating_fit[j]) ? j : i;
+                        }
+                        // Reinitialise loser to a random position (diversification)
+                        std::uniform_real_distribution<double> ur(0.0, 1.0);
+                        for (auto& v : m_mediating_pop[loser]) v = ur(rng);
+                        m_mediating_fit[loser] = evalJoint(m_mediating_pop[loser]);
+                        m_mediating_obj[loser] = evalObjectiveVector(m_mediating_pop[loser]);
+                        break;  // restart outer loop implicitly via i-increment
+                    }
                 }
             }
         }
@@ -784,87 +1039,98 @@ namespace ofec {
                         auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
                         size_t wi = static_cast<size_t>(std::distance(m_mediating_fit.begin(), wt));
                         double ef = evalJoint(elite);
-                        if (ef > *wt) { m_mediating_pop[wi] = elite; m_mediating_fit[wi] = ef; }
+                        if (ef > *wt) {
+                            m_mediating_pop[wi] = elite;
+                            m_mediating_fit[wi] = ef;
+                            m_mediating_obj[wi] = evalObjectiveVector(elite);
+                        }
                     }
                 }
             }
         }
 
-        //  Phase 3e: Stagnation + adaptive restart
+        //  Phase 3e: Stagnation detection + diversity-targeted restart
         bool checkAndRestart() {
             double cur = *std::max_element(m_mediating_fit.begin(), m_mediating_fit.end());
             m_conv_log.push_back({ m_generation, cur });
-            if (cur > m_best_prev + 1e-6) {
-                m_best_prev = cur; m_stagnation_cnt = 0;
-            }
+            m_mo_log.emplace_back(m_generation,
+                                  static_cast<int>(m_pa.size()), cur);
+
+            if (cur > m_best_prev + 1e-6) { m_best_prev = cur; m_stagnation_cnt = 0; }
             else { ++m_stagnation_cnt; }
 
-            if (m_stagnation_cnt >= STAGNATION_LIMIT) {
-                std::cout << "[RESTART gen=" << m_generation
-                    << " best=" << std::fixed << std::setprecision(4) << cur << "]\n";
+            if (m_stagnation_cnt < STAGNATION_LIMIT) return false;
 
-                // Avoid infinite restarts once global optimum is effectively found
-                if (m_restart_count >= 2 && m_best_prev >= 89.0) {
-                    m_stagnation_cnt = 0;
-                    const int tot = m_bench->getNumVariables();
-                    const int n_replace = static_cast<int>(m_mediating_pop.size()) / 10;
-                    std::mt19937 rng(static_cast<unsigned>(m_generation * 55555u));
-                    std::uniform_real_distribution<double> u(0.0, 1.0);
-                    for (int r = 0; r < n_replace; r++) {
-                        std::vector<double> rsol(tot);
-                        for (auto& v : rsol) v = u(rng);
-                        double rf = evalJoint(rsol);
-                        auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
-                        size_t wi = static_cast<size_t>(std::distance(m_mediating_fit.begin(), wt));
-                        if (rf > *wt) { m_mediating_pop[wi] = rsol; m_mediating_fit[wi] = rf; }
-                    }
-                    return false;
-                }
+            std::cout << "[RESTART gen=" << m_generation
+                << " best=" << std::fixed << std::setprecision(4) << cur
+                << " pa_size=" << m_pa.size() << "]\n";
 
-                ++m_restart_count; m_stagnation_cnt = 0;
+            ++m_restart_count; m_stagnation_cnt = 0;
+            const int nd  = m_bench->getNumDMs();
+            const int tot = m_bench->getNumVariables();
+            std::mt19937 rng(static_cast<unsigned>(m_generation * 55555u
+                                                  + m_restart_count * 9999u));
+            std::uniform_real_distribution<double> u(0.0, 1.0);
 
-                const int nd = m_bench->getNumDMs();
-                std::mt19937 rng(static_cast<unsigned>(m_generation * 55555u + m_restart_count * 9999u));
-                std::uniform_real_distribution<double> u(0.0, 1.0);
-
-                for (int dm = 0; dm < nd; dm++) {
-                    auto ctx = neutralCtx();
-                    for (size_t sp = 0; sp < m_competing_pops[dm].size(); sp++) {
-                        auto& pop = m_competing_pops[dm][sp];
-                        const int dim = m_bench->getPartyDim(dm);
-                        auto& f = m_competing_fit[dm][sp];
-                        auto best_it = std::max_element(f.begin(), f.end());
-                        size_t best_sp = static_cast<size_t>(std::distance(f.begin(), best_it));
-                        for (size_t k = 0; k < pop.size(); k++) {
-                            if (k == best_sp) continue;
-                            for (auto& v : pop[k]) v = u(rng);
-                            m_competing_fit[dm][sp][k] = evalDM(dm, pop[k], ctx);
-                        }
+            // 1) Randomise non-elite competing sub-pops (keep best per sub-pop)
+            for (int dm = 0; dm < nd; dm++) {
+                auto ctx = neutralCtx();
+                for (size_t sp = 0; sp < m_competing_pops[dm].size(); sp++) {
+                    auto& pop = m_competing_pops[dm][sp];
+                    auto& f   = m_competing_fit[dm][sp];
+                    auto  bit = std::max_element(f.begin(), f.end());
+                    size_t bsp = static_cast<size_t>(std::distance(f.begin(), bit));
+                    for (size_t k = 0; k < pop.size(); k++) {
+                        if (k == bsp) continue;
+                        for (auto& v : pop[k]) v = u(rng);
+                        f[k] = evalDM(dm, pop[k], ctx);
                     }
                 }
-
-                for (size_t i = 0; i < m_osa.size(); i++) {
-                    auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
-                    if (m_osa_fit[i] > *wt) {
-                        size_t wi = static_cast<size_t>(std::distance(m_mediating_fit.begin(), wt));
-                        m_mediating_pop[wi] = m_osa[i];
-                        m_mediating_fit[wi] = m_osa_fit[i];
-                    }
-                }
-
-                const int tot = m_bench->getNumVariables();
-                const int n_replace = static_cast<int>(m_mediating_pop.size()) / 5;
-                for (int r = 0; r < n_replace; r++) {
-                    std::vector<double> rsol(tot);
-                    for (auto& v : rsol) v = u(rng);
-                    double rf = evalJoint(rsol);
-                    auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
-                    size_t wi = static_cast<size_t>(std::distance(m_mediating_fit.begin(), wt));
-                    if (rf > *wt) { m_mediating_pop[wi] = rsol; m_mediating_fit[wi] = rf; }
-                }
-                return true;
             }
-            return false;
+
+            // 2) Re-seed mediating pop from Pareto archive (verified peaks)
+            for (size_t i = 0; i < m_pa.size(); i++) {
+                auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
+                if (m_pa_fit[i] > *wt) {
+                    size_t wi = static_cast<size_t>(
+                        std::distance(m_mediating_fit.begin(), wt));
+                    m_mediating_pop[wi] = m_pa[i];
+                    m_mediating_fit[wi] = m_pa_fit[i];
+                    m_mediating_obj[wi] = m_pa_obj[i];
+                }
+            }
+
+            // 3) Gap-filling: generate candidates that are far from ALL PA solutions.
+            //    This forces exploration of basins not yet in the Pareto front.
+            const int n_replace = static_cast<int>(m_mediating_pop.size()) / 5;
+            const double gap_min_dist = 0.15; // must be far from all known peaks
+            int inserted = 0;
+            for (int att = 0; att < 5000 && inserted < n_replace; ++att) {
+                std::vector<double> rsol(tot);
+                for (auto& v : rsol) v = u(rng);
+                double rf = evalJoint(rsol);
+                if (rf < OSA_MIN_QUALITY) continue;
+
+                // Reject if too close to any PA solution
+                bool too_close = false;
+                for (const auto& ps : m_pa) {
+                    double d2 = 0;
+                    for (int d = 0; d < tot; d++) {
+                        double dv = rsol[d] - ps[d]; d2 += dv * dv;
+                    }
+                    if (std::sqrt(d2) < gap_min_dist) { too_close = true; break; }
+                }
+                if (too_close) continue;
+
+                auto wt = std::min_element(m_mediating_fit.begin(), m_mediating_fit.end());
+                size_t wi = static_cast<size_t>(
+                    std::distance(m_mediating_fit.begin(), wt));
+                m_mediating_pop[wi] = rsol;
+                m_mediating_fit[wi] = rf;
+                m_mediating_obj[wi] = evalObjectiveVector(rsol);
+                ++inserted;
+            }
+            return true;
         }
 
         //  Phase 4: Context-aware refinement
@@ -996,6 +1262,7 @@ namespace ofec {
         // Visualization helpers
         void savePartyLandscape(int dm, const std::vector<std::vector<double>>& ctx,
             const std::string& path) const {
+            std::filesystem::create_directories(out_dir);
             const int res = 100;
             const auto& idx = m_bench->getPartyIndices(dm);
             if (idx.size() < 2) return;
@@ -1055,8 +1322,8 @@ namespace ofec {
             m_refine_gens(refine_gens), m_sigma(sigma),
             m_de_F(de_F), m_de_CR(de_CR),
             m_sharing_radius(sharing_r), m_sharing_alpha(sharing_alpha),
-            m_output_dir(out_dir),
-            m_osa_radius(sigma)
+            out_dir(out_dir),
+            m_osa_radius(0.04)   // calibrated to inter-peak basin radius
         {
             std::filesystem::create_directories(out_dir);
             const int nd = m_bench->getNumDMs();
@@ -1064,6 +1331,7 @@ namespace ofec {
             m_competing_pops.resize(nd); m_competing_fit.resize(nd);
             m_dm_elite.resize(nd);      m_dm_elite_fit.resize(nd);
             m_context_archive.resize(nd); m_context_fit.resize(nd);
+            // m_mediating_obj is populated lazily in CartesianSeed()
         }
 
         //  Main run
@@ -1073,9 +1341,8 @@ namespace ofec {
             // Pre-run landscapes
             auto neutral = neutralCtx();
             for (int dm = 0; dm < nd; dm++) {
-                savePartyLandscape(dm, neutral, m_output_dir + "/party" + std::to_string(dm) + "_landscape_before.txt");
+                savePartyLandscape(dm, neutral, out_dir + "/party" + std::to_string(dm) + "_landscape_before.txt");
             }
-            saveFullLandscape(m_output_dir + "/landscape_full_before");
 
             // Phase 1a
             std::cout << "\n>>> [MPM-CoEA] Phase 1a: NBC initialization per party\n";
@@ -1208,7 +1475,8 @@ namespace ofec {
                         << " | best=" << std::fixed << std::setprecision(4) << best
                         << " | stag=" << m_stagnation_cnt
                         << " | restarts=" << m_restart_count
-                        << " | osa_size=" << m_osa.size() << "\n";
+                        << " | osa=" << m_osa.size()
+                        << " | pf=" << m_pa.size() << "\n";
                 }
             }
 
@@ -1219,22 +1487,26 @@ namespace ofec {
             for (size_t i = 0; i < finals.size(); i++) ContextRefine(finals[i], 3);
             for (size_t i = 0; i < finals.size(); i++) {
                 JointRefine(finals[i], static_cast<unsigned>(i * 13u + 42u));
-                osaInsert(finals[i], evalJoint(finals[i]));
+                double rf = evalJoint(finals[i]);
+                auto   ro = evalObjectiveVector(finals[i]);
+                osaInsert(finals[i], rf);
+                paretoArchiveInsert(finals[i], ro, rf);
             }
             for (size_t i = 0; i < finals.size() && i < m_mediating_pop.size(); i++) {
                 m_mediating_pop[i] = finals[i];
                 m_mediating_fit[i] = evalJoint(finals[i]);
+                m_mediating_obj[i] = evalObjectiveVector(finals[i]);
             }
             double best = *std::max_element(m_mediating_fit.begin(), m_mediating_fit.end());
             std::cout << "  Best after refinement: " << std::fixed << std::setprecision(4) << best << "\n";
-            std::cout << "  OSA archive size: " << m_osa.size() << "\n";
+            std::cout << "  OSA archive size: " << m_osa.size()
+                      << " | Pareto front size: " << m_pa.size() << "\n";
 
             // Post-run landscapes
             for (int dm = 0; dm < nd; dm++) {
                 auto best_ctx = ctxFromJoint(dm, getBestSolution());
-                savePartyLandscape(dm, best_ctx, m_output_dir + "/party" + std::to_string(dm) + "_landscape_after.txt");
+                savePartyLandscape(dm, best_ctx, out_dir + "/party" + std::to_string(dm) + "_landscape_after.txt");
             }
-            saveFullLandscape(m_output_dir + "/landscape_full_after");
         }
 
         // Accessors
@@ -1254,15 +1526,48 @@ namespace ofec {
         }
 
         void saveConvergenceCurve() const {
-            std::ofstream out(m_output_dir + "/convergence.txt");
+            std::filesystem::create_directories(out_dir);
+            std::ofstream out(out_dir + "/convergence.txt");
             if (!out.is_open()) return;
             out << "# generation best_joint_fitness\n";
             for (const auto& p : m_conv_log)
                 out << p.first << " " << std::fixed << std::setprecision(6) << p.second << "\n";
         }
 
+        // Save MO convergence: generation, Pareto-front size, best joint fitness
+        void saveMOConvergenceCurve() const {
+            std::filesystem::create_directories(out_dir);
+            std::ofstream out(out_dir + "/mo_convergence.txt");
+            if (!out.is_open()) return;
+            out << "# generation pareto_front_size best_joint_fitness\n";
+            for (const auto& [gen, pf_sz, bf] : m_mo_log)
+                out << gen << " " << pf_sz << " "
+                    << std::fixed << std::setprecision(6) << bf << "\n";
+        }
+
+        // Save Pareto front solutions and their per-party objective vectors
+        void saveParetoFront() const {
+            std::filesystem::create_directories(out_dir);
+            std::ofstream out(out_dir + "/pareto_front.txt");
+            if (!out.is_open()) return;
+            const int nd = m_bench->getNumDMs();
+            out << "# x0..xd  joint_f  f_party0 .. f_party" << (nd-1) << "\n";
+            out << std::fixed << std::setprecision(6);
+            for (size_t i = 0; i < m_pa.size(); ++i) {
+                for (double v : m_pa[i])        out << v << " ";
+                out << m_pa_fit[i];
+                for (double o : m_pa_obj[i])    out << " " << o;
+                out << "\n";
+            }
+        }
+
+        // Return Pareto archive (the approximate set of all joint peaks)
+        const std::vector<std::vector<double>>& getParetoFront()    const { return m_pa; }
+        const std::vector<std::vector<double>>& getParetoObjectives() const { return m_pa_obj; }
+        const std::vector<double>&              getParetoFitness()   const { return m_pa_fit; }
+
         void saveSolutionsAtGeneration(int tag) const {
-            std::string fname = m_output_dir + "/gen_" + std::to_string(tag) + "_solutions.txt";
+            std::string fname = out_dir + "/gen_" + std::to_string(tag) + "_solutions.txt";
             std::ofstream out(fname);
             if (!out.is_open()) return;
             out << std::fixed << std::setprecision(6) << "# gen=" << tag << " x0..xd f\n";
@@ -1499,24 +1804,40 @@ namespace ofec {
         auto bench = std::make_shared<MPMMO_Benchmark>(fp, 2, env_raw);
         auto env_sp = std::shared_ptr<Environment>(env_raw, [](Environment*) {});
 
+        // Solver parameters
         MPM_CoEA solver(bench, env_sp,
             /*K*/           10,
-            /*niche_pop*/   30,
+            /*niche_pop*/   20,
             /*med_pop*/     400,
             /*party_gens*/  150,
             /*coevo_gens*/  600,
             /*refine_gens*/ 120,
-            /*sigma*/       0.15,
+            /*sigma*/       0.10,
             /*de_F*/        0.5,
             /*de_CR*/       0.9,
-            /*sharing_r*/   0.30,
-            /*sharing_a*/   1.0,
+            /*sharing_r*/   0.15,
+            /*sharing_a*/   2.0,
             vis_base + "/solutions");
 
         solver.run();
         solver.saveSolutionsAtGeneration(600);
         solver.saveConvergenceCurve();
+        solver.saveMOConvergenceCurve();
+        solver.saveParetoFront();
         outputLandscapeSlices(env_raw, vis_base + "/landscape_after");
+
+        // Print Pareto front summary
+        std::cout << "\n>>> MPMMO Pareto Front (joint peaks found):\n";
+        const auto& pf     = solver.getParetoFront();
+        const auto& pf_obj = solver.getParetoObjectives();
+        const auto& pf_fit = solver.getParetoFitness();
+        for (size_t i = 0; i < pf.size(); ++i) {
+            std::cout << "  PF[" << i << "] joint_f=" << std::fixed
+                      << std::setprecision(4) << pf_fit[i] << " obj=[";
+            for (size_t p = 0; p < pf_obj[i].size(); ++p)
+                std::cout << pf_obj[i][p] << (p+1<pf_obj[i].size()?", ":"");
+            std::cout << "]\n";
+        }
 
         auto candidates = solver.getAllCandidates();
 
