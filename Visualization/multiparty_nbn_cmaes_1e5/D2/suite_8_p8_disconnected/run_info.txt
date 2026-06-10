@@ -1,0 +1,10 @@
+suite 8
+dimension 2
+evaluations 100000
+max_evaluations 100000
+iterations 100000000
+party_pop_size 180
+coord_pop_size 220
+history_archive_size 15618
+consensus_archive_size 19
+best_consensus 90.0000000000

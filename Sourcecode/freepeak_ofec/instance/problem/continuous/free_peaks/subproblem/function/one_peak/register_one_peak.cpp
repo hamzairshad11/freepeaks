@@ -10,6 +10,7 @@
 #include "one_peak_s8.h"
 #include "one_peak_s9.h"
 #include "one_peak_s10.h"
+#include "one_peak_mp.h"
 
 //#include "one_peak_map.h"
 
@@ -25,6 +26,7 @@ namespace ofec::free_peaks {
 		REGISTER_FP(OnePeakBase, OnePeakS8, "s8");
 		REGISTER_FP(OnePeakBase, OnePeakS9, "s9");
 		REGISTER_FP(OnePeakBase, OnePeakS10, "s10");
+		REGISTER_FP(OnePeakBase, OnePeakMP, "mp");
 		//REGISTER_FP(OnePeakBBOB_Rug, OnePeakBBOB_Rug, "sBBOB");
 	}
 }

@@ -1,0 +1,4 @@
+# iter evaluations best_consensus history_archive_size consensus_archive_size party0_clusters party1_clusters
+0 1205 0.0002484695 745 0 12 12
+10 7455 0.0002484695 2313 0 12 12
+14 100000 0.0002484695 2472 0 12 1800

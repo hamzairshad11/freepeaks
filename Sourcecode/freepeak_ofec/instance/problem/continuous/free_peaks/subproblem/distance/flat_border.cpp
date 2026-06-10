@@ -1,5 +1,6 @@
 #include "flat_border.h"
 #include "../../free_peaks.h"
+#include <cmath>
 #include "../transform/transform_y/map_objective.h"
 
 namespace ofec::free_peaks {
@@ -16,10 +17,16 @@ namespace ofec::free_peaks {
 		Real dis = 1.0, val;
 		for (size_t i = 0; i < a.size(); ++i) {
 			val = a[i] - b[i];
-			if (val >= 0)
-				val = 1 - val / (ranges[i].second - b[i]);
-			else
-				val = 1 + val / (b[i] - ranges[i].first);
+			if (val >= 0) {
+				const Real denom = ranges[i].second - b[i];
+				val = std::abs(denom) > 1e-12 ? 1 - val / denom : (std::abs(val) <= 1e-12 ? 1 : 0);
+			}
+			else {
+				const Real denom = b[i] - ranges[i].first;
+				val = std::abs(denom) > 1e-12 ? 1 + val / denom : (std::abs(val) <= 1e-12 ? 1 : 0);
+			}
+			if (val < 0) val = 0;
+			else if (val > 1) val = 1;
 			dis *= val;
 		}
 		dis = (1 - dis) * m_fun->domainSize();

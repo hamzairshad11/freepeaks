@@ -1,0 +1,2 @@
+algorithm,suite,D,run,status,message,runtime,resultFile,nReturned,nShared,nFoundShared,peakRecall,bestConsensus,consensusGap,meanConsensus,IGDX,GDX,minDistanceToShared,ndCount,ndRatio,highConsensusRatio,HV2D
+MMOPSO,1,2,1,ok,,15.6369176,D:\code\multi_party_multi_modal\hamaza_code\Results\ofec_mpmmo_timing\MMOPSO_suite01_D2_run01.mat,7,2,0,0,40.112401470662,49.887598529338,25.77345137754,0.306636254339306,0.0694636659151129,0.0281410727729329,7,1,0,3452.75888122907

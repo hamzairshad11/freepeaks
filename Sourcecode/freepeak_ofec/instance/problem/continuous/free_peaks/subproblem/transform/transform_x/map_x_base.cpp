@@ -10,8 +10,8 @@ namespace ofec::free_peaks {
 
 		X_TransformBase::bindData();
 
-		m_subspace_var_ranges = CAST_FPs(m_pro)->subspaceTree().tree->getBox(m_subspace_name);
-		auto& subpro = CAST_FPs(m_pro)->subspaceTree().name_box_subproblem.at(m_subspace_name).second;
+		m_subspace_var_ranges = CAST_FPs(m_pro)->subspaceBox(m_subspace_name);
+		auto* subpro = CAST_FPs(m_pro)->subproblem(m_subspace_name);
 		m_function_var_ranges = subpro->function()->varRanges();
 		m_optimal_vars_inFunction = subpro->function()->optimalVarsFunction();
 	

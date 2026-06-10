@@ -49,7 +49,8 @@ namespace ofec {
 
 
 		const free_peaks::SubspaceKDTree& subspaceTree() const { return m_subspace_tree; }
-		free_peaks::Subproblem* subproblem(const std::string& subspace_name) const;
+		virtual free_peaks::Subproblem* subproblem(const std::string& subspace_name) const;
+		virtual const std::vector<std::pair<Real, Real>>& subspaceBox(const std::string& subspace_name) const;
 		std::string generationType() const { return m_generation_type; }
 		std::string fileName() const { return m_file_name; }
 

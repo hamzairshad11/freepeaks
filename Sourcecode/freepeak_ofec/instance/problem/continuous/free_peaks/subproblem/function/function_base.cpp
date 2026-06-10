@@ -18,7 +18,7 @@ namespace ofec::free_peaks {
 
 	void FunctionBase::evaluate(const std::vector<Real>& var, std::vector<double>& obj) {
 		std::vector<Real> var_(var.size());
-		auto& from = CAST_FPs(m_pro)->subspaceTree().tree->getBox(m_subspace_name);
+		auto& from = CAST_FPs(m_pro)->subspaceBox(m_subspace_name);
 		auto& to = m_var_ranges;
 		for (size_t i = 0; i < var.size(); ++i) {
 			var_[i] = (var[i] - from[i].first) / (from[i].second - from[i].first) *
@@ -41,7 +41,7 @@ namespace ofec::free_peaks {
 
 	void FunctionBase::mapOptimalVars() {
 		if (!m_optimal_vars_mapped) {
-			auto& from = CAST_FPs(m_pro)->subspaceTree().tree->getBox(m_subspace_name);
+			auto& from = CAST_FPs(m_pro)->subspaceBox(m_subspace_name);
 			auto& to = m_var_ranges;
 			for (auto& var : m_optimal_vars) {
 				for (size_t i = 0; i < var.size(); ++i) {

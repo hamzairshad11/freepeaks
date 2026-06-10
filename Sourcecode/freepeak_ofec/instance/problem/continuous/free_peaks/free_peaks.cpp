@@ -283,6 +283,9 @@ namespace ofec {
 		}
 		out.close();
 	}
+	const std::vector<std::pair<Real, Real>>& FreePeaks::subspaceBox(const std::string& subspace_name) const {
+		return m_subspace_tree.tree->getBox(subspace_name);
+	}
 
 	free_peaks::Subproblem* FreePeaks::subproblem(const std::string& subspace_name) const {
 		return m_subspace_tree.name_box_subproblem.at(subspace_name).second.get();

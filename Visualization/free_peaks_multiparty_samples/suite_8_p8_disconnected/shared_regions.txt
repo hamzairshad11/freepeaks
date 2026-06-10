@@ -1,0 +1,3 @@
+# columns x0_plot x1_plot party0_region party1_region
+1.19526 -1.48182 p0_r3 p1_r7
+-1.62917 -1.03095 p0_r0 p1_r4
