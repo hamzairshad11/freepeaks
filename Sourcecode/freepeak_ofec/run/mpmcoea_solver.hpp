@@ -1,7 +1,8 @@
 #ifndef OFEC_MPMCOEA_SOLVER_HPP
 #define OFEC_MPMCOEA_SOLVER_HPP
 
-#include "custom_method.hpp"
+#include "../core/global.h"
+#include "interface.h"
 #include "../instance/problem/continuous/free_peaks/free_peaks.h"
 #include "../instance/problem/continuous/free_peaks/subproblem/transform/transform_x/transform_x_base.h"
 #include "../instance/problem/continuous/free_peaks/subproblem/transform/transform_y/transform_y_base.h"
@@ -195,19 +196,6 @@ namespace ofec {
     }
 
     //  MPMMO Multiobjective Utilities
-    //
-    //  Formal definition: For P parties each controlling variable subset X_p,
-    //  define the per-party objective as the best collaborative fitness Party p
-    //  can achieve given the other parties' current variable contributions:
-    //
-    //    F_p(x) = max_{s in ColabContext_p} evalDM(p, x_p, ctx(s))
-    //
-    //  The vector objective F(x) = [F_0(x), ..., F_{P-1}(x)] makes the search
-    //  genuinely multiobjective: a solution x* is Pareto-optimal iff it is a
-    //  joint peak (Nash equilibrium) where no party can unilaterally improve.
-    //  The Pareto archive therefore converges to the set of all joint peaks.
-
-    // True if objective vector a weakly Pareto-dominates b (maximisation).
     inline bool moDominates(const std::vector<double>& a,
                             const std::vector<double>& b)
     {
@@ -854,7 +842,6 @@ namespace ofec {
         }
 
         //  Phase 3c: Evolve mediating population (MPMMO Multiobjective)
-        //
         //  Selection uses Pareto dominance (NSGA-II: rank + crowding distance)
         //  Niche maintenance is achieved through
         //  explicit clearing after DE, which provably maintains one winner per basin.
@@ -1457,6 +1444,9 @@ namespace ofec {
                 << " | stag=0 | restarts=0"
                 << " | osa_size=" << m_osa.size() << "\n";
 
+            // Save the initial state (gen 0) for MATLAB baseline comparison
+            saveVisualizationData(0);
+
             for (m_generation = 1; m_generation <= m_coevo_gens; m_generation++) {
                 adaptOsaRadius();
                 evolveCompeting();
@@ -1467,6 +1457,15 @@ namespace ofec {
 
                 if (m_generation % 10 == 0) {
                     saveSolutionsAtGeneration(m_generation);
+                }
+
+                // Detailed MATLAB snapshots at sparse checkpoints to keep file count low
+                {
+                    static const int vis_gens[] = { 10, 50, 100, 200, 300, 400, -1 };
+                    for (int k = 0; vis_gens[k] > 0; k++) {
+                        if (m_generation == vis_gens[k] || m_generation == m_coevo_gens)
+                            saveVisualizationData(m_generation);
+                    }
                 }
 
                 if (m_generation % 5 == 0) {
@@ -1581,9 +1580,293 @@ namespace ofec {
                 out << m_osa_fit[i] << "\n";
             }
         }
+
+        // Save comprehensive MATLAB-compatible visualization data at a given generation
+        void saveVisualizationData(int tag) const {
+            std::filesystem::create_directories(out_dir);
+            const int nd  = m_bench->getNumDMs();
+            const int tot = m_bench->getNumVariables();
+
+            // Mediating population
+            {
+                std::ofstream f(out_dir + "/gen_" + std::to_string(tag) + "_mediating.txt");
+                if (f.is_open()) {
+                    f << "# gen=" << tag << " mediating population\n";
+                    f << "# x0..xd fitness\n";
+                    f << std::fixed << std::setprecision(6);
+                    for (size_t i = 0; i < m_mediating_pop.size(); i++) {
+                        if (m_mediating_fit[i] <= DEAD + 1.0) continue;
+                        for (double v : m_mediating_pop[i]) f << v << " ";
+                        f << m_mediating_fit[i] << "\n";
+                    }
+                }
+            }
+
+            // Per-party competing subpops (mapped into joint space with other vars = 0.5)
+            for (int dm = 0; dm < nd; dm++) {
+                std::ofstream f(out_dir + "/gen_" + std::to_string(tag)
+                                + "_party" + std::to_string(dm) + "_pops.txt");
+                if (!f.is_open()) continue;
+                f << "# gen=" << tag << " party " << dm << " competing subpops\n";
+                f << "# subpop_id x0..xd fitness\n";
+                f << std::fixed << std::setprecision(6);
+                const auto& pidx = m_bench->getPartyIndices(dm);
+                for (size_t sp = 0; sp < m_competing_pops[dm].size(); sp++) {
+                    for (size_t i = 0; i < m_competing_pops[dm][sp].size(); i++) {
+                        if (m_competing_fit[dm][sp][i] <= DEAD + 1.0) continue;
+                        std::vector<double> full(static_cast<size_t>(tot), 0.5);
+                        for (size_t k = 0; k < pidx.size() && k < m_competing_pops[dm][sp][i].size(); k++)
+                            full[pidx[k]] = m_competing_pops[dm][sp][i][k];
+                        f << sp;
+                        for (double v : full) f << " " << v;
+                        f << " " << m_competing_fit[dm][sp][i] << "\n";
+                    }
+                }
+            }
+
+            // OSA snapshot
+            {
+                std::ofstream f(out_dir + "/gen_" + std::to_string(tag) + "_osa.txt");
+                if (f.is_open()) {
+                    f << "# gen=" << tag << " OSA snapshot\n";
+                    f << "# x0..xd fitness\n";
+                    f << std::fixed << std::setprecision(6);
+                    for (size_t i = 0; i < m_osa.size(); i++) {
+                        for (double v : m_osa[i]) f << v << " ";
+                        f << m_osa_fit[i] << "\n";
+                    }
+                }
+            }
+        }
     };
 
-    //  Benchmark creation
+    //  MATLAB visualization script generator
+    //    Figure 1 — Joint landscape + mediating population snapshots
+    //    Figure 2 — Party competing subpops at the final snapshot generation
+    //    Figure 3 — OSA archive growth (early vs late snapshot)
+    //    Figure 4 — Best joint fitness convergence curve
+    //    Figure 5 — MO convergence (best fitness + Pareto front size)
+    //    Figure 6 — Pareto front in per-party objective space
+    /*void generateMatlabScript(
+        const std::string& vis_dir,
+        const std::string& problem_name,
+        int                n_parties,
+        int                n_optima)
+    {
+        std::filesystem::create_directories(vis_dir);
+        std::ofstream m(vis_dir + "/visualize.m");
+        if (!m.is_open()) {
+            std::cerr << "[WARN] Could not write visualize.m to " << vis_dir << "\n";
+            return;
+        }
+
+        // Helper: escape single quotes in MATLAB string literals
+        auto q = [](const std::string& s) {
+            std::string r;
+            for (char c : s) { if (c == '\'') r += "''"; else r += c; }
+            return r;
+            };
+
+        // SCRIPT-LEVEL CODE
+        m << R"MATLAB(% % MPM-CoEA Visualization Script
+)MATLAB";
+        m << "% Problem : " << problem_name << "\n";
+        m << "% Parties : " << n_parties << "\n";
+        m << "% Optima  : " << n_optima << "\n";
+        m << R"MATLAB(%
+
+close all; clc;
+script_dir = fileparts(mfilename('fullpath'));
+
+prob = ')MATLAB" << q(problem_name) << "';\n";
+        m << "n_optima = " << n_optima << ";\n";
+        m << R"MATLAB(
+gen_tags     = [10, 50, 100, 200, 400];
+osa_color    = [0.10 0.70 0.10];
+pareto_color = [1.00 0.90 0.00];
+cmap_gens    = cool(numel(gen_tags));
+
+% load the joint landscape slice (200x200 grid)
+% ls_before = fullfile(script_dir, 'landscape_before', 'slice_d0_d1.txt');
+% ls_after  = fullfile(script_dir, 'landscape_after',  'slice_d0_d1.txt');
+
+% Dbef = load_txt(ls_before);
+% if ~isempty(Dbef); [Xb, Yb, Fb] = parse_landscape(Dbef); else; Xb=[]; end
+% Daft = load_txt(ls_after);
+% if ~isempty(Daft); [Xa, Ya, Fa] = parse_landscape(Daft); else; Xa=[]; end
+
+% Figure 1: Joint landscape + mediating population snapshots
+figure(1); clf;
+set(gcf, 'Name', [prob ': Population evolution']);
+% if ~isempty(Xb)
+%     contourf(Xb, Yb, Fb, 40, 'LineColor', 'none');
+%     colormap(hot); colorbar; hold on; axis([0 1 0 1]);
+% end
+xlabel('x_0  (Party 0 variable)'); ylabel('x_1  (Party 1 variable)');
+title({[prob ': Joint fitness landscape'], ...
+       sprintf('(known optima: %d)', n_optima)});
+
+leg_h = [];
+for gi = 1:numel(gen_tags)
+    g = gen_tags(gi);
+    D = load_txt(fullfile(script_dir, 'solutions', sprintf('gen_%d_solutions.txt', g)));
+    if ~isempty(D)
+        h = scatter(D(:,1), D(:,2), 18, cmap_gens(gi,:), 'filled', ...
+                    'DisplayName', sprintf('Med pop  gen %d', g));
+        leg_h(end+1) = h; %#ok<<AGROW>
+    end
+end
+pf_path = fullfile(script_dir, 'solutions', 'pareto_front.txt');
+D = load_txt(pf_path);
+if ~isempty(D)
+    h = scatter(D(:,1), D(:,2), 90, pareto_color, 'o', 'filled', ...
+                'DisplayName', sprintf('Pareto archive (%d peaks)', size(D,1)));
+    leg_h(end+1) = h; %#ok<<AGROW>
+end
+if ~isempty(leg_h); legend(leg_h, 'Location', 'best', 'FontSize', 8); end
+
+% Figure 2: Party competing subpopulations at final generation snapshot
+figure(2); clf;
+final_g = gen_tags(end);
+set(gcf, 'Name', [prob sprintf(': Party subpops (gen %d)', final_g)]);
+% if ~isempty(Xb)
+%     contourf(Xb, Yb, Fb, 40, 'LineColor', 'none');
+%     colormap(hot); colorbar; hold on; axis([0 1 0 1]);
+% end
+xlabel('x_0'); ylabel('x_1');
+title({[prob ': Competing subpopulations per party'], sprintf('gen %d', final_g)});
+
+party_markers = {'o', 's'};
+for dm = 0:)MATLAB" << (n_parties - 1) << R"MATLAB(
+    D = load_txt(fullfile(script_dir, 'solutions', ...
+                 sprintf('gen_%d_party%d_pops.txt', final_g, dm)));
+    if isempty(D); continue; end
+    subpop_ids = unique(D(:,1));
+    sp_cmap = hsv(max(numel(subpop_ids), 1));
+    for si = 1:numel(subpop_ids)
+        rows = D(D(:,1) == subpop_ids(si), :);
+        scatter(rows(:,2), rows(:,3), 22, sp_cmap(si,:), party_markers{dm+1}, 'filled', ...
+                'DisplayName', sprintf('P%d sp%d', dm, subpop_ids(si)));
+    end
+end
+legend('show', 'Location', 'best', 'FontSize', 7);
+
+% Figure 3: OSA archive growth — early vs late
+figure(3); clf;
+set(gcf, 'Name', [prob ': OSA archive growth']);
+early_g = gen_tags(2); late_g = gen_tags(end);
+
+subplot(1,2,1);
+% if ~isempty(Xb)
+%     contourf(Xb, Yb, Fb, 30, 'LineColor', 'none'); colormap(hot); colorbar;
+%     hold on; axis([0 1 0 1]);
+% end
+D = load_txt(fullfile(script_dir, 'solutions', sprintf('gen_%d_osa.txt', early_g)));
+if ~isempty(D)
+    scatter(D(:,1), D(:,2), 50, osa_color, 'filled');
+end
+xlabel('x_0'); ylabel('x_1');
+title(sprintf('OSA at gen %d  (%d entries)', early_g, size(D,1)));
+
+subplot(1,2,2);
+% if ~isempty(Xb)
+%     contourf(Xb, Yb, Fb, 30, 'LineColor', 'none'); colormap(hot); colorbar;
+%     hold on; axis([0 1 0 1]);
+% end
+D = load_txt(fullfile(script_dir, 'solutions', sprintf('gen_%d_osa.txt', late_g)));
+if ~isempty(D)
+    scatter(D(:,1), D(:,2), 50, osa_color, 'filled');
+end
+xlabel('x_0'); ylabel('x_1');
+title(sprintf('OSA at gen %d  (%d entries)', late_g, size(D,1)));
+sgtitle([prob ': OSA growth over time']);
+
+% Figure 4: Best joint fitness convergence
+figure(4); clf;
+set(gcf, 'Name', [prob ': Convergence']);
+D = load_txt(fullfile(script_dir, 'solutions', 'convergence.txt'));
+if ~isempty(D)
+    plot(D(:,1), D(:,2), 'b-', 'LineWidth', 2);
+    xlabel('Generation'); ylabel('Best joint fitness');
+    title([prob ': Convergence curve']);
+    grid on; box off;
+end
+
+% Figure 5: MO convergence — fitness + Pareto front size
+figure(5); clf;
+set(gcf, 'Name', [prob ': MO convergence']);
+D = load_txt(fullfile(script_dir, 'solutions', 'mo_convergence.txt'));
+if ~isempty(D)
+    yyaxis left;
+    plot(D(:,1), D(:,3), 'b-', 'LineWidth', 2); ylabel('Best joint fitness');
+    yyaxis right;
+    plot(D(:,1), D(:,2), 'r-', 'LineWidth', 2); ylabel('Pareto front size');
+    xlabel('Generation');
+    title([prob ': MO convergence']);
+    legend({'Best fitness', sprintf('Pareto front (target = %d)', n_optima)}, ...
+           'Location', 'best');
+    grid on; box off;
+end
+
+% Figure 6: Pareto front in per-party objective space
+figure(6); clf;
+set(gcf, 'Name', [prob ': Pareto front (objective space)']);
+D = load_txt(pf_path);
+if ~isempty(D) && size(D,2) >= 5
+    % Columns: x0 x1 joint_f f_party0 f_party1
+    scatter(D(:,4), D(:,5), 70, D(:,3), 'filled');
+    colorbar; xlabel('F_{party 0}'); ylabel('F_{party 1}');
+    title({[prob ': Pareto front in per-party objective space'], ...
+           '(color = joint fitness; diagonal = ideal joint peak)'});
+    hold on;
+    lim = [min([D(:,4); D(:,5)]) max([D(:,4); D(:,5)])];
+    if lim(1) < lim(2)
+        plot(lim, lim, 'k--', 'LineWidth', 1.5);
+    end
+    legend({'Pareto solutions', 'y = x  (joint peak line)'}, 'Location', 'best');
+    grid on; box off;
+end
+
+fprintf('Done — 6 figures generated for %s.\n', prob);
+
+% ALL FUNCTION DEFINITIONS
+
+% utility: load a whitespace-delimited text file, skip # comment lines
+function D = load_txt(fpath)
+    D = [];
+    fid = fopen(fpath, 'r');
+    if fid < 0; return; end
+    rows = {};
+    while ~feof(fid)
+        line = strtrim(fgetl(fid));
+        if ischar(line) && ~isempty(line) && line(1) ~= '#'
+            vals = str2double(strsplit(line));
+            if ~any(isnan(vals))
+                rows{end+1} = vals; %#ok<<AGROW>
+            end
+        end
+    end
+    fclose(fid);
+    if ~isempty(rows)
+        D = vertcat(rows{:});
+    end
+end
+
+function [X, Y, F] = parse_landscape(D)
+    res = round(sqrt(size(D,1)));
+    X = reshape(D(:,1), res, res);
+    Y = reshape(D(:,2), res, res);
+    F = reshape(D(:,3), res, res);
+end
+
+)MATLAB";
+
+        m.close();
+        std::cout << "[VIS] MATLAB script written: " << vis_dir << "/visualize.m\n";
+    }*/
+
+    //  create4D2PartyProblem() — Original 4D 2-party 8-peak reference problem.
+    //  Kept for backward compatibility, the F01-F10 suite extends this design.
     void create4D2PartyProblem(const std::string& problem_name = "complex_4d_2p") {
         using namespace free_peaks;
         const std::string pd = "multiparty_multimodal/", sd = "sop/";
@@ -1672,7 +1955,8 @@ namespace ofec {
             // Transform 2: Ill-conditioning
             {
                 auto t(FactoryFP<X_TransformBase>::produce("MapXIllConditioning")); ParameterMap tp;
-                tp["condition"] = static_cast<Real>(pk.cond); t->initialize(fp, sname, tp);
+                tp["condition"] = static_cast<Real>(pk.cond);
+                t->initialize(fp, sname, tp);
                 subpro->addVariableTransform(t);
             }
 
@@ -1716,7 +2000,646 @@ namespace ofec {
             it.second.second->function()->inputParameters().at("generation_type")->setValue("read_file");
         }
         fp->recordInputParameters(); fp->outputTotalFile();
+        // Force sync to ensure files are written before next problem creation
+        #if defined(_WIN32)
+        _flushall();
+        #endif
         std::cout << ">>> Problem '" << problem_name << "' created: 8 peaks, dim=4, 2 parties\n";
+    }
+
+    //  MPMMO 2-D Benchmark Suite  (F01 through F08)
+
+    // Per-peak specification used by the 2-D benchmark creator.
+    //   cx, cy : peak centre in [-100, 100]
+    //   h : peak height (fitness value at the centre)
+    //   shape : "s1" (smooth sphere), "s2" (ellipsoid), "s7" (Weierstrass)
+    //   cond : condition number for MapXIllConditioning (1 = none)
+    //   party : party that "owns" this peak (0 or 1)
+    //   party_mag : MapXPartyBias magnitude
+    //   asym_beta : MapXAsymmetry beta  (0 = skip transform)
+    //   link_beta : MapXLinkage beta    (0 = skip transform)
+    //   irregular : whether to apply MapXIrregularity
+    //   rotate : whether to apply MapXRotation
+    struct PkSpec {
+        double cx, cy;
+        double h;
+        const char* shape;
+        double cond;
+        int    party;
+        double party_mag;
+        double asym_beta;
+        double link_beta;
+        bool   irregular;
+        bool   rotate;
+    };
+
+
+    // Builds a flat KD-tree (root → peaks) with weights proportional to peak
+    // heights, then attaches the requested landscape transforms to each peak.
+    void createBenchmark2D(
+        const std::string& problem_name,
+        int num_parties,
+        const std::vector<PkSpec>& peaks)
+    {
+        using namespace free_peaks;
+        const std::string pd = "multiparty_multimodal/";
+        const std::string sd = "sop/";
+        for (const auto& p : std::vector<std::string>{
+                pd, sd,
+                std::string("subproblem/") + sd,
+                std::string("subproblem/function/one_peak/") + sd })
+            std::filesystem::create_directories(
+                g_working_directory + "instance/problem/continuous/free_peaks/" + p);
+
+        const int numDim = 2, numObj = 1, numCon = 0;
+        std::shared_ptr<ofec::Random> rnd(new ofec::Random(0.123));
+        FreePeaks::registerFP();
+        std::shared_ptr<Environment> env(generateEnvironmentByFactory("free_peaks"));
+        env->recordInputParameters(); env->initialize();
+        env->setProblem(generateProblemByFactory("free_peaks"));
+        auto* fp = dynamic_cast<FreePeaks*>(env->problem());
+
+        ParameterMap pm;
+        pm["generation_type"] = std::string("assigned");
+        pm["dataFile1"]       = pd + problem_name + ".txt";
+        fp->inputParameters().input(pm);
+        fp->initialize(env.get());
+        fp->setRandom(rnd);
+        fp->setSizes(numDim, numObj, numCon);
+
+        // KD-tree: weights proportional to peak heights
+        double total_h = 0;
+        for (const auto& pk : peaks) total_h += pk.h;
+        std::vector<std::pair<std::string, double>> children;
+        for (size_t s = 0; s < peaks.size(); ++s)
+            children.push_back({"peak" + std::to_string(s + 1), peaks[s].h / total_h});
+        fp->setKDtree({ {"root", children} });
+
+        for (size_t s = 0; s < peaks.size(); ++s) {
+            const auto& pk    = peaks[s];
+            std::string sname = "peak" + std::to_string(s + 1);
+
+            ParameterMap spm;
+            spm["subspace"]        = sname;
+            spm["generation_type"] = std::string("assigned");
+            spm["dataFile1"]       = sd + problem_name + "_" + sname + ".txt";
+            auto subpro(Subproblem::create());
+            subpro->initialize(spm, fp);
+
+            // Distance
+            { auto dis(FactoryFP<DistanceBase>::produce("Euclidean"));
+              ParameterMap dp; dis->initialize(fp, sname, dp);
+              subpro->setDistance(dis); }
+
+            // One-peak function
+            { ParameterMap fpm;
+              fpm["generation_type"] = std::string("assigned");
+              fpm["dataFile1"]       = sd + problem_name + "_" + sname + "_fn.txt";
+              auto func(FactoryFP<FunctionBase>::produce("one_peak"));
+              func->initialize(fp, sname, fpm);
+              auto* opf = dynamic_cast<OnePeakFunction*>(func);
+              auto  op(FactoryFP<OnePeakBase>::produce(pk.shape));
+              ParameterMap opp;
+              opp["center_type"] = std::string("assigned");
+              opp["height"]      = static_cast<Real>(pk.h);
+              std::vector<Real> c = {
+                  static_cast<Real>(std::max(-100.0, std::min(100.0, pk.cx))),
+                  static_cast<Real>(std::max(-100.0, std::min(100.0, pk.cy)))};
+              opp["center_postion"] = c;
+              op->initialize(fp, sname, opp);
+              opf->addOnePeaks(op);
+              subpro->setFunction(func); }
+
+            // Party-bias transform (always applied)
+            { auto t(FactoryFP<X_TransformBase>::produce("MapXPartyBias"));
+              ParameterMap tp;
+              tp["party_id"]         = pk.party;
+              tp["magnitude"]        = static_cast<Real>(pk.party_mag);
+              tp["rotation_angle"]   = Real(0.0);
+              tp["condition_number"] = Real(1.0);
+              t->initialize(fp, sname, tp);
+              subpro->addVariableTransform(t); }
+
+            // Ill-conditioning
+            if (pk.cond > 1.0 + 1e-9) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXIllConditioning"));
+                ParameterMap tp;
+                tp["condition"] = static_cast<Real>(pk.cond);
+                t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            // Irregularity
+            if (pk.irregular) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXIrregularity"));
+                ParameterMap tp; t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            // Linkage
+            if (pk.link_beta > 1e-9) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXLinkage"));
+                ParameterMap tp;
+                tp["beta"] = static_cast<Real>(pk.link_beta);
+                t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            // Rotation
+            if (pk.rotate) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXRotation"));
+                ParameterMap tp; t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            // Asymmetry
+            if (pk.asym_beta > 1e-9) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXAsymmetry"));
+                ParameterMap tp;
+                tp["beta"] = static_cast<Real>(pk.asym_beta);
+                t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            // Objective transform (always)
+            { auto ot(FactoryFP<Y_TransformBase>::produce("map_objective"));
+              ParameterMap otp; ot->initialize(fp, sname, otp);
+              subpro->addObjectiveTransform(ot); }
+
+            fp->setSubproblem(sname, subpro);
+        }
+
+        fp->bindData();
+        fp->inputParameters().at("generation_type")->setValue("read_file");
+        for (auto& it : fp->subspaceTree().name_box_subproblem) if (it.second.second) {
+            it.second.second->inputParameters().at("generation_type")->setValue("read_file");
+            it.second.second->function()->inputParameters().at("generation_type")->setValue("read_file");
+        }
+        fp->recordInputParameters();
+        fp->outputTotalFile();
+        // Force sync to ensure files are written before next problem creation
+        #if defined(_WIN32)
+        _flushall();
+        #endif
+        std::cout << ">>> Benchmark '" << problem_name << "' created: "
+                  << peaks.size() << " peaks, dim=2, " << num_parties << "-party\n";
+    }
+
+    //  N-Dimensional Benchmark Infrastructure
+    // Extended peak specification for N-dimensional benchmarks.
+    struct PkSpecND {
+        std::vector<double> center;  // D-dimensional coords in [-100, 100]
+        double      h;
+        const char* shape;
+        double      cond;
+        int         party;
+        double      party_mag;
+        double      asym_beta;
+        double      link_beta;
+        bool        irregular;
+        bool        rotate;
+    };
+
+    // Extend a 2D peak center (cx, cy) to dim dimensions via a decaying alternating pattern.
+    static std::vector<double> extendCenter(double cx, double cy, int dim) {
+        std::vector<double> c(static_cast<size_t>(dim), 0.0);
+        for (int d = 0; d < dim; ++d) {
+            double scale = std::max(0.25, 1.0 - 0.15 * (d / 2));
+            c[static_cast<size_t>(d)] = (d % 2 == 0 ? cx : cy) * scale;
+        }
+        return c;
+    }
+
+    // Convert 2D PkSpec list to PkSpecND for a given dimensionality and party count.
+    // For 2p: keep original party assignment. For 3p/5p: round-robin by peak index.
+    static std::vector<PkSpecND> scalePeaks2DtoND(
+        const std::vector<PkSpec>& peaks2d, int dim, int num_parties)
+    {
+        std::vector<PkSpecND> nd;
+        nd.reserve(peaks2d.size());
+        for (size_t i = 0; i < peaks2d.size(); ++i) {
+            PkSpecND p;
+            p.center    = extendCenter(peaks2d[i].cx, peaks2d[i].cy, dim);
+            p.h         = peaks2d[i].h;
+            p.shape     = peaks2d[i].shape;
+            p.cond      = peaks2d[i].cond;
+            p.party     = (num_parties <= 2)
+                          ? (peaks2d[i].party % 2)
+                          : (static_cast<int>(i) % num_parties);
+            p.party_mag = peaks2d[i].party_mag;
+            p.asym_beta = peaks2d[i].asym_beta;
+            p.link_beta = peaks2d[i].link_beta;
+            p.irregular = peaks2d[i].irregular;
+            p.rotate    = peaks2d[i].rotate;
+            nd.push_back(p);
+        }
+        return nd;
+    }
+
+    // Save problem metadata (peaks, transforms, centers) for reproducibility.
+    void saveProblemInfo(
+        const std::string& problem_name,
+        int dim, int num_parties,
+        const std::vector<PkSpecND>& peaks,
+        const std::string& out_dir)
+    {
+        std::filesystem::create_directories(out_dir);
+        std::ofstream f(out_dir + "/problem_info.txt");
+        if (!f.is_open()) return;
+        f << std::fixed << std::setprecision(4);
+        f << "# MPMMO Benchmark Problem: " << problem_name << "\n";
+        f << "# dimensions   : " << dim << "\n";
+        f << "# num_parties  : " << num_parties << "\n";
+        f << "# num_peaks    : " << peaks.size() << "\n";
+        f << "# peak_id  height  shape  condition  party  party_mag  asym_beta"
+          << "  link_beta  irregular  rotate";
+        for (int d = 0; d < dim; ++d) f << "  c" << d;
+        f << "\n";
+        for (size_t i = 0; i < peaks.size(); ++i) {
+            const auto& pk = peaks[i];
+            f << (i + 1)
+              << "  " << pk.h
+              << "  " << pk.shape
+              << "  " << pk.cond
+              << "  " << pk.party
+              << "  " << pk.party_mag
+              << "  " << pk.asym_beta
+              << "  " << pk.link_beta
+              << "  " << (pk.irregular ? 1 : 0)
+              << "  " << (pk.rotate    ? 1 : 0);
+            for (double v : pk.center) f << "  " << v;
+            f << "\n";
+        }
+        std::cout << "[INFO] Problem info: " << out_dir << "/problem_info.txt\n";
+    }
+
+    // Mirrors createBenchmark2D() but works for any dimensionality.
+    void createBenchmarkND(
+        const std::string& problem_name,
+        int num_dim,
+        int num_parties,
+        const std::vector<PkSpecND>& peaks)
+    {
+        using namespace free_peaks;
+        const std::string pd = "multiparty_multimodal/";
+        const std::string sd = "sop/";
+        for (const auto& p : std::vector<std::string>{
+                pd, sd,
+                std::string("subproblem/") + sd,
+                std::string("subproblem/function/one_peak/") + sd })
+            std::filesystem::create_directories(
+                g_working_directory + "instance/problem/continuous/free_peaks/" + p);
+
+        const int numObj = 1, numCon = 0;
+        std::shared_ptr<ofec::Random> rnd(new ofec::Random(0.123));
+        FreePeaks::registerFP();
+        std::shared_ptr<Environment> env(generateEnvironmentByFactory("free_peaks"));
+        env->recordInputParameters(); env->initialize();
+        env->setProblem(generateProblemByFactory("free_peaks"));
+        auto* fp = dynamic_cast<FreePeaks*>(env->problem());
+
+        ParameterMap pm;
+        pm["generation_type"] = std::string("assigned");
+        pm["dataFile1"]       = pd + problem_name + ".txt";
+        fp->inputParameters().input(pm);
+        fp->initialize(env.get());
+        fp->setRandom(rnd);
+        fp->setSizes(num_dim, numObj, numCon);
+
+        double total_h = 0;
+        for (const auto& pk : peaks) total_h += pk.h;
+        std::vector<std::pair<std::string, double>> children;
+        for (size_t s = 0; s < peaks.size(); ++s)
+            children.push_back({"peak" + std::to_string(s + 1), peaks[s].h / total_h});
+        fp->setKDtree({ {"root", children} });
+
+        for (size_t s = 0; s < peaks.size(); ++s) {
+            const auto& pk    = peaks[s];
+            std::string sname = "peak" + std::to_string(s + 1);
+
+            ParameterMap spm;
+            spm["subspace"]        = sname;
+            spm["generation_type"] = std::string("assigned");
+            spm["dataFile1"]       = sd + problem_name + "_" + sname + ".txt";
+            auto subpro(Subproblem::create());
+            subpro->initialize(spm, fp);
+
+            { auto dis(FactoryFP<DistanceBase>::produce("Euclidean"));
+              ParameterMap dp; dis->initialize(fp, sname, dp);
+              subpro->setDistance(dis); }
+
+            { ParameterMap fpm;
+              fpm["generation_type"] = std::string("assigned");
+              fpm["dataFile1"]       = sd + problem_name + "_" + sname + "_fn.txt";
+              auto func(FactoryFP<FunctionBase>::produce("one_peak"));
+              func->initialize(fp, sname, fpm);
+              auto* opf = dynamic_cast<OnePeakFunction*>(func);
+              auto  op(FactoryFP<OnePeakBase>::produce(pk.shape));
+              ParameterMap opp;
+              opp["center_type"] = std::string("assigned");
+              opp["height"]      = static_cast<Real>(pk.h);
+              std::vector<Real> c(static_cast<size_t>(num_dim));
+              for (int d = 0; d < num_dim; ++d)
+                  c[static_cast<size_t>(d)] = static_cast<Real>(
+                      d < static_cast<int>(pk.center.size())
+                      ? std::max(-100.0, std::min(100.0, pk.center[d])) : 0.0);
+              opp["center_postion"] = c;
+              op->initialize(fp, sname, opp);
+              opf->addOnePeaks(op);
+              subpro->setFunction(func); }
+
+            { auto t(FactoryFP<X_TransformBase>::produce("MapXPartyBias"));
+              ParameterMap tp;
+              tp["party_id"]         = pk.party;
+              tp["magnitude"]        = static_cast<Real>(pk.party_mag);
+              tp["rotation_angle"]   = Real(0.0);
+              tp["condition_number"] = Real(1.0);
+              t->initialize(fp, sname, tp);
+              subpro->addVariableTransform(t); }
+
+            if (pk.cond > 1.0 + 1e-9) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXIllConditioning"));
+                ParameterMap tp;
+                tp["condition"] = static_cast<Real>(pk.cond);
+                t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            if (pk.irregular) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXIrregularity"));
+                ParameterMap tp; t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            if (pk.link_beta > 1e-9) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXLinkage"));
+                ParameterMap tp;
+                tp["beta"] = static_cast<Real>(pk.link_beta);
+                t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            if (pk.rotate) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXRotation"));
+                ParameterMap tp; t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            if (pk.asym_beta > 1e-9) {
+                auto t(FactoryFP<X_TransformBase>::produce("MapXAsymmetry"));
+                ParameterMap tp;
+                tp["beta"] = static_cast<Real>(pk.asym_beta);
+                t->initialize(fp, sname, tp);
+                subpro->addVariableTransform(t); }
+
+            { auto ot(FactoryFP<Y_TransformBase>::produce("map_objective"));
+              ParameterMap otp; ot->initialize(fp, sname, otp);
+              subpro->addObjectiveTransform(ot); }
+
+            fp->setSubproblem(sname, subpro);
+        }
+
+        fp->bindData();
+        fp->inputParameters().at("generation_type")->setValue("read_file");
+        for (auto& it : fp->subspaceTree().name_box_subproblem) if (it.second.second) {
+            it.second.second->inputParameters().at("generation_type")->setValue("read_file");
+            it.second.second->function()->inputParameters().at("generation_type")->setValue("read_file");
+        }
+        fp->recordInputParameters();
+        fp->outputTotalFile();
+        std::cout << ">>> Benchmark '" << problem_name << "' created: "
+                  << peaks.size() << " peaks, dim=" << num_dim
+                  << ", " << num_parties << "-party\n";
+    }
+
+    // Create all 8 benchmark instances that form the MPMMO 2-D suite.
+    // Each instance targets a distinct structural property of the landscape.
+    void createBenchmarkSuite() {
+        // cx    cy    h   shape  cond party pmag asym  link   irr    rot
+        // F01: Baseline — 4 peaks, large equal basins, smooth (s1), no transforms.
+        //      Tests the simplest possible MPMMO scenario.
+        createBenchmark2D("mpmmo_f01_2d_2p", 2, {
+            {  0,   0,  90, "s1",   1,   0, 0.0, 0.0,  0.0, false, false},
+            { 60,   0,  80, "s1",   1,   0, 0.0, 0.0,  0.0, false, false},
+            {  0,  60,  75, "s1",   1,   1, 0.0, 0.0,  0.0, false, false},
+            {-60, -60,  70, "s1",   1,   1, 0.0, 0.0,  0.0, false, false},
+        });
+
+        // F02: Unequal basin sizes — 6 peaks, mixed s1/s2 shapes, condition numbers
+        //      ranging from 1 to 50 to create basins of varying widths.
+        //      Tests local search capability and multi-peak identification.
+        createBenchmark2D("mpmmo_f02_2d_2p", 2, {
+            {  0,   0,  90, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+            { 70,  30,  75, "s2",   1,   0, 2.0, 0.0,  0.0, false, false},
+            {-50,  60,  60, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 30, -70,  50, "s2",  10,   0, 2.0, 0.0,  0.0, false, false},
+            {-70, -40,  45, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 55,  65,  35, "s2",  50,   1, 2.0, 0.0,  0.0, false, false},
+        });
+
+        // F03: Overlapping basins — 8 peaks in 3 tight spatial clusters,
+        //      with linkage coupling (beta=0.15) between variables.
+        //      Tests diversity preservation when basins overlap.
+        createBenchmark2D("mpmmo_f03_2d_2p", 2, {
+            {  0,   0,  90, "s2",   1,   0, 2.0, 0.0,  0.15, false, false},
+            { 18,  12,  82, "s2",   10,   0, 2.0, 0.0,  0.15, false, false},
+            {-12,  18,  76, "s2",   10,   1, 2.0, 0.0,  0.15, false, false},
+            { 50,  50,  70, "s1",   1,   1, 2.0, 0.0,  0.15, false, false},
+            { 62,  44,  65, "s2",   10,   0, 2.0, 0.0,  0.15, false, false},
+            { 44,  62,  58, "s2",   10,   1, 2.0, 0.0,  0.15, false, false},
+            {-60, -50,  50, "s1",   1,   0, 2.0, 0.0,  0.15, false, false},
+            {-50, -65,  44, "s2",   10,   1, 2.0, 0.0,  0.15, false, false},
+        });
+
+        // F04: Rugged landscape — 6 peaks, all Weierstrass (s7) shape.
+        //      Tests convergence stability on a highly non-smooth landscape.
+        createBenchmark2D("mpmmo_f04_2d_2p", 2, {
+            {  0,   0,  90, "s7",   1,   0, 2.0, 0.0,  0.0, false, false},
+            { 60,  20,  75, "s7",   1,   0, 2.0, 0.0,  0.0, false, false},
+            {-50,  50,  70, "s7",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 30, -60,  60, "s7",   1,   0, 2.0, 0.0,  0.0, false, false},
+            {-60, -40,  55, "s7",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 70, -70,  45, "s7",   1,   1, 2.0, 0.0,  0.0, false, false},
+        });
+
+        // F05: Ill-conditioned — 6 peaks with condition numbers from 100 to 1000,
+        //      combined with irregularity and asymmetry transforms.
+        //      Tests robustness on strongly distorted landscapes.
+        createBenchmark2D("mpmmo_f05_2d_2p", 2, {
+            {  0,   0,  90, "s2",  100,  0, 2.0, 0.5,  0.0, true,  false},
+            { 50,  30,  75, "s2",  500,  0, 2.0, 0.5,  0.0, true,  false},
+            {-40,  60,  70, "s2",  100,  1, 2.0, 0.5,  0.0, true,  false},
+            { 20, -60,  55, "s2", 1000,  0, 2.0, 0.5,  0.0, true,  false},
+            {-70, -30,  50, "s2",  500,  1, 2.0, 0.5,  0.0, true,  false},
+            { 70,  70,  40, "s2", 1000,  1, 2.0, 0.5,  0.0, true,  false},
+        });
+
+        // F06: Asymmetric + rotated — 6 peaks, strong asymmetry (beta=1.0) with
+        //      random rotation applied to each peak independently.
+        //      Tests performance on irregular, anisotropic landscapes.
+        createBenchmark2D("mpmmo_f06_2d_2p", 2, {
+            {  0,   0,  90, "s1",   1,   0, 2.0, 1.0,  0.0, false, true},
+            { 60,  40,  80, "s2",  10,   0, 2.0, 1.0,  0.0, false, true},
+            {-50,  50,  70, "s1",   1,   1, 2.0, 1.0,  0.0, false, true},
+            { 35, -55,  60, "s2",  10,   0, 2.0, 1.0,  0.0, false, true},
+            {-60, -60,  55, "s1",   1,   1, 2.0, 1.0,  0.0, false, true},
+            { 70, -30,  45, "s2",  50,   1, 2.0, 1.0,  0.0, false, true},
+        });
+
+        // F07: Party-independent — 8 peaks; party 0 is assigned to the left half
+        //      and party 1 to the right half of the decision space.
+        //      Tests stability of party-to-solution assignment when parties
+        //      have clearly separated preference regions.
+        createBenchmark2D("mpmmo_f07_2d_2p", 2, {
+            {-70,  70,  90, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+            {-70,   0,  82, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+            {-70, -70,  75, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+            {-70,  40,  65, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+            { 70,  70,  88, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 70,   0,  78, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 70, -70,  72, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+            { 70, -40,  60, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+        });
+
+        // F08: Deceptive — 8 peaks mixing rugged (s7) and elongated (s2) shapes,
+        //      with dense local optima near the global peaks, strong linkage
+        //      coupling, and asymmetry, creating a highly deceptive landscape.
+        //      Tests exploration depth and deception resistance.
+        createBenchmark2D("mpmmo_f08_2d_2p", 2, {
+            {  0,   0,  90, "s7",   1,   0, 2.0, 0.5,  0.10, true,  false},
+            { 55,  55,  85, "s7",   1,   1, 2.0, 0.5,  0.10, true,  false},
+            { 25,   0,  78, "s2",  50,   0, 2.0, 0.5,  0.10, true,  false},
+            {  0,  25,  75, "s2",  50,   1, 2.0, 0.5,  0.10, true,  false},
+            {-50,  30,  60, "s7",   1,   0, 2.0, 0.5,  0.10, true,  false},
+            { 30, -50,  55, "s7",   1,   1, 2.0, 0.5,  0.10, true,  false},
+            {-40, -60,  45, "s2",  10,   0, 2.0, 0.5,  0.10, true,  false},
+            { 70,  70,  40, "s7",   1,   1, 2.0, 0.5,  0.10, true,  false},
+        });
+    }
+
+    //  Unified Benchmark Suite: F01-F10 × {2,10}D × {2,5}-party
+   
+    void createBenchmarkSuiteAll(const std::string& vis_base = "") {
+        // 10 base function templates defined in 2D; extendCenter() lifts to ND.
+        struct FuncDef { std::string id; std::vector<PkSpec> peaks; };
+        const std::vector<FuncDef> funcs = {
+            // F01: Baseline — smooth equal basins, no transforms
+            {"f01", {
+                {  0,   0,  90, "s1",   1,   0, 0.0, 0.0,  0.0, false, false},
+                { 60,   0,  80, "s1",   1,   0, 0.0, 0.0,  0.0, false, false},
+                {  0,  60,  75, "s1",   1,   1, 0.0, 0.0,  0.0, false, false},
+                {-60, -60,  70, "s1",   1,   1, 0.0, 0.0,  0.0, false, false},
+            }},
+            // F02: Unequal basin sizes — mixed shapes, varying condition numbers
+            {"f02", {
+                {  0,   0,  90, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                { 70,  30,  75, "s2",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-50,  60,  60, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 30, -70,  50, "s2",  10,   0, 2.0, 0.0,  0.0, false, false},
+                {-70, -40,  45, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 55,  65,  35, "s2",  50,   1, 2.0, 0.0,  0.0, false, false},
+            }},
+            // F03: Overlapping basins — tight spatial clusters with linkage
+            {"f03", {
+                {  0,   0,  90, "s2",   1,   0, 2.0, 0.0,  0.15, false, false},
+                { 18,  12,  82, "s2",   10,   0, 2.0, 0.0,  0.15, false, false},
+                {-12,  18,  76, "s2",   10,   1, 2.0, 0.0,  0.15, false, false},
+                { 50,  50,  70, "s1",   1,   1, 2.0, 0.0,  0.15, false, false},
+                { 62,  44,  65, "s2",   10,   0, 2.0, 0.0,  0.15, false, false},
+                { 44,  62,  58, "s2",   10,   1, 2.0, 0.0,  0.15, false, false},
+                {-60, -50,  50, "s1",   1,   0, 2.0, 0.0,  0.15, false, false},
+                {-50, -65,  44, "s2",   10,   1, 2.0, 0.0,  0.15, false, false},
+            }},
+            // F04: Rugged — all Weierstrass (s7) peaks
+            {"f04", {
+                {  0,   0,  90, "s7",   1,   0, 2.0, 0.0,  0.0, false, false},
+                { 60,  20,  75, "s7",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-50,  50,  70, "s7",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 30, -60,  60, "s7",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-60, -40,  55, "s7",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 70, -70,  45, "s7",   1,   1, 2.0, 0.0,  0.0, false, false},
+            }},
+            // F05: Ill-conditioned — high condition numbers, asymmetry, irregularity
+            {"f05", {
+                {  0,   0,  90, "s2",  100,  0, 2.0, 0.5,  0.0, true,  false},
+                { 50,  30,  75, "s2",  500,  0, 2.0, 0.5,  0.0, true,  false},
+                {-40,  60,  70, "s2",  100,  1, 2.0, 0.5,  0.0, true,  false},
+                { 20, -60,  55, "s2", 1000,  0, 2.0, 0.5,  0.0, true,  false},
+                {-70, -30,  50, "s2",  500,  1, 2.0, 0.5,  0.0, true,  false},
+                { 70,  70,  40, "s2", 1000,  1, 2.0, 0.5,  0.0, true,  false},
+            }},
+            // F06: Asymmetric + independently rotated peaks
+            {"f06", {
+                {  0,   0,  90, "s1",   1,   0, 2.0, 1.0,  0.0, false, true},
+                { 60,  40,  80, "s2",  10,   0, 2.0, 1.0,  0.0, false, true},
+                {-50,  50,  70, "s1",   1,   1, 2.0, 1.0,  0.0, false, true},
+                { 35, -55,  60, "s2",  10,   0, 2.0, 1.0,  0.0, false, true},
+                {-60, -60,  55, "s1",   1,   1, 2.0, 1.0,  0.0, false, true},
+                { 70, -30,  45, "s2",  50,   1, 2.0, 1.0,  0.0, false, true},
+            }},
+            // F07: Party-independent — peaks spatially separated by party
+            {"f07", {
+                {-70,  70,  90, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-70,   0,  82, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-70, -70,  75, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-70,  40,  65, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                { 70,  70,  88, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 70,   0,  78, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 70, -70,  72, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+                { 70, -40,  60, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+            }},
+            // F08: Deceptive — mixed s7/s2, strong linkage + asymmetry
+            {"f08", {
+                {  0,   0,  90, "s7",   1,   0, 2.0, 0.5,  0.10, true,  false},
+                { 55,  55,  85, "s7",   1,   1, 2.0, 0.5,  0.10, true,  false},
+                { 25,   0,  78, "s2",  50,   0, 2.0, 0.5,  0.10, true,  false},
+                {  0,  25,  75, "s2",  50,   1, 2.0, 0.5,  0.10, true,  false},
+                {-50,  30,  60, "s7",   1,   0, 2.0, 0.5,  0.10, true,  false},
+                { 30, -50,  55, "s7",   1,   1, 2.0, 0.5,  0.10, true,  false},
+                {-40, -60,  45, "s2",  10,   0, 2.0, 0.5,  0.10, true,  false},
+                { 70,  70,  40, "s7",   1,   1, 2.0, 0.5,  0.10, true,  false},
+            }},
+            // F09: Dense multi-modal — 10 moderate peaks with varied conditions
+            {"f09", {
+                {  0,   0,  90, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                { 30,   0,  85, "s2",   10,   0, 2.0, 0.0,  0.0, false, false},
+                {-30,   0,  80, "s1",   1,   1, 2.0, 0.0,  0.0, false, false},
+                {  0,  30,  78, "s2",   10,   1, 2.0, 0.0,  0.0, false, false},
+                {  0, -30,  75, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                { 60,  60,  70, "s2",  10,   1, 2.0, 0.0,  0.0, false, false},
+                {-60,  60,  65, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                {-60, -60,  60, "s2",  10,   1, 2.0, 0.0,  0.0, false, false},
+                { 60, -60,  55, "s1",   1,   0, 2.0, 0.0,  0.0, false, false},
+                { 30,  60,  50, "s2",  10,   1, 2.0, 0.0,  0.0, false, false},
+            }},
+            // F10: Strong party coupling — high party_mag forces deep collaboration
+            {"f10", {
+                {  0,   0,  90, "s2",   1,   0, 4.0, 0.0,  0.0, false, false},
+                { 60,  60,  80, "s2",   1,   1, 4.0, 0.0,  0.0, false, false},
+                {-60,  60,  70, "s2",   1,   0, 4.0, 0.0,  0.0, false, false},
+                { 60, -60,  65, "s2",   1,   1, 4.0, 0.0,  0.0, false, false},
+                {-60, -60,  60, "s2",   1,   0, 4.0, 0.0,  0.0, false, false},
+                {  0,  70,  55, "s1",   1,   1, 4.0, 0.0,  0.0, false, false},
+                { 40, -40,  50, "s2",  10,   0, 4.0, 0.0,  0.0, false, false},
+                {-40,  40,  45, "s2",  10,   1, 4.0, 0.0,  0.0, false, false},
+            }},
+        };
+
+        const std::vector<int> dims    = {2, 10};
+        const std::vector<int> parties = {2, 5};
+        int total = static_cast<int>(funcs.size() * dims.size() * parties.size());
+
+        std::cout << ">>> Creating MPMMO benchmark suite: "
+                  << funcs.size() << " functions x "
+                  << dims.size() << " dims x "
+                  << parties.size() << " party configs = "
+                  << total << " instances\n";
+
+        for (const auto& func : funcs) {
+            for (int d : dims) {
+                for (int p : parties) {
+                    std::string name = "mpmmo_" + func.id
+                                     + "_" + std::to_string(d) + "d"
+                                     + "_" + std::to_string(p) + "p";
+                    auto nd_peaks = scalePeaks2DtoND(func.peaks, d, p);
+                    createBenchmarkND(name, d, p, nd_peaks);
+                    if (!vis_base.empty())
+                        saveProblemInfo(name, d, p, nd_peaks, vis_base + "/" + name);
+                }
+            }
+        }
+        std::cout << ">>> All " << total << " benchmark instances created.\n";
     }
 
     //  Helper functions
@@ -1771,19 +2694,25 @@ namespace ofec {
         std::cout << " done.\n";
     }
 
-    //  Main experiment
-    void runMPMCoEAExperiment() {
-        ofec::registerInstance();
-        ofec::g_working_directory =
-            R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Data\ofec_data_new\)";
-        for (auto& c : ofec::g_working_directory) if (c == '\\')c = '/';
-        const std::string vis_base =
-            R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization)";
+    //  Benchmark Suite Runner
 
-        const std::string problem_name = "complex_4d_2p";
-        std::cout << "\n>>> [MPM-CoEA] Creating 4D 2-party benchmark...\n";
-        create4D2PartyProblem(problem_name);
+    // Aggregated metrics for a single benchmark run.
+    struct BenchmarkResult {
+        std::string name;
+        int         dim, num_parties, nopt;
+        double      sr_strict, anof_strict, mpr_strict;
+        double      sr_loose,  anof_loose,  mpr_loose;
+        int         pareto_size;
+        double      best_fitness;
+    };
 
+    // Load one pre-created benchmark, run the solver, return metrics.
+    BenchmarkResult runSingleBenchmark(
+        const std::string& problem_name,
+        int                num_parties,
+        const std::string& vis_dir,
+        int                coevo_gens = 400)
+    {
         auto* env_raw = generateEnvironmentByFactory("free_peaks");
         env_raw->recordInputParameters(); env_raw->initialize();
         env_raw->setProblem(generateProblemByFactory("free_peaks"));
@@ -1795,70 +2724,276 @@ namespace ofec {
         env_raw->initializeProblem(0.5);
 
         auto* fp = CAST_FPs(env_raw->problem());
-        if (!fp) throw std::runtime_error("Problem is not FreePeaks.");
+        if (!fp) throw std::runtime_error("Problem cast failed for: " + problem_name);
         const int nopt = fp->optima() ? static_cast<int>(fp->optima()->numberSolutions()) : 0;
-        std::cout << ">>> Loaded: dim=" << fp->numberVariables() << " | parties=2 | num_optima=" << nopt << "\n";
+        std::cout << "\n>>> [" << problem_name << "] dim=" << fp->numberVariables()
+                  << " | parties=" << num_parties << " | optima=" << nopt << "\n";
         inspectPeakCenters(fp, env_raw);
-        outputLandscapeSlices(env_raw, vis_base + "/landscape_before");
+        //outputLandscapeSlices(env_raw, vis_dir + "/landscape_before");
 
-        auto bench = std::make_shared<MPMMO_Benchmark>(fp, 2, env_raw);
+        auto bench  = std::make_shared<MPMMO_Benchmark>(fp, num_parties, env_raw);
         auto env_sp = std::shared_ptr<Environment>(env_raw, [](Environment*) {});
 
-        // Solver parameters
         MPM_CoEA solver(bench, env_sp,
-            /*K*/           10,
+            /*K*/            8,
             /*niche_pop*/   20,
-            /*med_pop*/     400,
-            /*party_gens*/  150,
-            /*coevo_gens*/  600,
-            /*refine_gens*/ 120,
-            /*sigma*/       0.10,
+            /*med_pop*/    300,
+            /*party_gens*/ 120,
+            /*coevo_gens*/ coevo_gens,
+            /*refine_gens*/  80,
+            /*sigma*/       0.12,
             /*de_F*/        0.5,
             /*de_CR*/       0.9,
             /*sharing_r*/   0.15,
             /*sharing_a*/   2.0,
-            vis_base + "/solutions");
+            vis_dir + "/solutions");
 
         solver.run();
-        solver.saveSolutionsAtGeneration(600);
         solver.saveConvergenceCurve();
         solver.saveMOConvergenceCurve();
         solver.saveParetoFront();
-        outputLandscapeSlices(env_raw, vis_base + "/landscape_after");
+        //outputLandscapeSlices(env_raw, vis_dir + "/landscape_after");
 
-        // Print Pareto front summary
-        std::cout << "\n>>> MPMMO Pareto Front (joint peaks found):\n";
-        const auto& pf     = solver.getParetoFront();
-        const auto& pf_obj = solver.getParetoObjectives();
-        const auto& pf_fit = solver.getParetoFitness();
-        for (size_t i = 0; i < pf.size(); ++i) {
-            std::cout << "  PF[" << i << "] joint_f=" << std::fixed
-                      << std::setprecision(4) << pf_fit[i] << " obj=[";
-            for (size_t p = 0; p < pf_obj[i].size(); ++p)
-                std::cout << pf_obj[i][p] << (p+1<pf_obj[i].size()?", ":"");
-            std::cout << "]\n";
-        }
+        // Write a self-contained MATLAB script for this problem.
+        //generateMatlabScript(vis_dir, problem_name, num_parties, nopt);
 
         auto candidates = solver.getAllCandidates();
-
-        std::cout << "\n>>> CEC-2015 Metrics (STRICT: eps_x=0.01, eps_f=1.0)\n";
         auto ms = evaluateCEC2015Metrics(candidates, fp, env_raw, 0.01, 1.0);
-        std::cout << "    SR  : " << ms.SR << "%\n    ANOF: " << ms.ANOF
-            << " (" << static_cast<int>(std::round(ms.ANOF * nopt)) << "/" << nopt << " found)\n"
-            << "    MPR : " << ms.MPR << "\n    SP  : " << ms.SP << "\n";
-
-        std::cout << "\n>>> CEC-2015 Metrics (LOOSE: eps_x=0.05, eps_f=2.0)\n";
         auto ml = evaluateCEC2015Metrics(candidates, fp, env_raw, 0.05, 2.0);
-        std::cout << "    SR  : " << ml.SR << "%\n    ANOF: " << ml.ANOF
-            << " (" << static_cast<int>(std::round(ml.ANOF * nopt)) << "/" << nopt << " found)\n"
-            << "    MPR : " << ml.MPR << "\n    SP  : " << ml.SP << "\n";
 
-        auto best = solver.getBestSolution();
-        std::cout << ">>> Best consensus solution: [";
-        for (size_t i = 0; i < best.size(); i++)
-            std::cout << std::fixed << std::setprecision(4) << best[i] << (i + 1 < best.size() ? ", " : "");
-        std::cout << "]  f = " << std::fixed << std::setprecision(4) << solver.getBestFitness() << "\n";
-        std::cout << "\n>>> [MPM-CoEA] Complete.\n";
+        std::cout << "  CEC-2015 (strict eps_x=0.01, eps_f=1.0):\n"
+                  << "    SR=" << ms.SR << "%  ANOF=" << ms.ANOF
+                  << "  MPR=" << ms.MPR << "\n"
+                  << "  CEC-2015 (loose  eps_x=0.05, eps_f=2.0):\n"
+                  << "    SR=" << ml.SR << "%  ANOF=" << ml.ANOF
+                  << "  MPR=" << ml.MPR << "\n"
+                  << "  Pareto front size: " << solver.getParetoFront().size()
+                  << "  Best joint fitness: "
+                  << std::fixed << std::setprecision(4) << solver.getBestFitness() << "\n";
+
+        // Save CEC-2015 metrics to a text file for later aggregation.
+        {
+            std::filesystem::create_directories(vis_dir);
+            std::ofstream mf(vis_dir + "/cec2015_metrics.txt");
+            if (mf.is_open()) {
+                mf << std::fixed << std::setprecision(4);
+                mf << "# CEC-2015 metrics for " << problem_name << "\n";
+                mf << "problem_name  " << problem_name << "\n";
+                mf << "dim           " << fp->numberVariables() << "\n";
+                mf << "num_parties   " << num_parties << "\n";
+                mf << "nopt          " << nopt << "\n";
+                mf << "# strict: eps_x=0.01 eps_f=1.0\n";
+                mf << "SR_strict     " << ms.SR   << "\n";
+                mf << "ANOF_strict   " << ms.ANOF << "\n";
+                mf << "MPR_strict    " << ms.MPR  << "\n";
+                mf << "# loose: eps_x=0.05 eps_f=2.0\n";
+                mf << "SR_loose      " << ml.SR   << "\n";
+                mf << "ANOF_loose    " << ml.ANOF << "\n";
+                mf << "MPR_loose     " << ml.MPR  << "\n";
+                mf << "pareto_size   " << solver.getParetoFront().size() << "\n";
+                mf << "best_fitness  " << solver.getBestFitness() << "\n";
+            }
+        }
+
+
+        BenchmarkResult r;
+        r.name         = problem_name;
+        r.dim          = static_cast<int>(fp->numberVariables());
+        r.num_parties  = num_parties;
+        r.nopt         = nopt;
+        r.sr_strict    = ms.SR;   r.anof_strict = ms.ANOF; r.mpr_strict = ms.MPR;
+        r.sr_loose     = ml.SR;   r.anof_loose  = ml.ANOF; r.mpr_loose  = ml.MPR;
+        r.pareto_size  = static_cast<int>(solver.getParetoFront().size());
+        r.best_fitness = solver.getBestFitness();
+        return r;
+    }
+
+
+    void runBenchmarkSuite() {
+        ofec::registerInstance();
+        ofec::g_working_directory =
+            R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Data\ofec_data_new\)";
+        for (auto& c : ofec::g_working_directory) if (c == '\\') c = '/';
+        const std::string vis_base =
+            R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization)";
+
+        std::cout << " MPMMO 2-D Benchmark Suite (F01-F08) — MPM-CoEA\n";
+
+        // Step 1: generate problem files for all 8 benchmarks
+        std::cout << ">>> Step 1: Creating benchmark problem files...\n";
+        createBenchmarkSuite();
+
+        // Step 2: run solver on each problem and collect results
+        std::cout << "\n>>> Step 2: Running MPM-CoEA on each benchmark...\n";
+        std::vector<BenchmarkResult> results;
+        const std::vector<std::pair<std::string, int>> suite = {
+            {"mpmmo_f01_2d_2p", 2},  // Baseline
+            {"mpmmo_f02_2d_2p", 2},  // Unequal basin sizes
+            {"mpmmo_f03_2d_2p", 2},  // Overlapping basins
+            {"mpmmo_f04_2d_2p", 2},  // Rugged landscape
+            {"mpmmo_f05_2d_2p", 2},  // Ill-conditioned
+            {"mpmmo_f06_2d_2p", 2},  // Asymmetric + rotated
+            {"mpmmo_f07_2d_2p", 2},  // Party-independent optima
+            {"mpmmo_f08_2d_2p", 2},  // Deceptive
+        };
+        for (const auto& [name, parties] : suite) {
+            try {
+                auto r = runSingleBenchmark(name, parties,
+                                            vis_base + "/" + name, 400);
+                results.push_back(r);
+            } catch (const std::exception& ex) {
+                std::cerr << "  [FAIL] " << name << " : " << ex.what() << "\n";
+            }
+        }
+
+        // Step 3: print summary table
+        std::cout << "\n>>> Step 3: Summary Table\n";
+        std::cout << std::left
+                  << std::setw(26) << "Problem"
+                  << std::setw(5)  << "Opt"
+                  << std::setw(9)  << "SR(s)%"
+                  << std::setw(10) << "ANOF(s)"
+                  << std::setw(9)  << "SR(l)%"
+                  << std::setw(10) << "ANOF(l)"
+                  << std::setw(7)  << "PF_sz"
+                  << std::setw(10) << "Best_f"
+                  << "\n" << std::string(86, '-') << "\n";
+        for (const auto& r : results) {
+            std::cout << std::left
+                      << std::setw(26) << r.name
+                      << std::setw(5)  << r.nopt
+                      << std::setw(9)  << std::fixed << std::setprecision(1) << r.sr_strict
+                      << std::setw(10) << std::setprecision(3) << r.anof_strict
+                      << std::setw(9)  << std::setprecision(1) << r.sr_loose
+                      << std::setw(10) << std::setprecision(3) << r.anof_loose
+                      << std::setw(7)  << r.pareto_size
+                      << std::setw(10) << std::setprecision(2) << r.best_fitness
+                      << "\n";
+        }
+        std::cout << "\n>>> [MPMMO Benchmark Suite] Complete.\n";
+    }
+
+    //  runBenchmarkSuiteAll — Full evaluation matrix
+    //
+    //  Runs MPM-CoEA on all 40 instances:
+    //    F01-F10  ×  {2,10}D  ×  {2,5}-party
+    void runBenchmarkSuiteAll() {
+        ofec::registerInstance();
+        ofec::g_working_directory =
+            R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Data\ofec_data_new\)";
+        for (auto& c : ofec::g_working_directory) if (c == '\\') c = '/';
+        const std::string vis_base =
+            R"(E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization)";
+
+        std::cout << "\n";
+        std::cout << " MPMMO Unified Benchmark Suite  (MPM-CoEA)\n";
+        std::cout << " F01-F10  x  {2,10}D  x  {2,5}-party  =  40 instances\n";
+
+        // Step 1: Generate all 40 problem files + problem_info.txt
+        std::cout << ">>> Step 1: Generating all benchmark problem files...\n";
+        createBenchmarkSuiteAll(vis_base);
+
+        // Step 2: Build the instance execution list
+        const std::vector<std::string> func_ids = {
+            "f01","f02","f03","f04","f05","f06","f07","f08","f09","f10"};
+        const std::vector<int> dims    = {2, 10};
+        const std::vector<int> parties = {2, 5};
+
+        struct InstanceSpec { std::string name; int dim, npar, coevo_gens; };
+        std::vector<InstanceSpec> instances;
+        for (const auto& fid : func_ids)
+            for (int d : dims)
+                for (int p : parties) {
+                    // Scale coevo_gens with dimensionality for sufficient exploration
+                    //int gens = (d <= 2) ? 400 : (d <= 5) ? 500 : (d <= 10) ? 600 : 800;
+                    int gens = (d <= 2) ? 300 : 400;   // Reduced for now
+                    instances.push_back({
+                        "mpmmo_" + fid + "_" + std::to_string(d) + "d_" + std::to_string(p) + "p",
+                        d, p, gens});
+                }
+
+        std::cout << "\n>>> Step 2: Running MPM-CoEA on "
+                  << instances.size() << " instances...\n";
+        std::vector<BenchmarkResult> results;
+        int run_idx = 0;
+        for (const auto& inst : instances) {
+            ++run_idx;
+            std::cout << "\n[" << run_idx << "/" << instances.size() << "] "
+                      << inst.name << " (dim=" << inst.dim
+                      << " parties=" << inst.npar
+                      << " gens=" << inst.coevo_gens << ")\n";
+            try {
+                auto r = runSingleBenchmark(inst.name, inst.npar,
+                                            vis_base + "/" + inst.name,
+                                            inst.coevo_gens);
+                results.push_back(r);
+            } catch (const std::exception& ex) {
+                std::cerr << "  [FAIL] " << inst.name << ": " << ex.what() << "\n";
+            }
+        }
+
+        // Step 3: Summary table to console
+        std::cout << "\n>>> Step 3: Summary Table (" << results.size()
+                  << "/" << instances.size() << " succeeded)\n";
+        std::cout << std::left
+                  << std::setw(34) << "Problem"
+                  << std::setw(5)  << "Dim"
+                  << std::setw(4)  << "P"
+                  << std::setw(5)  << "Opt"
+                  << std::setw(9)  << "SR(s)%"
+                  << std::setw(10) << "ANOF(s)"
+                  << std::setw(9)  << "SR(l)%"
+                  << std::setw(10) << "ANOF(l)"
+                  << std::setw(7)  << "PF_sz"
+                  << std::setw(10) << "Best_f"
+                  << "\n" << std::string(103, '-') << "\n";
+        for (const auto& r : results) {
+            std::cout << std::left
+                      << std::setw(34) << r.name
+                      << std::setw(5)  << r.dim
+                      << std::setw(4)  << r.num_parties
+                      << std::setw(5)  << r.nopt
+                      << std::setw(9)  << std::fixed << std::setprecision(1) << r.sr_strict
+                      << std::setw(10) << std::setprecision(3) << r.anof_strict
+                      << std::setw(9)  << std::setprecision(1) << r.sr_loose
+                      << std::setw(10) << std::setprecision(3) << r.anof_loose
+                      << std::setw(7)  << r.pareto_size
+                      << std::setw(10) << std::setprecision(2) << r.best_fitness
+                      << "\n";
+        }
+
+        // Step 4: Save aggregated summary CSV
+        const std::string csv_path = vis_base + "/benchmark_summary.csv";
+        {
+            std::ofstream csv(csv_path);
+            if (csv.is_open()) {
+                csv << "problem,dim,num_parties,nopt,"
+                       "sr_strict,anof_strict,mpr_strict,"
+                       "sr_loose,anof_loose,mpr_loose,"
+                       "pareto_size,best_fitness\n";
+                csv << std::fixed << std::setprecision(4);
+                for (const auto& r : results) {
+                    csv << r.name        << ","
+                        << r.dim         << ","
+                        << r.num_parties << ","
+                        << r.nopt        << ","
+                        << r.sr_strict   << "," << r.anof_strict << "," << r.mpr_strict << ","
+                        << r.sr_loose    << "," << r.anof_loose  << "," << r.mpr_loose  << ","
+                        << r.pareto_size << "," << r.best_fitness << "\n";
+                }
+                std::cout << "\n[INFO] Summary CSV: " << csv_path << "\n";
+            }
+        }
+
+        std::cout << "\n>>> [MPMMO Benchmark Suite All] Complete — "
+                  << results.size() << "/" << instances.size()
+                  << " instances succeeded.\n";
+    }
+
+    //  Main experiment
+
+    void runMPMCoEAExperiment() {
+        runBenchmarkSuiteAll();
     }
 
 } // namespace ofec

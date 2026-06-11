@@ -1,0 +1,3 @@
+# gen=200 OSA snapshot
+# x0..xd fitness
+0.309209 0.191537 86.919040

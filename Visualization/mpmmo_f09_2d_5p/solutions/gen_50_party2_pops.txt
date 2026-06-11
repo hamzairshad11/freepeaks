@@ -1,0 +1,3 @@
+# gen=50 party 2 competing subpops
+# subpop_id x0..xd fitness
+7 0.500000 0.500000 20.103900

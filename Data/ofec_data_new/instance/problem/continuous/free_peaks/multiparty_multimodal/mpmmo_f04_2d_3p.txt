@@ -1,0 +1,45 @@
+number_of_variables	2
+number_of_objectives	1
+number_of_constraints	0
+subtree_number 	1
+subtree_name 	root
+num	6
+[ peak1 , 0.227848 ]	[ peak2 , 0.189873 ]	[ peak3 , 0.177215 ]	[ peak4 , 0.151899 ]	[ peak5 , 0.139241 ]	[ peak6 , 0.113924 ]	
+
+
+ParameterMap_begin
+dataFile1 kString sop/mpmmo_f04_2d_3p_peak1.txt
+generation_type kString read_file
+subspace kString peak1
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString sop/mpmmo_f04_2d_3p_peak2.txt
+generation_type kString read_file
+subspace kString peak2
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString sop/mpmmo_f04_2d_3p_peak3.txt
+generation_type kString read_file
+subspace kString peak3
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString sop/mpmmo_f04_2d_3p_peak4.txt
+generation_type kString read_file
+subspace kString peak4
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString sop/mpmmo_f04_2d_3p_peak5.txt
+generation_type kString read_file
+subspace kString peak5
+ParameterMap_end
+
+ParameterMap_begin
+dataFile1 kString sop/mpmmo_f04_2d_3p_peak6.txt
+generation_type kString read_file
+subspace kString peak6
+ParameterMap_end
+

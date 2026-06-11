@@ -1,0 +1,15 @@
+# CEC-2015 metrics for mpmmo_f08_10d_2p
+problem_name  mpmmo_f08_10d_2p
+dim           10
+num_parties   2
+nopt          8
+# strict: eps_x=0.01 eps_f=1.0
+SR_strict     0.0000
+ANOF_strict   0.1250
+MPR_strict    0.0050
+# loose: eps_x=0.05 eps_f=2.0
+SR_loose      0.0000
+ANOF_loose    0.1250
+MPR_loose     0.0050
+pareto_size   200
+best_fitness  90.0000

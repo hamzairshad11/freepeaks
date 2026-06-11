@@ -1,0 +1,2 @@
+# gen=300 OSA snapshot
+# x0..xd fitness

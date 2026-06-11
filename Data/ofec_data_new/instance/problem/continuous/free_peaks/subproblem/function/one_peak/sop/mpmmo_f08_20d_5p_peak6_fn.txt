@@ -1,0 +1,13 @@
+num_one_peaks	1
+
+ParameterMap_begin
+alpha kReal 1
+center_postion kVectorReal 20 30 -50 25.5 -42.5 21 -35 16.5 -27.5 12 -20 7.5 -12.5 7.5 -12.5 7.5 -12.5 7.5 -12.5 7.5 -12.5
+center_type kString assigned
+height kReal 55
+map_flag kInt 0
+one_peak kString s7
+r_ratio kReal 0.5
+ParameterMap_end
+
+
