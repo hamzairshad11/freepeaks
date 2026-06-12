@@ -1,0 +1,16 @@
+# CEC-2015 metrics  P6  D=2
+suite_id       6
+problem_name   p6_deceptive
+feature        random narrow shared optima embedded in broad private basins
+dim            2
+nopt           2
+# strict eps_x=0.01 eps_f=1.0
+SR_strict      100.0000
+ANOF_strict    2.0000
+MPR_strict     1.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_loose       100.0000
+ANOF_loose     2.0000
+MPR_loose      1.0000
+ca_size        48
+best_consensus 89.9965

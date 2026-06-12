@@ -1,9 +1,0 @@
-# MPMMO Benchmark Problem: mpmmo_f01_2d_5p
-# dimensions   : 2
-# num_parties  : 5
-# num_peaks    : 4
-# peak_id  height  shape  condition  party  party_mag  asym_beta  link_beta  irregular  rotate  c0  c1
-1  90.0000  s1  1.0000  0  0.0000  0.0000  0.0000  0  0  0.0000  0.0000
-2  80.0000  s1  1.0000  1  0.0000  0.0000  0.0000  0  0  60.0000  0.0000
-3  75.0000  s1  1.0000  2  0.0000  0.0000  0.0000  0  0  0.0000  60.0000
-4  70.0000  s1  1.0000  3  0.0000  0.0000  0.0000  0  0  -60.0000  -60.0000

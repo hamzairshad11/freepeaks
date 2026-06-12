@@ -1,0 +1,16 @@
+# CEC-2015 metrics  P11  D=5
+suite_id       11
+problem_name   p11_hierarchical_disconnected
+feature        mixed hierarchical, disconnected and ill-conditioned shared optima
+dim            5
+nopt           8
+# strict eps_x=0.01 eps_f=1.0
+SR_strict      0.0000
+ANOF_strict    2.0000
+MPR_strict     0.2500
+# loose  eps_x=0.05 eps_f=2.0
+SR_loose       0.0000
+ANOF_loose     2.0000
+MPR_loose      0.2500
+ca_size        200
+best_consensus 89.5053

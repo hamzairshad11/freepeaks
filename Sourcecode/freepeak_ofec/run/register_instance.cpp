@@ -3,6 +3,7 @@
 #include "../instance/problem/continuous/free_peaks/free_peaks.h"
 #include "../instance/problem/continuous/free_peaks/free_peaks_init_pop_bound.h"
 #include "../instance/problem/continuous/free_peaks/free_peaks_init_pop_imbalance.h"
+#include "../instance/problem/continuous/free_peaks/free_peaks_multiparty.h"
 
 
 namespace ofec {
@@ -11,6 +12,7 @@ namespace ofec {
 		REGISTER(Problem, FreePeaks, "free_peaks", std::set<std::string>({ "continuous" }));
 		REGISTER(Problem, FreePeaksInitPopBounded, "free_peaks_init_pop_bounded", std::set<std::string>({ "continuous" }));
 		REGISTER(Problem, FreePeaksInitPopImbalance, "free_peaks_init_pop_imbalance", std::set<std::string>({ "continuous" }));
+		REGISTER(Problem, FreePeaksMultiParty, "free_peaks_multiparty", std::set<std::string>({ "continuous" }));
 
 
 		for (auto &pro : g_factory_problem.get()) {

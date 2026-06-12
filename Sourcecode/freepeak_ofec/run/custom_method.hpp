@@ -13,6 +13,7 @@
 #include "../instance/problem/continuous/free_peaks/subproblem/subproblem.h"
 #include "../instance/problem/continuous/free_peaks/subproblem/function/one_peak_function.h"
 #include "../instance/problem/continuous/free_peaks/factory.h"
+#include "mpmcoea_solver.hpp"
 
 
 namespace fs = std::filesystem;
@@ -641,13 +642,9 @@ namespace ofec {
         //ofec::g_working_directory = "/data/Share/Student/2018/diaoyiya/data/ofec_data/";
       //  ofec::g_working_directory = "/mnt/dataShare/Student/2018/diaoyiya/data/ofec_data/";
 
-        registerInstance();
+        // Run the full MPMMO 2-D benchmark suite (F01–F08)
+        ofec::runBenchmarkSuite();
 
-        //generateMPMMOBenchmark("mpmmo_2p2g1l", 2, 2, 1, 2);
-
-        
-        generateHandMadeFreePeak("mpmmo_1");
-        
 
 
         //std::string ofec_dir = OFEC_DIR;

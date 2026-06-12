@@ -1,0 +1,16 @@
+# CEC-2015 metrics  P12  D=2
+suite_id       12
+problem_name   p12_full_mixed_multimodal
+feature        dense full-mixed problem with rugged, deceptive, rotated and hierarchical basins
+dim            2
+nopt           16
+# strict eps_x=0.01 eps_f=1.0
+SR_strict      100.0000
+ANOF_strict    16.0000
+MPR_strict     1.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_loose       100.0000
+ANOF_loose     16.0000
+MPR_loose      1.0000
+ca_size        200
+best_consensus 89.9998

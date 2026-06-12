@@ -1,0 +1,16 @@
+# CEC-2015 metrics  P1  D=5
+suite_id       1
+problem_name   p1_balanced
+feature        balanced random shared/private optima
+dim            5
+nopt           2
+# strict eps_x=0.01 eps_f=1.0
+SR_strict      0.0000
+ANOF_strict    0.0000
+MPR_strict     0.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_loose       0.0000
+ANOF_loose     0.0000
+MPR_loose      0.0000
+ca_size        7
+best_consensus 85.6463

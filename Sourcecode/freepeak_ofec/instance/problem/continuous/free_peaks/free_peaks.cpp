@@ -98,15 +98,15 @@ namespace ofec {
 			m_objective_accuracy = 1e-3;
 		}
 		else if (m_number_objectives > 1) {
-			//������ÿ���ӿռ�ķ�֮����в������ٽ�������
+			//      ÿ   ӿռ ķ ֮    в      ٽ       
 			for (auto& it : m_subspace_tree.name_box_subproblem) {
 				if (it.second.second == nullptr)
 					continue;
 				auto& box = m_subspace_tree.tree->getBox(it.first);
-				auto& optima = it.second.second->optima();//optima�ĸ���Ϊ��num_obj*num_subspace
+				auto& optima = it.second.second->optima();//optima ĸ   Ϊ  num_obj*num_subspace
 				//size_t number_objectives = m_param->get<int>("number of objectives");
 				size_t number_objectives = m_number_objectives;
-				////��һ����������������߲���
+				////  һ                ߲   
 				std::vector<std::vector<Real>> subspace_peak_pos;
 				for (size_t j = 0; j < number_objectives; ++j) {
 					subspace_peak_pos.emplace_back(optima.solution(j).variable().vector());
@@ -114,14 +114,14 @@ namespace ofec {
 				std::vector<std::vector<Real>> sampling_sols;
 				sampleAmongPoints(subspace_peak_pos, sampling_sols);
 			}
-			////������ÿ���ӿռ�ķ�֮����в������ٽ�������
+			////      ÿ   ӿռ ķ ֮    в      ٽ       
 			//for (auto& it : m_subspace_tree.name_box_subproblem) {
 			//	if (it.second.second == nullptr)
 			//		continue;
 			//	auto& box = m_subspace_tree.tree->getBox(it.first);
-			//	auto& optima = it.second.second->optima();//optima�ĸ���Ϊ��num_obj*num_subspace
+			//	auto& optima = it.second.second->optima();//optima ĸ   Ϊ  num_obj*num_subspace
 			//	size_t number_objectives = m_param->get<int>("number of objectives");
-			//	////��һ����������������߲���
+			//	////  һ                ߲   
 			//	std::vector<std::vector<Real>> subspace_peak_pos;
 			//	for (size_t j = 0; j < number_objectives; ++j) {
 			//		subspace_peak_pos.emplace_back(optima.variable(j).vect());
@@ -129,7 +129,7 @@ namespace ofec {
 			//	std::vector<std::vector<Real>> sampling_sols;
 			//	sampleAmongPoints(subspace_peak_pos, sampling_sols);
 
-			//	//��samplings���ۣ��ֲ����򣬼���ǰ��
+			//	//  samplings   ۣ  ֲ    򣬼   ǰ  
 			//	std::vector<std::vector<Real>> temp_objs;
 			//	for (size_t i = 0; i < sampling_sols.size(); ++i) {
 			//		Solution<> sol(number_objectives, 0);
@@ -138,7 +138,7 @@ namespace ofec {
 			//		temp_objs.emplace_back(sol.objective());
 			//	}
 
-			//	//����
+			//	//    
 			//	std::vector<std::vector<Real>*> objs;
 			//	for (size_t i = 0; i < temp_objs.size(); ++i) {
 			//		objs.emplace_back(&temp_objs[i]);
@@ -282,6 +282,10 @@ namespace ofec {
 			}
 		}
 		out.close();
+	}
+
+	const std::vector<std::pair<Real, Real>>& FreePeaks::subspaceBox(const std::string& subspace_name) const {
+		return m_subspace_tree.tree->getBox(subspace_name);
 	}
 
 	free_peaks::Subproblem* FreePeaks::subproblem(const std::string& subspace_name) const {
