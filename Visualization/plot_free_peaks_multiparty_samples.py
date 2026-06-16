@@ -17,9 +17,9 @@ def load_grid(path: Path):
     y = data[:, 3].reshape(n, n)
     f0 = data[:, 4].reshape(n, n)
     f1 = data[:, 5].reshape(n, n)
-    consensus = data[:, 6].reshape(n, n)
+    rank_based = data[:, 6].reshape(n, n)
     extent = [x.min(), x.max(), y.min(), y.max()]
-    return extent, f0, f1, consensus
+    return extent, f0, f1, rank_based
 
 
 def load_shared(path: Path):
@@ -63,7 +63,11 @@ def draw_image(ax, z, extent, title, cmap):
     xs = np.linspace(extent[0], extent[1], z.shape[1])
     ys = np.linspace(extent[2], extent[3], z.shape[0])
     X, Y = np.meshgrid(xs, ys)
-    levels = np.linspace(0, max(90.0, float(np.nanmax(z))), 29)
+    zmax = float(np.nanmax(z))
+    if zmax <= 1.05:
+        levels = np.linspace(0, 1, 29)
+    else:
+        levels = np.linspace(0, max(90.0, zmax), 29)
     img = ax.contourf(X, Y, z, levels=levels, cmap=cmap)
     ax.contour(X, Y, z, levels=10, colors="black", linewidths=0.25, alpha=0.35)
     ax.set_title(title, fontsize=9)
@@ -75,17 +79,17 @@ def draw_image(ax, z, extent, title, cmap):
     return img
 
 
-def plot_consensus(suite_dirs, output_dir: Path, show: bool):
+def plot_rank_based_objective(suite_dirs, output_dir: Path, show: bool):
     fig, axes = plt.subplots(2, 4, figsize=(15, 7.5), constrained_layout=True)
     axes = axes.ravel()
     for ax, suite_dir in zip(axes, suite_dirs):
-        extent, _, _, consensus = load_grid(suite_dir / "grid.txt")
+        extent, _, _, rank_based = load_grid(suite_dir / "grid.txt")
         shared = load_shared(suite_dir / "shared_optima.txt")
-        img = draw_image(ax, consensus, extent, suite_label(suite_dir), "viridis")
+        img = draw_image(ax, rank_based, extent, suite_label(suite_dir), "viridis")
         add_shared_points(ax, shared)
         fig.colorbar(img, ax=ax, fraction=0.046, pad=0.03)
-    fig.suptitle("FreePeaks Multi-party 2D: consensus landscape min(f_party0, f_party1)", fontsize=13)
-    out = output_dir / "free_peaks_multiparty_consensus.png"
+    fig.suptitle("FreePeaks Multi-party 2D: rank-based objective = 1 / Pareto rank", fontsize=13)
+    out = output_dir / "free_peaks_multiparty_rank_based_objective.png"
     fig.savefig(out, dpi=220)
     if show:
         plt.show()
@@ -96,9 +100,9 @@ def plot_consensus(suite_dirs, output_dir: Path, show: bool):
 def plot_parties(suite_dirs, output_dir: Path, show: bool):
     fig, axes = plt.subplots(len(suite_dirs), 3, figsize=(11, 3.0 * len(suite_dirs)), constrained_layout=True)
     for row, suite_dir in enumerate(suite_dirs):
-        extent, f0, f1, consensus = load_grid(suite_dir / "grid.txt")
+        extent, f0, f1, rank_based = load_grid(suite_dir / "grid.txt")
         shared = load_shared(suite_dir / "shared_optima.txt")
-        fields = [(f0, "party 0", "magma"), (f1, "party 1", "cividis"), (consensus, "consensus", "viridis")]
+        fields = [(f0, "p1 objective", "magma"), (f1, "p2 objective", "cividis"), (rank_based, "rank-based objective", "viridis")]
         for col, (z, label, cmap) in enumerate(fields):
             ax = axes[row, col]
             title = f"{suite_label(suite_dir)} - {label}" if col == 0 else label
@@ -317,13 +321,13 @@ def plot_twenty_optima_suite(suite_dir: Path, output_dir: Path, show: bool):
 def plot_mixed_consensus_row(suite_dirs, output_dir: Path, show: bool):
     fig, axes = plt.subplots(1, 4, figsize=(18, 4.6), constrained_layout=True)
     for ax, suite_dir in zip(axes, suite_dirs):
-        extent, _, _, consensus = load_grid(suite_dir / "grid.txt")
+        extent, _, _, rank_based = load_grid(suite_dir / "grid.txt")
         shared = load_shared(suite_dir / "shared_optima.txt")
-        img = draw_image(ax, consensus, extent, suite_label(suite_dir), "viridis")
+        img = draw_image(ax, rank_based, extent, suite_label(suite_dir), "viridis")
         add_shared_points(ax, shared)
         fig.colorbar(img, ax=ax, fraction=0.046, pad=0.03)
-    fig.suptitle("FreePeaks Multi-party 2D: p9-p12 mixed consensus landscapes", fontsize=13)
-    out = output_dir / "free_peaks_multiparty_mixed_p9_p12_consensus_row.png"
+    fig.suptitle("FreePeaks Multi-party 2D: p9-p12 mixed rank-based objective landscapes", fontsize=13)
+    out = output_dir / "free_peaks_multiparty_mixed_p9_p12_rank_based_row.png"
     fig.savefig(out, dpi=220)
     if show:
         plt.show()
@@ -393,7 +397,7 @@ def main():
         raise RuntimeError(f"Expected suite_1..suite_12 directories under {input_dir}, found {len(all_dirs)}")
 
     outputs = [
-        plot_consensus(base_dirs, output_dir, args.show),
+        plot_rank_based_objective(base_dirs, output_dir, args.show),
         plot_parties(base_dirs, output_dir, args.show),
         plot_party_objectives(base_dirs, output_dir, args.show),
         plot_single_party_2x4(base_dirs, 0, output_dir, args.show),

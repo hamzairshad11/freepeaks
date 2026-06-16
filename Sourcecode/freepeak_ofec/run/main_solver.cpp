@@ -26,8 +26,14 @@ ofec::multiparty_nbn_cmaes::Config parseNbnConfig(int argc, char* argv[], int fi
 int main(int argc, char* argv[]) {
     try {
         if (argc > 1 && std::string(argv[1]) == "--sample-multiparty") {
-            std::cout << ">>> [FreePeaksMultiParty] Sampling 12 suites\n" << std::endl;
-            ofec::sampleFreePeaksMultiPartySuites();
+            std::string output_root = "Visualization/free_peaks_multiparty_samples";
+            int resolution = 241;
+            if (argc > 2) output_root = argv[2];
+            if (argc > 3) resolution = std::stoi(argv[3]);
+            std::cout << ">>> [FreePeaksMultiParty] Sampling 12 suites"
+                      << ", resolution=" << resolution
+                      << ", output=" << output_root << "\n" << std::endl;
+            ofec::sampleFreePeaksMultiPartySuites(output_root, resolution);
             return 0;
         }
         if (argc > 1 && std::string(argv[1]) == "--run-multiparty-nbn-cmaes") {

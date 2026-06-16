@@ -13,7 +13,7 @@
 #include "../instance/problem/continuous/free_peaks/subproblem/subproblem.h"
 #include "../instance/problem/continuous/free_peaks/subproblem/function/one_peak_function.h"
 #include "../instance/problem/continuous/free_peaks/factory.h"
-
+#include "../utility/nondominated_sorting/filter_sort.h"
 
 namespace fs = std::filesystem;
 
@@ -614,6 +614,113 @@ void generateHandMadeFreePeak(const std::string& funname) {
 
 
 }
+
+
+
+void outputFreePeaksMultipartyLandscape12(const std::string& dir) {
+    using namespace ofec;
+    registerInstance();
+
+    const size_t dimension = 2;
+    const int grid_resolution = 400;
+    const std::filesystem::path output_root = dir +
+        "Visualization/free_peaks_multiparty/landscapes_12/D2";
+    std::filesystem::create_directories(output_root);
+
+    for (int suite_id = 1; suite_id <= 12; ++suite_id) {
+        std::shared_ptr<Environment> env(generateEnvironmentByFactory("free_peaks_multiparty"));
+        env->setProblem(generateProblemByFactory("free_peaks_multiparty"));
+        ParameterMap pm;
+        pm["suite_id"] = suite_id;
+        pm["problem_dimension"] = dimension;
+        env->problem()->inputParameters().input(pm);
+        env->initializeProblem(0.5);
+
+        auto* problem = dynamic_cast<FreePeaksMultiParty*>(env->problem());
+        if (!problem) throw std::runtime_error("free_peaks_multiparty initialization failed");
+
+        const auto& spec = problem->currentSpec();
+        std::filesystem::path suite_dir = output_root /
+            ("suite_" + std::to_string(suite_id) + "_" + spec.name);
+        std::filesystem::create_directories(suite_dir);
+
+        std::vector<std::shared_ptr<SolutionBase>> sols;
+        std::vector<std::vector<double>> indiObjs;
+        sols.reserve(static_cast<size_t>(grid_resolution) * grid_resolution);
+        indiObjs.reserve(static_cast<size_t>(grid_resolution) * grid_resolution);
+
+        for (int j = 0; j < grid_resolution; ++j) {
+            for (int i = 0; i < grid_resolution; ++i) {
+                const Real x0 = static_cast<Real>(i) / static_cast<Real>(grid_resolution - 1);
+                const Real x1 = static_cast<Real>(j) / static_cast<Real>(grid_resolution - 1);
+                std::shared_ptr<SolutionBase> sol(problem->createSolution());
+                auto& var = dynamic_cast<Solution<VariableVector<Real>>&>(*sol).variable().vector();
+                var[0] = x0;
+                var[1] = x1;
+                sol->evaluate(env.get(), false);
+                indiObjs.emplace_back(sol->objective());
+                sols.emplace_back(sol);
+            }
+        }
+
+        std::vector<int> rank(sols.size());
+        std::vector<std::vector<double>*> indiPtrObjs(indiObjs.size());
+        for (int idx(0); idx < indiObjs.size(); ++idx)
+            indiPtrObjs[idx] = &indiObjs[idx];
+        ofec::nd_sort::filterSortP(indiPtrObjs, rank, env->problem()->optimizeMode());
+
+        std::ofstream grid(suite_dir / "grid_2d.tsv");
+        grid << std::fixed << std::setprecision(10);
+        grid << "i\tj\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tp1_obj\tp2_obj\trank\n";
+        for (int j = 0; j < grid_resolution; ++j) {
+            for (int i = 0; i < grid_resolution; ++i) {
+                const int idx = j * grid_resolution + i;
+                const auto& var = dynamic_cast<const Solution<VariableVector<Real>>&>(*sols[idx]).variable().vector();
+                grid << i << '\t' << j << '\t'
+                    << var[0] << '\t' << var[1] << '\t'
+                    << (var[0] * 7.0 - 3.5) << '\t'
+                    << (var[1] * 7.0 - 3.5) << '\t'
+                    << sols[idx]->objective(0) << '\t'
+                    << sols[idx]->objective(1) << '\t'
+                    << rank[idx] << "\n";
+            }
+        }
+
+        std::ofstream optima(suite_dir / "optima_2d.tsv");
+        optima << std::fixed << std::setprecision(10);
+        optima << "idx\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tp1_obj\tp2_obj\trank\n";
+        if (problem->optima()) {
+            for (size_t opt_id = 0; opt_id < problem->optima()->numberSolutions(); ++opt_id) {
+                const auto& opt_sol = problem->optima()->solution(opt_id);
+                const auto& opt_var = opt_sol.variable().vector();
+                optima << opt_id << '\t'
+                    << opt_var[0] << '\t' << opt_var[1] << '\t'
+                    << (opt_var[0] * 7.0 - 3.5) << '\t'
+                    << (opt_var[1] * 7.0 - 3.5) << '\t'
+                    << opt_sol.objective(0) << '\t'
+                    << opt_sol.objective(1) << '\t'
+                    << 0 << "\n";
+            }
+        }
+
+
+
+
+
+        std::ofstream info(suite_dir / "run_info.txt");
+        info << "suite " << suite_id << "\n";
+        info << "name " << spec.name << "\n";
+        info << "feature " << spec.feature << "\n";
+        info << "dimension " << dimension << "\n";
+        info << "grid_resolution " << grid_resolution << "\n";
+        info << "rank_definition nondominated_sort_rank_from_filterSortP_best_front_is_0\n";
+        std::cout << "[landscape] suite " << suite_id << " " << spec.name
+            << " -> " << suite_dir.string() << "\n";
+    }
+
+
+
+
 
 
 namespace ofec {
