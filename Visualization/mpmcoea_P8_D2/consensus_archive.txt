@@ -1,4 +1,4 @@
-# Consensus Archive (v3 basin-tagged)
+# Consensus Archive (basin-tagged)
 # x0..x(D-1) f0 f1 consensus
 0.668556 0.281712 89.922730 89.841863 89.841863
 0.271454 0.323042 89.090386 88.682644 88.682644

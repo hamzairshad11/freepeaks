@@ -1,0 +1,6 @@
+suite 9
+name p9_twenty_shared_optima
+feature dense random multimodal problem with 20 shared optima
+dimension 2
+grid_resolution 400
+rank_definition nondominated_sort_rank_fast2obj_best_front_is_0

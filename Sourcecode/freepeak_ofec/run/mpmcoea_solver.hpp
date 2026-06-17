@@ -83,7 +83,7 @@ namespace ofec {
         return clusters;
     }
 
-    //  MPMMO_Benchmark -- wraps FreePeaksMultiParty
+    //  MPMMO_Benchmark - wraps FreePeaksMultiParty
     class MPMMO_Benchmark {
     public:
         struct Eval {
@@ -335,14 +335,7 @@ namespace ofec {
                 << " distinct basins from Phase 1b party optima\n";
         }
 
-        // Basin-tagged Consensus Archive insertion.
-        //
-        //    - If close (< CA_RADIUS) to an existing member: replace only if better C(x).
-        //    - Otherwise it's a new distinct position:
-        //         If archive not full: add, tag basin if uncovered.
-        //         If archive full: evict the lowest-C(x) slot that is NOT the
-        //          sole representative of any basin. If a new basin is uncovered,
-        //          force eviction (override quality check) to guarantee coverage.
+        // Basin-tagged Consensus Archive insertion
         void caInsert(const std::vector<double>& sol, double c) {
             if (!std::isfinite(c) || c < m_ca_min_quality) return;
 
@@ -869,7 +862,7 @@ namespace ofec {
             // Force-inject from uncovered basins
             int injected_basins = 0;
             for (int b = 0; b < static_cast<int>(m_known_basins.size()); ++b) {
-                if (m_basin_ca_slot[b] >= 0) continue;  // already covered
+                if (m_basin_ca_slot[b] >= 0) continue; 
                 // Perturb basin centre and inject into weakest mediating slot
                 std::vector<double> seed = m_known_basins[b];
                 const double perturb = 0.05;
@@ -1145,14 +1138,14 @@ namespace ofec {
             saveLandscapes();
 
             // Phase 1a: NBC
-            std::cout << "\n>>> [MPM-CoEA v3] Phase 1a: NBC init\n";
+            std::cout << "\n>>> [MPM-CoEA] Phase 1a: NBC init\n";
             for (int p = 0; p < M; ++p) NBC_init(p);
             for (int p = 0; p < M; ++p)
                 std::cout << "  P" << p << ": "
                 << m_party_optima[p].size() << " initial optima\n";
 
             // Phase 1b: ClearingDE
-            std::cout << ">>> [MPM-CoEA v3] Phase 1b: ClearingDE ("
+            std::cout << ">>> [MPM-CoEA] Phase 1b: ClearingDE ("
                 << m_party_gens << " gens, scaled eval D=" << D << ")\n";
             for (int p = 0; p < M; ++p) ClearingDE(p);
             for (int p = 0; p < M; ++p)
@@ -1167,11 +1160,11 @@ namespace ofec {
             saveOptima();
 
             // Phase 2
-            std::cout << ">>> [MPM-CoEA v3] Phase 2: CartesianSeed\n";
+            std::cout << ">>> [MPM-CoEA] Phase 2: CartesianSeed\n";
             CartesianSeed();
 
             // Phase 3
-            std::cout << ">>> [MPM-CoEA v3] Phase 3: Co-evolution ("
+            std::cout << ">>> [MPM-CoEA] Phase 3: Co-evolution ("
                 << m_coevo_gens << " gens)\n";
             std::cout << "  CA_MIN_QUALITY=" << m_ca_min_quality
                 << "  Basins=" << m_known_basins.size() << "\n";
@@ -1214,7 +1207,7 @@ namespace ofec {
             }
 
             // Phase 4: Refinement
-            std::cout << ">>> [MPM-CoEA v3] Phase 4: JointRefine\n";
+            std::cout << ">>> [MPM-CoEA] Phase 4: JointRefine\n";
             auto finals = collectCandidates();
             finals.resize(std::min(static_cast<int>(finals.size()), 120));
             for (size_t i = 0; i < finals.size(); ++i) {
@@ -1274,7 +1267,7 @@ namespace ofec {
             std::filesystem::create_directories(m_out_dir);
             std::ofstream out(m_out_dir + "/consensus_archive.txt");
             if (!out.is_open()) return;
-            out << "# Consensus Archive (v3 basin-tagged)\n"
+            out << "# Consensus Archive (basin-tagged)\n"
                 << "# x0..x(D-1) f0 f1 consensus\n"
                 << std::fixed << std::setprecision(6);
             for (size_t i = 0; i < m_ca.size(); ++i) {
@@ -1421,10 +1414,7 @@ namespace ofec {
             "E:\\HITSZ\\Research\\Multimodal_Multiparty_Optimization"
             "\\ThesisProject\\Visualization";
 
-        std::cout << " MPM-CoEA v3  Benchmark Suite\n"
-            << " Fix 1: Basin-tagged CA  | Fix 2: Dim-normalised eval\n"
-            << " Fix 3: Adaptive gens    | Fix 4: Uncovered-basin restart\n"
-            << " Fix 5: Dim-dep CA_MIN_Q\n";
+        std::cout << " MPM-CoEA Benchmark Suite\n";
 
         const std::vector<int>    suite_ids = { 1,2,3,4,5,6,7,8,9,10,11,12 };
         const std::vector<size_t> dimensions = { 2, 3, 5, 10 };
@@ -1509,7 +1499,7 @@ namespace ofec {
                 std::cout << "[INFO] CSV: " << csv_path << "\n";
             }
         }
-        std::cout << "\n>>> [MPM-CoEA v3 Suite] Complete.\n";
+        std::cout << "\n>>> [MPM-CoEA Suite] Complete.\n";
     }
 
     //  Entry point

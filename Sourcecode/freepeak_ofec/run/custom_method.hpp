@@ -13,7 +13,9 @@
 #include "../instance/problem/continuous/free_peaks/subproblem/subproblem.h"
 #include "../instance/problem/continuous/free_peaks/subproblem/function/one_peak_function.h"
 #include "../instance/problem/continuous/free_peaks/factory.h"
+#include "../instance/problem/continuous/free_peaks/free_peaks_multiparty.h"
 #include "mpmcoea_solver.hpp"
+#include <iomanip>
 
 
 namespace fs = std::filesystem;
@@ -206,25 +208,23 @@ void outputData(
     const std::vector<std::pair<std::string, std::vector<std::pair<std::string, double>>>>& a)
 {
     for (const auto& [parent, children] : a) {
-        std::cout << parent << ":\n";  // 打印父节点
+        std::cout << parent << ":\n";
         for (const auto& [child, value] : children) {
-            std::cout << "  " << child << " -> " << value << "\n";  // 打印子节点及值
+            std::cout << "  " << child << " -> " << value << "\n";
         }
-        std::cout << "\n";  // 每个父节点空一行，便于阅读
+        std::cout << "\n";
     }
 }
 
 
 
 
-// 网格采样函数
 void gridSampling(ofec::Environment* env, const std::string& filename,
     int grid_size = 1e2) {
 
     using namespace ofec;
 
 
-    // 获取问题域
     auto domain = CAST_CONOP(env->problem())->domain();
     int dim = domain.size();
 
@@ -241,26 +241,21 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
             << domain[idx].limit.second << "]" << std::endl;
     }
 
-    // 打开输出文件
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
         std::cerr << "Error opening file: " << filename << std::endl;
         return;
     }
 
-    // 设置输出精度
     outfile << std::fixed << std::setprecision(10);
 
-    // 写入文件头
     outfile << "x1,x2,f(x1,x2)" << std::endl;
 
-    // 获取变量范围
     double x1_min = domain[0].limit.first;
     double x1_max = domain[0].limit.second;
     double x2_min = domain[1].limit.first;
     double x2_max = domain[1].limit.second;
 
-    // 计算步长
     double dx1 = (x1_max - x1_min) / (grid_size - 1);
     double dx2 = (x2_max - x2_min) / (grid_size - 1);
 
@@ -270,13 +265,11 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
     std::cout << "x1 step: " << dx1 << std::endl;
     std::cout << "x2 step: " << dx2 << std::endl;
 
-    // 创建解决方案对象
     std::shared_ptr<ofec::SolutionBase> sol(env->problem()->createSolution());
     auto& solvec = dynamic_cast<ofec::Solution<>&>(*sol).variable().vector();
     int total_points = grid_size * grid_size;
     int current_point = 0;
 
-    // 网格采样
     std::cout << "\n=== Start Grid Sampling ===" << std::endl;
 
     for (int i = 0; i < grid_size; ++i) {
@@ -285,17 +278,13 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
         for (int j = 0; j < grid_size; ++j) {
             double x2 = x2_min + j * dx2;
 
-            // 设置变量值
             //std::vector<double> vars = { x1, x2 };
 
             solvec = { x1,x2 };
-            // 评估函数
             sol->evaluate(env, false);
 
-            // 写入文件
             outfile << x1 << "," << x2 << "," << sol->objective().front() << std::endl;
 
-            // 进度显示
             current_point++;
             if (current_point % (total_points / 10) == 0) {
                 std::cout << "Progress: "
@@ -528,7 +517,7 @@ void generateHandMadeFreePeak(const std::string& funname) {
 
             //subpro->recordInputParameters();
             freepeak->setSubproblem(subspace_name, subpro);
-          
+
 
 
 
@@ -621,16 +610,6 @@ namespace ofec {
     void run(int argc, char* argv[]) {
         using namespace ofec;
         using namespace std;
-        /*ofec::g_working_directory = "//172.24.207.203/share/2018/diaoyiya/ofec-data";
-        ofec::g_working_directory = "//172.29.41.69/share/2018/diaoyiya/ofec-data";
-        ofec::g_working_directory = "//172.29.204.109/share/Student/2018/YiyaDiao/code_total/data";
-        ofec::g_working_directory = "/home/lab408/share/2018/diaoyiya/ofec-data";
-        ofec::g_working_directory = "/mnt/Data/Student/2018/YiyaDiao/code_total/data";
-        //ofec::g_working_directory = "//172.24.24.151/e/DiaoYiya/code/data/ofec-data";
-        ofec::g_working_directory = "//172.24.242.8/share/Student/2018/YiyaDiao/code_total/data/";
-        ofec::g_working_directory = "E:/DiaoYiya/code/data/ofec-data/";
-        ofec::g_working_directory = "D:/code/Data/ofec_data/";*/
-
 
 
         // multiparty multiobjective
@@ -638,19 +617,138 @@ namespace ofec {
         // 
         ofec::g_working_directory = "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Data/ofec_data_new";
 
-        //ofec::g_working_directory = "/home/dyy/data/ofec_data/ofec_data/";
-        //ofec::g_working_directory = "/data/Share/Student/2018/diaoyiya/data/ofec_data/";
-      //  ofec::g_working_directory = "/mnt/dataShare/Student/2018/diaoyiya/data/ofec_data/";
 
         // Run the full MPMMO 2-D benchmark suite (F01–F08)
-        ofec::runBenchmarkSuite();
+        ofec::runMPMCoEAExperiment();
 
+    }
+}
 
+// outputFreePeaksMultipartyLandscape12
+//   Generates high-quality 2D landscape files for all 12 benchmark problems.
+void outputFreePeaksMultipartyLandscape12(const std::string& dir) {
+    using namespace ofec;
+    registerInstance();
+    const size_t dimension = 2;
+    const int grid_resolution = 400;
+    const std::filesystem::path output_root = dir +
+        "Visualization/free_peaks_multiparty/landscapes_12/D2";
+    std::filesystem::create_directories(output_root);
+    for (int suite_id = 1; suite_id <= 12; ++suite_id) {
+        std::shared_ptr<Environment> env(generateEnvironmentByFactory("free_peaks_multiparty"));
+        env->setProblem(generateProblemByFactory("free_peaks_multiparty"));
+        ParameterMap pm;
+        pm["suite_id"] = suite_id;
+        pm["problem_dimension"] = dimension;
+        env->problem()->inputParameters().input(pm);
+        env->initializeProblem(0.5);
+        auto* problem = dynamic_cast<FreePeaksMultiParty*>(env->problem());
+        if (!problem) throw std::runtime_error("free_peaks_multiparty initialization failed");
+        const auto& spec = problem->currentSpec();
+        std::filesystem::path suite_dir = output_root /
+            ("suite_" + std::to_string(suite_id) + "_" + spec.name);
+        std::filesystem::create_directories(suite_dir);
 
-        //std::string ofec_dir = OFEC_DIR;
-        //std::string savedir = "D:/code/multi_party_multi_modal/freepeak_ofec";
-        //std::string list_file = ofec_dir + std::string("/SrcFiles.cmake");
-        //copyFile(ofec_dir, list_file,savedir);
+        // 400x400 grid (j=x1 outer, i=x0 inner)
+        std::vector<std::shared_ptr<SolutionBase>> sols;
+        std::vector<std::vector<double>> indiObjs;
+        sols.reserve(static_cast<size_t>(grid_resolution) * grid_resolution);
+        indiObjs.reserve(static_cast<size_t>(grid_resolution) * grid_resolution);
+        for (int j = 0; j < grid_resolution; ++j) {
+            for (int i = 0; i < grid_resolution; ++i) {
+                const Real x0 = static_cast<Real>(i) / static_cast<Real>(grid_resolution - 1);
+                const Real x1 = static_cast<Real>(j) / static_cast<Real>(grid_resolution - 1);
+                std::shared_ptr<SolutionBase> sol(problem->createSolution());
+                auto& var = dynamic_cast<Solution<VariableVector<Real>>&>(*sol).variable().vector();
+                var[0] = x0;
+                var[1] = x1;
+                sol->evaluate(env.get(), false);
+                indiObjs.emplace_back(sol->objective());
+                sols.emplace_back(sol);
+            }
+        }
+
+        // Fast O(N log N) Pareto ranking for 2 maximization objectives.
+        // Equivalent output to filterSortP (0-indexed, 0 = non-dominated = best front)
+        // but runs in ~1s instead of hours on 160k points.
+        //
+        // Algorithm: sort by f0 DESC (ties: f1 ASC so equal-f0 points don't dominate each other).
+        // Maintain front_max_f1[r] = current max f1 in front r (strictly decreasing across fronts).
+        // Each point goes into the lowest front r where front_max_f1[r] < f1[point].
+        const int N = static_cast<int>(indiObjs.size());
+        std::vector<int> rank(N, 0);
+        {
+            std::vector<int> idx(N);
+            std::iota(idx.begin(), idx.end(), 0);
+            std::sort(idx.begin(), idx.end(), [&](int a, int b) {
+                if (indiObjs[a][0] != indiObjs[b][0]) return indiObjs[a][0] > indiObjs[b][0];
+                return indiObjs[a][1] < indiObjs[b][1]; // ties: f1 asc avoids false dominance
+                });
+            std::vector<double> front_max_f1; // strictly decreasing
+            for (int k = 0; k < N; ++k) {
+                const int id = idx[k];
+                const double f1 = indiObjs[id][1];
+                // Binary search: lowest r where front_max_f1[r] < f1
+                int lo = 0, hi = static_cast<int>(front_max_f1.size());
+                while (lo < hi) {
+                    const int mid = (lo + hi) / 2;
+                    if (front_max_f1[mid] < f1) hi = mid;
+                    else lo = mid + 1;
+                }
+                rank[id] = lo;
+                if (lo == static_cast<int>(front_max_f1.size()))
+                    front_max_f1.push_back(f1);
+                else
+                    front_max_f1[lo] = std::max(front_max_f1[lo], f1);
+            }
+        }
+
+        // Write grid_2d.tsv
+        std::ofstream grid_f(suite_dir / "grid_2d.tsv");
+        grid_f << std::fixed << std::setprecision(10);
+        grid_f << "i\tj\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tp1_obj\tp2_obj\trank\n";
+        for (int j = 0; j < grid_resolution; ++j) {
+            for (int i = 0; i < grid_resolution; ++i) {
+                const int idx = j * grid_resolution + i;
+                const auto& var = dynamic_cast<const Solution<VariableVector<Real>>&>(*sols[idx]).variable().vector();
+                grid_f << i << '\t' << j << '\t'
+                    << var[0] << '\t' << var[1] << '\t'
+                    << (var[0] * 7.0 - 3.5) << '\t'
+                    << (var[1] * 7.0 - 3.5) << '\t'
+                    << sols[idx]->objective(0) << '\t'
+                    << sols[idx]->objective(1) << '\t'
+                    << rank[idx] << "\n";
+            }
+        }
+
+        // Write optima_2d.tsv
+        std::ofstream optima_f(suite_dir / "optima_2d.tsv");
+        optima_f << std::fixed << std::setprecision(10);
+        optima_f << "idx\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tp1_obj\tp2_obj\trank\n";
+        if (problem->optima()) {
+            for (size_t opt_id = 0; opt_id < problem->optima()->numberSolutions(); ++opt_id) {
+                const auto& opt_sol = problem->optima()->solution(opt_id);
+                const auto& opt_var = opt_sol.variable().vector();
+                optima_f << opt_id << '\t'
+                    << opt_var[0] << '\t' << opt_var[1] << '\t'
+                    << (opt_var[0] * 7.0 - 3.5) << '\t'
+                    << (opt_var[1] * 7.0 - 3.5) << '\t'
+                    << opt_sol.objective(0) << '\t'
+                    << opt_sol.objective(1) << '\t'
+                    << 0 << "\n";
+            }
+        }
+
+        // Write run_info.txt
+        std::ofstream info_f(suite_dir / "run_info.txt");
+        info_f << "suite " << suite_id << "\n";
+        info_f << "name " << spec.name << "\n";
+        info_f << "feature " << spec.feature << "\n";
+        info_f << "dimension " << dimension << "\n";
+        info_f << "grid_resolution " << grid_resolution << "\n";
+        info_f << "rank_definition nondominated_sort_rank_fast2obj_best_front_is_0\n";
+        std::cout << "[landscape] suite " << suite_id << " " << spec.name
+            << " -> " << suite_dir.string() << "\n";
     }
 }
 

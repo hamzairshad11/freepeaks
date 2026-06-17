@@ -775,8 +775,7 @@ namespace ofec {
         const auto& spec = currentSpec();
         for (const auto& pt : spec.shared_optima) {
             Solution<> sol(numberObjectives(), numberConstraints(), numberVariables());
-            for (size_t d = 0; d < numberVariables(); ++d)
-                sol.variable()[d] = d < pt.size() ? pt[d] : Real(0.5);
+            sol.variable().vector() = pt;
             evaluate(sol.variable(), sol.objective(), sol.constraint());
             new_optima->appendSolution(sol);
         }

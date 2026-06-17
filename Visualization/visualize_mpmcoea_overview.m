@@ -1,83 +1,71 @@
 %% MPM-CoEA FreePeaks Overview Visualization
+%   grid_2d.tsv   -- 400x400 grid, columns: i j x0_norm x1_norm x0_plot x1_plot p1_obj p2_obj rank
+%   optima_2d.tsv -- shared optima, columns: idx x0_norm x1_norm x0_plot x1_plot p1_obj p2_obj rank
+%   Pareto rank (0=non-dominated best front), computed via fast O(N log N) 2-obj algorithm.
 
-function visualize_mpmcoea_overview(vis_base, output_dir)
+function visualize_mpmcoea_overview(landscape_base, output_dir)
     if nargin < 1
-        vis_base = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization';
+        landscape_base = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\free_peaks_multiparty\landscapes_12\D2';
     end
     if nargin < 2
-        output_dir = fullfile(vis_base, 'figures');
+        output_dir = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\figures';
     end
     if ~exist(output_dir, 'dir'), mkdir(output_dir); end
 
-    plasma_map = build_plasma();
+    plasma_map  = build_plasma();
     cividis_map = build_cividis();
     viridis_map = build_viridis();
 
-    % Problem definitions (P1-P12)
-    % Map directory names to problem labels
-    problem_names = {
-        'mpmcoea_P1_D2',  'mpmcoea_P2_D2',  'mpmcoea_P3_D2',  'mpmcoea_P4_D2';
-        'mpmcoea_P5_D2',  'mpmcoea_P6_D2',  'mpmcoea_P7_D2',  'mpmcoea_P8_D2';
-        'mpmcoea_P9_D2',  'mpmcoea_P10_D2', 'mpmcoea_P11_D2', 'mpmcoea_P12_D2'
+    % Suite directory names — match C++ suite() spec names
+    suite_names = {
+        'suite_1_p1_balanced',             'suite_2_p2_unequal_basins',              'suite_3_p3_local_conflict',              'suite_4_p4_rugged';
+        'suite_5_p5_rotated',              'suite_6_p6_deceptive',                   'suite_7_p7_hierarchical',                'suite_8_p8_disconnected';
+        'suite_9_p9_twenty_shared_optima', 'suite_10_p10_rotated_rugged_deceptive',  'suite_11_p11_hierarchical_disconnected', 'suite_12_p12_full_mixed_multimodal'
     };
 
     problem_labels = {
-        'S1 p1 balanced',        'S2 p2 unequal basins',   'S3 p3 local conflict',  'S4 p4 rugged';
-        'S5 p5 rotated',         'S6 p6 deceptive',        'S7 p7 hierarchical',    'S8 p8 disconnected';
+        'S1 p1 balanced',             'S2 p2 unequal basins',             'S3 p3 local conflict',              'S4 p4 rugged';
+        'S5 p5 rotated',              'S6 p6 deceptive',                  'S7 p7 hierarchical',                'S8 p8 disconnected';
         'S9 p9 twenty shared optima', 'S10 p10 rotated-rugged deceptive', 'S11 p11 hierarchical disconnected', 'S12 p12 full mixed multimodal'
     };
 
-    % Ground-truth optima (8 peaks, normalized to [0,1])
-    centers = [ 0    0    0    0;
-                40  -30   35  -25;
-               -50   40  -45   35;
-                25   25   25   25;
-               -30  -30  -30  -30;
-                60  -50   55  -45;
-               -20   60  -15   55;
-                80   80   75   80 ];
-    cNorm = (centers + 100) / 200;  % normalized to [0,1]
-
-    % Figure 1: Party-0 Objective Landscapes
+    % Figure 1: Party-0 Objective Landscapes (grid_2d.tsv col 7 = p1_obj)
     fprintf('Generating Figure 1: Party-0 Objective Landscapes...\n');
     fig1 = figure('Color','w','Position',[50 50 1600 1200]);
     for i = 1:12
         [row, col] = ind2sub([3, 4], i);
         ax = subplot(3, 4, i);
-        pdir = fullfile(vis_base, problem_names{row, col});
-        f0_file = fullfile(pdir, 'landscape_f0.txt');
-        plot_landscape_panel(ax, f0_file, problem_labels{row, col}, 'plasma', cNorm, plasma_map, cividis_map);
+        pdir = fullfile(landscape_base, suite_names{row, col});
+        plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'plasma', 7, plasma_map, cividis_map);
     end
     sgtitle('FreePeaks Multi-party 2D p1-p12: Party-0 objective landscapes', ...
             'FontSize',16,'FontWeight','bold');
     save_overview_fig(fig1, fullfile(output_dir, 'fig1_party0_landscapes.png'));
 
-    % Figure 2: Party-1 Objective Landscapes
+    % Figure 2: Party-1 Objective Landscapes (grid_2d.tsv col 8 = p2_obj)
     fprintf('Generating Figure 2: Party-1 Objective Landscapes...\n');
     fig2 = figure('Color','w','Position',[60 60 1600 1200]);
     for i = 1:12
         [row, col] = ind2sub([3, 4], i);
         ax = subplot(3, 4, i);
-        pdir = fullfile(vis_base, problem_names{row, col});
-        f1_file = fullfile(pdir, 'landscape_f1.txt');
-        plot_landscape_panel(ax, f1_file, problem_labels{row, col}, 'cividis', cNorm, plasma_map, cividis_map);
+        pdir = fullfile(landscape_base, suite_names{row, col});
+        plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'cividis', 8, plasma_map, cividis_map);
     end
     sgtitle('FreePeaks Multi-party 2D p1-p12: Party-1 objective landscapes', ...
             'FontSize',16,'FontWeight','bold');
     save_overview_fig(fig2, fullfile(output_dir, 'fig2_party1_landscapes.png'));
 
-    % Figure 3: Two-Objective Rank Landscapes
+    % Figure 3: Pareto Rank Landscapes (grid_2d.tsv col 9 = rank, 0=non-dominated)
     fprintf('Generating Figure 3: Two-Objective Rank Landscapes...\n');
     fig3 = figure('Color','w','Position',[70 70 1600 1200]);
     for i = 1:12
         row = ceil(i / 4);
         col = mod(i - 1, 4) + 1;
         ax = subplot(3, 4, i);
-        pdir = fullfile(vis_base, problem_names{row, col});
-        rank_file = fullfile(pdir, 'landscape_rank.txt');
-        plot_rank_panel(ax, rank_file, problem_labels{row, col}, cNorm, viridis_map);
+        pdir = fullfile(landscape_base, suite_names{row, col});
+        plot_rank_panel(ax, pdir, problem_labels{row, col}, viridis_map);
     end
-    sgtitle('FreePeaks Multi-party 2D p1-p12: bi-objective Pareto rank landscapes', ...
+    sgtitle('FreePeaks Multi-party 2D p1-p12: Pareto Rank Landscapes (rank 0 = non-dominated)', ...
             'FontSize',16,'FontWeight','bold');
     save_overview_fig(fig3, fullfile(output_dir, 'fig3_rank_landscapes.png'));
 
@@ -87,12 +75,11 @@ end
 
 %  PANEL PLOTTERS
 
-function plot_landscape_panel(ax, filepath, title_str, cmap_name, cNorm, plasma_map, cividis_map)
-% Plot a single landscape panel with optima markers
-    [X, Y, Z] = load_landscape(filepath);
+function plot_landscape_panel(ax, pdir, title_str, cmap_name, col_idx, plasma_map, cividis_map)
+% col_idx: 7 = party-0 objective, 8 = party-1 objective
+    [X, Y, Z] = load_landscape(pdir, col_idx);
 
     if isempty(X)
-        % Empty or missing data
         axis(ax, 'off');
         text(ax, 0.5, 0.5, 'No data', 'Units','normalized', ...
              'HorizontalAlignment','center', 'FontSize',10);
@@ -100,7 +87,6 @@ function plot_landscape_panel(ax, filepath, title_str, cmap_name, cNorm, plasma_
         return;
     end
 
-    % Filled contour
     contourf(ax, X, Y, Z, 30, 'LineColor','none');
     if strcmp(cmap_name, 'plasma')
         colormap(ax, plasma_map);
@@ -110,37 +96,31 @@ function plot_landscape_panel(ax, filepath, title_str, cmap_name, cNorm, plasma_
         colormap(ax, cmap_name);
     end
 
-    % Colorbar with tight layout
     cb = colorbar(ax, 'Location','eastoutside');
     cb.FontSize = 7;
 
-    % Ground-truth optima markers (first 2 dims only for 2D view)
+    cNorm = load_optima(pdir);
     hold(ax, 'on');
     for j = 1:size(cNorm, 1)
-        x = cNorm(j, 1);
-        y = cNorm(j, 2);
+        x = cNorm(j, 1); y = cNorm(j, 2);
         if x >= 0 && x <= 1 && y >= 0 && y <= 1
             scatter(ax, x, y, 60, 'g', '*', 'LineWidth', 1.2);
         end
     end
     hold(ax, 'off');
 
-    % Labels and styling
     xlabel(ax, 'x0', 'FontSize',8);
     ylabel(ax, 'x1', 'FontSize',8);
     title(ax, title_str, 'FontSize',9, 'FontWeight','bold');
-    ax.Box = 'on';
-    ax.FontSize = 8;
-    ax.XTick = 0:0.2:1;
-    ax.YTick = 0:0.2:1;
-    axis(ax, 'equal');
-    axis(ax, 'tight');
+    ax.Box = 'on'; ax.FontSize = 8;
+    ax.XTick = 0:0.2:1; ax.YTick = 0:0.2:1;
+    axis(ax, 'equal'); axis(ax, 'tight');
 end
 
 
-function plot_rank_panel(ax, filepath, title_str, cNorm, viridis_map)
-% Plot rank landscape with log-scale colorbar and optima markers
-    [X, Y, Z] = load_landscape(filepath);
+function plot_rank_panel(ax, pdir, title_str, viridis_map)
+% Rank is 0-indexed (0 = non-dominated = best). Log transform: log10(rank+1).
+    [X, Y, Z] = load_landscape(pdir, 9);
 
     if isempty(X)
         axis(ax, 'off');
@@ -150,55 +130,77 @@ function plot_rank_panel(ax, filepath, title_str, cNorm, viridis_map)
         return;
     end
 
-    % Apply log10 transform for rank (add small epsilon to avoid log(0))
-    Zlog = log10(Z + 0.693);
+    Zlog = log10(Z + 1);   % rank 0 -> 0 (darkest/best), higher ranks -> brighter
 
-    % Filled contour with viridis
     contourf(ax, X, Y, Zlog, 25, 'LineColor','none');
     colormap(ax, viridis_map);
 
-    % Colorbar with log label
     cb = colorbar(ax, 'Location','eastoutside');
-    cb.Label.String = 'Pareto rank (log_{10})';
+    cb.Label.String = 'Pareto rank (log_{10}(rank+1))';
     cb.Label.FontSize = 8;
     cb.Label.Interpreter = 'tex';
     cb.FontSize = 7;
 
-    % Ground-truth optima markers
+    cNorm = load_optima(pdir);
     hold(ax, 'on');
     for j = 1:size(cNorm, 1)
-        x = cNorm(j, 1);
-        y = cNorm(j, 2);
+        x = cNorm(j, 1); y = cNorm(j, 2);
         if x >= 0 && x <= 1 && y >= 0 && y <= 1
             scatter(ax, x, y, 60, 'g', '*', 'LineWidth', 1.2);
         end
     end
     hold(ax, 'off');
 
-    % Labels and styling
-    xlabel(ax, 'x0', 'FontSize',8);
-    ylabel(ax, 'x1', 'FontSize',8);
+    xlabel(ax, 'x0', 'FontSize',8); ylabel(ax, 'x1', 'FontSize',8);
     title(ax, title_str, 'FontSize',9, 'FontWeight','bold');
-    ax.Box = 'on';
-    ax.FontSize = 8;
-    ax.XTick = 0:0.2:1;
-    ax.YTick = 0:0.2:1;
-    axis(ax, 'equal');
-    axis(ax, 'tight');
+    ax.Box = 'on'; ax.FontSize = 8;
+    ax.XTick = 0:0.2:1; ax.YTick = 0:0.2:1;
+    axis(ax, 'equal'); axis(ax, 'tight');
 end
 
 
 %  HELPERS
 
-function [X, Y, Z] = load_landscape(filepath)
-% Load 3-column landscape file (x y value) and reshape to grid
-    X = []; Y = []; Z = [];
-    if ~isfile(filepath)
+function cNorm = load_optima(pdir)
+% Reads optima_2d.tsv (tab-separated, 1 header line).
+% Columns: idx x0_norm x1_norm x0_plot x1_plot p1_obj p2_obj rank
+% Returns Nx2 matrix of [x0_norm x1_norm] (MATLAB cols 2,3).
+    cNorm = zeros(0, 2);
+    fpath = fullfile(pdir, 'optima_2d.tsv');
+    if ~isfile(fpath)
+        fprintf('[WARN] optima_2d.tsv not found: %s\n', fpath);
         return;
     end
+    try
+        data = importdata(fpath, '\t', 1);
+        if isstruct(data) && isfield(data, 'data')
+            M = data.data;
+        elseif isnumeric(data)
+            M = data;
+        else
+            return;
+        end
+        if ~isempty(M) && size(M, 2) >= 3
+            cNorm = M(:, 2:3);   % x0_norm, x1_norm
+        end
+    catch ME
+        fprintf('[WARN] Failed to load %s: %s\n', fpath, ME.message);
+    end
+end
+
+
+function [X, Y, Z] = load_landscape(pdir, col_idx)
+% Reads grid_2d.tsv (tab-separated, 1 header line, j-outer i-inner loop order).
+% Columns: i(1) j(2) x0_norm(3) x1_norm(4) x0_plot(5) x1_plot(6) p1_obj(7) p2_obj(8) rank(9)
+% col_idx: 7=party-0, 8=party-1, 9=rank.
+%       Transpose after reshape so that X increases along columns (x-axis)
+%       and Y increases along rows (y-axis) as contourf expects.
+    X = []; Y = []; Z = [];
+    filepath = fullfile(pdir, 'grid_2d.tsv');
+    if ~isfile(filepath), return; end
 
     try
-        data = importdata(filepath);
+        data = importdata(filepath, '\t', 1);
         if isstruct(data) && isfield(data, 'data')
             M = data.data;
         elseif isnumeric(data)
@@ -210,20 +212,27 @@ function [X, Y, Z] = load_landscape(filepath)
         return;
     end
 
-    if isempty(M) || size(M, 2) < 3
+    if isempty(M) || size(M, 2) < col_idx
         return;
     end
 
-    x = M(:, 1); y = M(:, 2); v = M(:, 3);
+    x = M(:, 3);        % x0_norm
+    y = M(:, 4);        % x1_norm
+    v = M(:, col_idx);
+
     n = round(sqrt(numel(x)));
     if n * n ~= numel(x)
         fprintf('[WARN] Grid size mismatch in: %s\n', filepath);
         return;
     end
 
-    X = reshape(x, n, n);
-    Y = reshape(y, n, n);
-    Z = reshape(v, n, n);
+    % C++ loop: j outer (x1 slow), i inner (x0 fast).
+    % reshape(v, n, n) fills column-by-column in MATLAB, so:
+    %   col k holds data for j=k-1 (all i=0..n-1) -> x0 varies along rows, x1 along cols.
+    % Transpose so that x0 varies along cols and x1 along rows (standard for contourf).
+    X = reshape(x, n, n)';
+    Y = reshape(y, n, n)';
+    Z = reshape(v, n, n)';
 end
 
 

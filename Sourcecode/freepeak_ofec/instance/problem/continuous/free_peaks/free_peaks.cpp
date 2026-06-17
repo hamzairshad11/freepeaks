@@ -97,8 +97,7 @@ namespace ofec {
 			}
 			m_objective_accuracy = 1e-3;
 		}
-		else if (m_number_objectives > 1) {
-			//      ÿ   ӿռ ķ ֮    в      ٽ       
+		else if (m_number_objectives > 1) {     
 			for (auto& it : m_subspace_tree.name_box_subproblem) {
 				if (it.second.second == nullptr)
 					continue;
@@ -113,8 +112,7 @@ namespace ofec {
 				}
 				std::vector<std::vector<Real>> sampling_sols;
 				sampleAmongPoints(subspace_peak_pos, sampling_sols);
-			}
-			////      ÿ   ӿռ ķ ֮    в      ٽ       
+			}      
 			//for (auto& it : m_subspace_tree.name_box_subproblem) {
 			//	if (it.second.second == nullptr)
 			//		continue;
