@@ -1,7 +1,4 @@
 %% MPM-CoEA FreePeaks Overview Visualization
-%   grid_2d.tsv   -- 400x400 grid, columns: i j x0_norm x1_norm x0_plot x1_plot p1_obj p2_obj rank
-%   optima_2d.tsv -- shared optima, columns: idx x0_norm x1_norm x0_plot x1_plot p1_obj p2_obj rank
-%   Pareto rank (0=non-dominated best front), computed via fast O(N log N) 2-obj algorithm.
 
 function visualize_mpmcoea_overview(landscape_base, output_dir)
     if nargin < 1
@@ -16,7 +13,7 @@ function visualize_mpmcoea_overview(landscape_base, output_dir)
     cividis_map = build_cividis();
     viridis_map = build_viridis();
 
-    % Suite directory names — match C++ suite() spec names
+    % Suite directory names
     suite_names = {
         'suite_1_p1_balanced',             'suite_2_p2_unequal_basins',              'suite_3_p3_local_conflict',              'suite_4_p4_rugged';
         'suite_5_p5_rotated',              'suite_6_p6_deceptive',                   'suite_7_p7_hierarchical',                'suite_8_p8_disconnected';
@@ -33,7 +30,8 @@ function visualize_mpmcoea_overview(landscape_base, output_dir)
     fprintf('Generating Figure 1: Party-0 Objective Landscapes...\n');
     fig1 = figure('Color','w','Position',[50 50 1600 1200]);
     for i = 1:12
-        [row, col] = ind2sub([3, 4], i);
+        row = ceil(i / 4);
+        col = mod(i - 1, 4) + 1;
         ax = subplot(3, 4, i);
         pdir = fullfile(landscape_base, suite_names{row, col});
         plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'plasma', 7, plasma_map, cividis_map);
@@ -46,7 +44,8 @@ function visualize_mpmcoea_overview(landscape_base, output_dir)
     fprintf('Generating Figure 2: Party-1 Objective Landscapes...\n');
     fig2 = figure('Color','w','Position',[60 60 1600 1200]);
     for i = 1:12
-        [row, col] = ind2sub([3, 4], i);
+        row = ceil(i / 4);
+        col = mod(i - 1, 4) + 1;
         ax = subplot(3, 4, i);
         pdir = fullfile(landscape_base, suite_names{row, col});
         plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'cividis', 8, plasma_map, cividis_map);
