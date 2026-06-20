@@ -6,11 +6,11 @@ dim            2
 nopt           20
 # strict eps_x=0.01 eps_f=1.0
 SR_strict      0.0000
-ANOF_strict    17.0000
-MPR_strict     0.8500
+ANOF_strict    18.0000
+MPR_strict     0.9000
 # loose  eps_x=0.05 eps_f=2.0
 SR_loose       0.0000
-ANOF_loose     19.0000
-MPR_loose      0.9500
-ca_size        95
+ANOF_loose     18.0000
+MPR_loose      0.9000
+ca_size        111
 best_consensus 89.9983

@@ -447,7 +447,8 @@ void generateHandMadeFreePeak(const std::string& funname) {
             // each subpro has one function.
             {
 
-                // there are no parameters to set for Euclidean distance, but the following step can not be ingored , because the register name will be saved.
+                // there are no parameters to set for Euclidean distance, but the following step can not be ingored ,
+                // because the register name will be saved.
                 ParameterMap fun_param;
                 fun_param["generation_type"] = std::string("assigned");
                 fun_param["dataFile1"] = dirname + "/" + subspace_name + "_onepeak" + ".txt";

@@ -13,4 +13,4 @@ SR_loose       0.0000
 ANOF_loose     0.0000
 MPR_loose      0.0000
 ca_size        0
-best_consensus 0.0000
+best_consensus 0.0001

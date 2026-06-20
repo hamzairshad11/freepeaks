@@ -12,5 +12,5 @@ MPR_strict     0.0000
 SR_loose       0.0000
 ANOF_loose     0.0000
 MPR_loose      0.0000
-ca_size        7
-best_consensus 85.6463
+ca_size        0
+best_consensus 0.0312

@@ -1,5 +1,5 @@
-# gen=300 party=1 competing pops
-# subpop x0..x(D-1) party_fit
+# gen=300 party=1
+# sp x0..x(D-1) party_fit
 0 0.109538 0.296997 79.950277
 1 0.092140 0.322993 79.823274
 2 0.301016 0.497724 79.355449

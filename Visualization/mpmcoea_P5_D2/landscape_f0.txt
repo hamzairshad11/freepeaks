@@ -1,4 +1,4 @@
-# Party-0 landscape F0(x) D=2
+# Party-1 landscape F0(x) D=2
 # x0 x1 value
 0.000000 0.000000 19.888007
 0.000000 0.010101 19.888007

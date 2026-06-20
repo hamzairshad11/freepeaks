@@ -1,4 +1,4 @@
-# Party-1 landscape F1(x) D=5 (slice: x0-x1, others=0.5)
+# Party-2 landscape F1(x) D=5 (slice: x0-x1, others=0.5)
 # x0 x1 value
 0.000000 0.000000 11.400919
 0.000000 0.010101 11.400919

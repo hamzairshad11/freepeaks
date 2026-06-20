@@ -1,4 +1,4 @@
-# gen=300 Consensus Archive size=138
+# gen=300 CA size=138
 # x0..x(D-1) consensus
 0.162734 0.360468 88.430697
 0.853266 0.651404 24.300073

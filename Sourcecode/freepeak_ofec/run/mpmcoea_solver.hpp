@@ -1002,8 +1002,8 @@ namespace ofec {
                         f << grid[k].x0 << " " << grid[k].x1 << " " << val(k) << "\n";
                 };
 
-            write("landscape_f0.txt", "# Party-0 landscape F0(x)", [&](size_t k) { return grid[k].f0; });
-            write("landscape_f1.txt", "# Party-1 landscape F1(x)", [&](size_t k) { return grid[k].f1; });
+            write("landscape_f0.txt", "# Party-1 landscape F0(x)", [&](size_t k) { return grid[k].f0; });
+            write("landscape_f1.txt", "# Party-2 landscape F1(x)", [&](size_t k) { return grid[k].f1; });
             write("landscape_consensus.txt", "# Consensus C(x)=min(F0,F1)", [&](size_t k) { return grid[k].cons; });
             write("landscape_rank.txt", "# Two-objective rank landscape", [&](size_t k) { return static_cast<double>(prank[k]); });
 
@@ -1425,7 +1425,7 @@ namespace ofec {
             for (size_t d : dimensions) {
                 // Adaptive budget - 2D converges fast, high-D needs more time
                 int gens;
-                if (d <= 2)  gens = 200;
+                if (d <= 2)  gens = 300;
                 else if (d <= 5)  gens = 500;
                 else              gens = 800;
                 instances.push_back({ sid, d, gens });

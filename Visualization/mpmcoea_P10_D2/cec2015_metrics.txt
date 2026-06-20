@@ -13,4 +13,4 @@ SR_loose       100.0000
 ANOF_loose     6.0000
 MPR_loose      1.0000
 ca_size        200
-best_consensus 89.9993
+best_consensus 89.9990

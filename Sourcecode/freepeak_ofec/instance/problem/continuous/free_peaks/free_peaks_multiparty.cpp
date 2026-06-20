@@ -222,7 +222,7 @@ namespace ofec {
             peak.linkage = std::min(peak.linkage, max_linkage);
             peak.asymmetry = std::min(peak.asymmetry, max_asymmetry);
             peak.deceptive = std::min(peak.deceptive, max_deceptive);
-        };
+            };
 
         std::array<std::vector<std::string>, 2> leaf_names;
         for (size_t party = 0; party < 2; ++party) {
@@ -267,7 +267,6 @@ namespace ofec {
                     const size_t mode = (shared_count + party) % 3;
                     peak.radius = (party == 0 ? 34 + 26 * mode : 96 - 20 * mode) + 22 * unit();
                     peak.condition = 1.0 + (party == 0 ? mode : 2 - mode) * 1.6 + 2.5 * unit();
-                    peak.height = 88 + 3 * unit();
                 }
                 if (id == 2) {
                     const size_t mode = shared_count % 4;
@@ -428,12 +427,13 @@ namespace ofec {
                     }
                 }
                 tuneForVisibleBasins(peak, id);
+                peak.height = Real(90);  // shared optima always at exactly 90
                 spec.parties[party].peaks.push_back(peak);
             }
             ++shared_count;
         }
 
-        std::array<int, 2> p6_neighbor_deceptive_done { 0, 0 };
+        std::array<int, 2> p6_neighbor_deceptive_done{ 0, 0 };
         for (size_t party = 0; party < 2; ++party) {
             for (size_t i = 0; i < leaf_names[party].size(); ++i) {
                 if ((party == 0 && used0[i]) || (party == 1 && used1[i])) continue;
@@ -607,6 +607,7 @@ namespace ofec {
                     }
                 }
                 tuneForVisibleBasins(peak, id);
+                if (peak.height >= Real(90)) peak.height = Real(89);  // private peaks must not reach 90
                 spec.parties[party].peaks.push_back(peak);
             }
         }
@@ -625,7 +626,7 @@ namespace ofec {
         m_file_name = "multiparty/free_peaks_multiparty_suite_" + std::to_string(m_suite_id)
             + "_D" + std::to_string(m_problem_dimension) + ".txt";
         m_party_trees.clear();
-		m_party_trees.resize(2);
+        m_party_trees.resize(2);
         m_current_spec = makeRandomSuiteSpec();
         for (size_t p = 0; p < 2; ++p) {
             setPartyKDTree(p, m_current_spec.parties[p].tree);

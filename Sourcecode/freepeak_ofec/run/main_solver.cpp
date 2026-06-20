@@ -5,8 +5,8 @@
 int main() {
     try {
         // Step 1: Run the algorithm experiment (all 12 problems, 4 dims)
-        std::cout << ">>> [MPM-CoEA] Starting Experiment with Visualization\n" << std::endl;
-        ofec::runMPMCoEAExperiment();
+        //std::cout << ">>> [MPM-CoEA] Starting Experiment with Visualization\n" << std::endl;
+        //ofec::runMPMCoEAExperiment();
 
         // Step 2: Generate high-quality benchmark landscape files (D=2 only)
         // Produces grid_2d.tsv (400x400) + optima_2d.tsv for each of the 12 suites.

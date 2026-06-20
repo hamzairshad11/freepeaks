@@ -21,13 +21,13 @@ function visualize_mpmcoea_overview(landscape_base, output_dir)
     };
 
     problem_labels = {
-        'S1 p1 balanced',             'S2 p2 unequal basins',             'S3 p3 local conflict',              'S4 p4 rugged';
-        'S5 p5 rotated',              'S6 p6 deceptive',                  'S7 p7 hierarchical',                'S8 p8 disconnected';
-        'S9 p9 twenty shared optima', 'S10 p10 rotated-rugged deceptive', 'S11 p11 hierarchical disconnected', 'S12 p12 full mixed multimodal'
+        'P01',             'P02',             'P03',              'P04';
+        'P05',             'P06',             'P07',              'P08';
+        'P09',             'P10',             'P11',              'P12'
     };
 
-    % Figure 1: Party-0 Objective Landscapes (grid_2d.tsv col 7 = p1_obj)
-    fprintf('Generating Figure 1: Party-0 Objective Landscapes...\n');
+    % Figure 1: Party-1 Objective Landscapes (grid_2d.tsv col 7 = p1_obj)
+    fprintf('Generating Figure 1: Party-1 Objective Landscapes...\n');
     fig1 = figure('Color','w','Position',[50 50 1600 1200]);
     for i = 1:12
         row = ceil(i / 4);
@@ -36,12 +36,12 @@ function visualize_mpmcoea_overview(landscape_base, output_dir)
         pdir = fullfile(landscape_base, suite_names{row, col});
         plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'plasma', 7, plasma_map, cividis_map);
     end
-    sgtitle('FreePeaks Multi-party 2D p1-p12: Party-0 objective landscapes', ...
+    sgtitle('FreePeaks Multi-party 2D p1-p12: Party-1 objective landscapes', ...
             'FontSize',16,'FontWeight','bold');
-    save_overview_fig(fig1, fullfile(output_dir, 'fig1_party0_landscapes.png'));
+    save_overview_fig(fig1, fullfile(output_dir, 'fig1_party1_landscapes.png'));
 
-    % Figure 2: Party-1 Objective Landscapes (grid_2d.tsv col 8 = p2_obj)
-    fprintf('Generating Figure 2: Party-1 Objective Landscapes...\n');
+    % Figure 2: Party-2 Objective Landscapes (grid_2d.tsv col 8 = p2_obj)
+    fprintf('Generating Figure 2: Party-2 Objective Landscapes...\n');
     fig2 = figure('Color','w','Position',[60 60 1600 1200]);
     for i = 1:12
         row = ceil(i / 4);
@@ -50,9 +50,9 @@ function visualize_mpmcoea_overview(landscape_base, output_dir)
         pdir = fullfile(landscape_base, suite_names{row, col});
         plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'cividis', 8, plasma_map, cividis_map);
     end
-    sgtitle('FreePeaks Multi-party 2D p1-p12: Party-1 objective landscapes', ...
+    sgtitle('FreePeaks Multi-party 2D p1-p12: Party-2 objective landscapes', ...
             'FontSize',16,'FontWeight','bold');
-    save_overview_fig(fig2, fullfile(output_dir, 'fig2_party1_landscapes.png'));
+    save_overview_fig(fig2, fullfile(output_dir, 'fig2_party2_landscapes.png'));
 
     % Figure 3: Pareto Rank Landscapes (grid_2d.tsv col 9 = rank, 0=non-dominated)
     fprintf('Generating Figure 3: Two-Objective Rank Landscapes...\n');
@@ -75,7 +75,7 @@ end
 %  PANEL PLOTTERS
 
 function plot_landscape_panel(ax, pdir, title_str, cmap_name, col_idx, plasma_map, cividis_map)
-% col_idx: 7 = party-0 objective, 8 = party-1 objective
+% col_idx: 7 = party-1 objective, 8 = party-2 objective
     [X, Y, Z] = load_landscape(pdir, col_idx);
 
     if isempty(X)
