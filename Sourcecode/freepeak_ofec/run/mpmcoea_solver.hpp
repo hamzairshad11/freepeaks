@@ -1,5 +1,5 @@
-#ifndef OFEC_MPMMCOEA_SOLVER_HPP
-#define OFEC_MPMMCOEA_SOLVER_HPP
+#ifndef OFEC_MPMCOEA_SOLVER_HPP
+#define OFEC_MPMCOEA_SOLVER_HPP
 
 #include "../core/global.h"
 #include "interface.h"
@@ -116,7 +116,18 @@ namespace ofec {
             return evaluate(x).obj[static_cast<size_t>(p)];
         }
 
-        //  Dimension-normalised party evaluation for Phase 1b search
+        //  Dimension-normalised party evaluation for Phase 1b search.
+        //
+        //  Gaussian peaks exp(-r^2 / 2*sig^2) become exponentially narrow in
+        //  high D: at a fixed distance from the peak centre, fitness drops as
+        //  exp(-D*delta^2 / 2*sig^2). For D=10 the peaks are invisible to DE.
+        //
+        //  Rescaling:  f_adj = 100 * (f/100)^(2/D)
+        //    - At D=2: exponent=1.0, no change.
+        //    - At D=10: exponent=0.2, stretches the gradient near-zero values
+        //      up so Phase 1b clearing-DE can detect peak structure.
+        //  Used ONLY for per-party search (NBC init + ClearingDE).
+        //  Archives and metrics use raw evaluate() values.
         double evaluatePartyScaled(int p, const std::vector<double>& x) const {
             double f = evaluateParty(p, x);
             if (m_dim <= 2 || f < 1e-12) return f;
@@ -202,6 +213,7 @@ namespace ofec {
         int    m_refine_gens;
         mutable int m_n_evals = 0;  // cumulative evaluation counter across all phases
         unsigned    m_run_seed = 0; // per-run algorithm seed (varied across 20 runs)
+        bool        m_save_vis = false; // generate landscape grid only on first run
         double m_sigma;
         double m_de_F;
         double m_de_CR;
@@ -305,6 +317,7 @@ namespace ofec {
         }
 
         // Build known-basins list from Phase 1b party optima.
+        // Called once after all parties' ClearingDE is done.
         void buildKnownBasins() {
             const int D = m_bench->dim();
             m_known_basins.clear();
@@ -327,7 +340,7 @@ namespace ofec {
                 << " distinct basins from Phase 1b party optima\n";
         }
 
-        // Basin-tagged Consensus Archive insertion.
+        //  Basin-tagged Consensus Archive insertion.
         //
         //  Admission:
         //    - If close (< CA_RADIUS) to an existing member: replace only if better C(x).
@@ -437,6 +450,7 @@ namespace ofec {
         }
 
         //  Phase 1a: NBC init per party (full D-space)
+        //  Uses evalPartyScaled for fitness in NBC clustering.
         void NBC_init(int party, unsigned seed = 0) {
             const int D = m_bench->dim();
             const int N = m_K * m_niche_pop;
@@ -508,7 +522,7 @@ namespace ofec {
                     auto& pop = m_competing_pops[party][sp];
                     auto& fit = m_competing_fit[party][sp];
                     const int np = static_cast<int>(pop.size());
-                    if (np < 3) continue;
+                    if (np < 4) continue;  // DE/rand/1 needs 4 distinct indices: i, r1, r2, r3
 
                     // Sharing (uses current scaled fit values stored in fit[])
                     std::vector<double> sfit(np);
@@ -637,7 +651,7 @@ namespace ofec {
                     auto& pop = m_competing_pops[party][sp];
                     auto& fit = m_competing_fit[party][sp];
                     const int np = static_cast<int>(pop.size());
-                    if (np < 3) continue;
+                    if (np < 4) continue;  // DE/rand/1 needs 4 distinct indices: i, r1, r2, r3
                     std::uniform_int_distribution<int> pick(0, np - 1);
                     for (int i = 0; i < np; ++i) {
                         int r1, r2, r3;
@@ -651,6 +665,7 @@ namespace ofec {
                                 ? clamp01(pop[r1][d] + m_de_F * (pop[r2][d] - pop[r3][d]))
                                 : pop[i][d];
                         }
+                        // use scaled eval in competing loop too
                         double tf = evalPartyScaled(trial, party);
                         if (tf > fit[i]) { pop[i] = trial; fit[i] = tf; }
                     }
@@ -869,7 +884,7 @@ namespace ofec {
             // Force-inject from uncovered basins
             int injected_basins = 0;
             for (int b = 0; b < static_cast<int>(m_known_basins.size()); ++b) {
-                if (m_basin_ca_slot[b] >= 0) continue;  // already covered
+                if (m_basin_ca_slot[b] >= 0) continue;
                 // Perturb basin centre and inject into weakest mediating slot
                 std::vector<double> seed = m_known_basins[b];
                 const double perturb = 0.05;
@@ -1113,14 +1128,17 @@ namespace ofec {
             double   de_CR = 0.9,
             double   sharing_a = 2.0,
             unsigned run_seed = 0,       // per-run algorithm seed for 20-run averaging
-            const std::string& out_dir = "Visualization/solutions")
+            const std::string& out_dir = "Visualization/solutions",
+            bool     save_vis = false)   // generate landscape grid (only on first run)
             : m_bench(bench), m_env_keeper(env),
             m_K(K), m_niche_pop(niche_pop), m_med_pop_size(med_pop),
             m_party_gens(party_gens), m_eval_budget(eval_budget),
             m_refine_gens(refine_gens), m_sigma(sigma),
             m_de_F(de_F), m_de_CR(de_CR), m_sharing_alpha(sharing_a),
-            m_run_seed(run_seed), m_osa_radius(0.04), m_out_dir(out_dir)
+            m_run_seed(run_seed), m_osa_radius(0.04), m_out_dir(out_dir),
+            m_save_vis(save_vis)
         {
+            // dim-dependent CA quality threshold
             const int D = bench->dim();
             if (D <= 2)       m_ca_min_quality = 20.0;
             else if (D <= 5)  m_ca_min_quality = 5.0;
@@ -1141,8 +1159,10 @@ namespace ofec {
             const int M = m_bench->numParties();
             const int D = m_bench->dim();
 
-            std::cout << "  [VIS] Generating landscape grids...\n";
-            saveLandscapes();
+            if (m_save_vis) {
+                std::cout << "  [VIS] Generating landscape grids...\n";
+                saveLandscapes();
+            }
 
             // Phase 1a: NBC
             std::cout << "\n>>> [MPMM-CoEA] Phase 1a: NBC init\n";
@@ -1276,7 +1296,7 @@ namespace ofec {
             std::filesystem::create_directories(m_out_dir);
             std::ofstream out(m_out_dir + "/consensus_archive.txt");
             if (!out.is_open()) return;
-            out << "# Consensus Archive (basin-tagged)\n"
+            out << "# Consensus Archive (v3 basin-tagged)\n"
                 << "# x0..x(D-1) f0 f1 consensus\n"
                 << std::fixed << std::setprecision(6);
             for (size_t i = 0; i < m_ca.size(); ++i) {
@@ -1308,7 +1328,7 @@ namespace ofec {
         int         suite_id = 0;
         int         dim = 0;
         int         nopt = 0;
-        // Five metrics : SR-0.01, SR-0.05, ANOF-0.01, ANOF-0.05, Best Q
+        // Five metrics: SR-0.01, SR-0.05, ANOF-0.01, ANOF-0.05, Best Q
         double      sr_strict = 0, anof_strict = 0;   // eps_x=0.01, eps_f=1.0
         double      sr_loose = 0, anof_loose = 0;   // eps_x=0.05, eps_f=2.0
         double      best_q = 0;  // max Q(x)=min_p F_p(x) in mediating pop (Best Q)
@@ -1321,7 +1341,8 @@ namespace ofec {
         size_t      dimension,
         const std::string& vis_dir,
         int         eval_budget = 30000,
-        unsigned    run_seed = 0)       // varies across 20 runs
+        unsigned    run_seed = 0,       // varies across 20 runs
+        bool        save_vis = false)   // generate landscape grid only on first run (identical across runs)
     {
         std::cout << "\n[runSingleBenchmark] P" << suite_id
             << "  D=" << dimension << "  run_seed=" << run_seed << "\n";
@@ -1334,12 +1355,12 @@ namespace ofec {
         pm["suite_id"] = suite_id;
         pm["problem_dimension"] = dimension;
         env->problem()->inputParameters().input(pm);
-        static const double NEW_RAN_MAX = 2147483647.0;
-        unsigned int seed_int = (suite_id * 1103515245u + static_cast<unsigned>(dimension) * 12345u + 1u) & 0x7FFFFFFFu;
-        const Real instance_seed = static_cast<Real>(seed_int / NEW_RAN_MAX);
-
-        // Safety clamp (protects against FP edge cases)
-        const Real safe_seed = std::max(0.0001, std::min(0.9999, static_cast<double>(instance_seed)));
+        // Fixed instance seed: unique per (suite_id, dimension) so the problem is
+        // always the same across all 20 algorithm runs (reproducible benchmark).
+        // Newran's RandBase requires seed strictly in (0, 1); normalize by 1e6.
+        // Range: suite 1..12, dim 2..10  =>  raw 1002..12010  =>  0.001002..0.01201
+        const int raw_instance_seed = suite_id * 1000 + static_cast<int>(dimension);
+        const Real instance_seed = static_cast<Real>(raw_instance_seed) / 1.0e6;
         env->initializeProblem(instance_seed);
 
         auto* fp = dynamic_cast<FreePeaksMultiParty*>(env->problem());
@@ -1366,7 +1387,8 @@ namespace ofec {
             /*de_CR*/      0.9,
             /*sharing_a*/  2.0,
             /*run_seed*/   run_seed,
-            vis_dir);
+            vis_dir,
+            save_vis);
 
         solver.run();
         solver.saveConvergenceCurve();
@@ -1423,6 +1445,7 @@ namespace ofec {
     }
 
     //  Full suite runner
+  
     inline void runBenchmarkSuiteAll() {
         registerInstance();
 
@@ -1432,12 +1455,14 @@ namespace ofec {
 
         std::cout << " MPMM-CoEA Benchmark Suite\n";
 
+        // Suite-to-P-number mapping (all 12 suites run):
         const std::vector<int>    suite_ids = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
         const std::vector<size_t> dimensions = { 2, 3, 5, 10 };
-        constexpr int N_RUNS = 20;  // 20 independent runs per instance (Sec 5 of report)
+        constexpr int N_RUNS = 20;  // 20 independent runs per instance
 
-        // E_max budget per dimension
+        // E_max budget per dimension (report Table 3):
         // D=2 → 30,000   D=3 → 50,000   D=5 → 100,000   D=10 → 250,000
+        // Higher budgets for D≥5 compensate for the exponential growth of search space volume.
         auto emax = [](size_t d) -> int {
             if (d <= 2)  return 30000;
             if (d <= 3)  return 50000;
@@ -1459,10 +1484,11 @@ namespace ofec {
             std::cout << "\n[" << idx << "/" << instances.size() << "]  "
                 << "P" << inst.sid << "  D=" << inst.dim
                 << "  E_max=" << budget << "  runs=" << N_RUNS << "\n";
-            std::string base_vis = vis_base + "/mpmcoea_P"
+            std::string base_vis = vis_base + "/mpmmcoea_P"
                 + std::to_string(inst.sid) + "_D" + std::to_string(inst.dim);
 
-            // 20-run averaging
+            // 20-run averaging: fixed problem instance (seed fixed by suite_id+dim),
+            // different algorithm seed each run
             BenchmarkResult agg;
             int n_ok = 0;
             for (int run = 0; run < N_RUNS; ++run) {
@@ -1473,7 +1499,8 @@ namespace ofec {
                 try {
                     auto r = runSingleBenchmark(
                         inst.sid, inst.dim, vis_dir, budget,
-                        static_cast<unsigned>(run * 999983u + 1u));
+                        static_cast<unsigned>(run * 999983u + 1u),
+                        /*save_vis*/ run == 0);  // generate landscape grid only on first run
                     if (n_ok == 0) {
                         agg.name = r.name; agg.suite_id = r.suite_id;
                         agg.dim = r.dim;  agg.nopt = r.nopt;
@@ -1505,8 +1532,8 @@ namespace ofec {
         // Suite-to-P-number map
         auto pnum = [](int sid) -> std::string {
             static const std::unordered_map<int, int> m{
-                {1,1},{2,2},{4,3},{5,4},{9,5},{10,6},{11,7},{12,8},  
-                {3,9},{6,10},{7,11},{8,12}                           
+                {1,1},{2,2},{4,3},{5,4},{9,5},{10,6},{11,7},{12,8},
+                {3,9},{6,10},{7,11},{8,12}
             };
             auto it = m.find(sid);
             return it != m.end() ? "P" + std::string(it->second < 10 ? "0" : "") + std::to_string(it->second)
@@ -1543,7 +1570,7 @@ namespace ofec {
         }
 
         // Aggregated CSV (one row per instance, mean over 20 runs)
-        const std::string csv_path = vis_base + "/mpmcoea_suite_summary.csv";
+        const std::string csv_path = vis_base + "/mpmmcoea_suite_summary.csv";
         {
             std::ofstream csv(csv_path);
             if (csv.is_open()) {
@@ -1571,4 +1598,4 @@ namespace ofec {
 
 }  // namespace ofec
 
-#endif  // OFEC_MPMMCOEA_SOLVER_HPP
+#endif  // OFEC_MPMCOEA_SOLVER_HPP
