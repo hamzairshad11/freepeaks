@@ -1,6 +1,6 @@
 #include "one_peak_Weierstrass_rugeness.h"
 #include "../../free_peaks.h"
-#include "../../../../../../../utility/functional.h"
+#include "../../../../../../utility/functional.h"
 
 namespace ofec::free_peaks {
 

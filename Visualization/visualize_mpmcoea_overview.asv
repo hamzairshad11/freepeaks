@@ -1,0 +1,604 @@
+%% MPM-CoEA FreePeaks Overview Visualization
+
+function visualize_mpmcoea_overview(landscape_base, output_dir)
+    if nargin < 1
+        landscape_base = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\free_peaks_multiparty\landscapes_12\D2';
+    end
+    if nargin < 2
+        output_dir = 'E:\HITSZ\Research\Multimodal_Multiparty_Optimization\ThesisProject\Visualization\figures';
+    end
+    if ~exist(output_dir, 'dir'), mkdir(output_dir); end
+
+    plasma_map  = build_plasma();
+    cividis_map = build_cividis();
+    viridis_map = build_viridis();
+
+    % Suite directory names
+    suite_names = {
+        'suite_1_p1_balanced',             'suite_2_p2_unequal_basins',              'suite_4_p4_rugged';
+        'suite_5_p5_rotated',              'suite_9_p9_twenty_shared_optima',        'suite_10_p10_rotated_rugged_deceptive',
+        'suite_11_p11_hierarchical_disconnected', 'suite_12_p12_full_mixed_multimodal'
+    };
+
+    problem_labels = {
+        'P01',             'P02',             'P03',
+        'P04';             'P05',             'P06',             
+        'P07',             'P08';
+    };
+
+    % Figure 1: Party-1 Objective Landscapes (grid_2d.tsv col 7 = p1_obj)
+    fprintf('Generating Figure 1: Party-1 Objective Landscapes...\n');
+    fig1 = figure('Color','w','Position',[50 50 1600 1200]);
+    for i = 1:12
+        row = ceil(i / 4);
+        col = mod(i - 1, 4) + 1;
+        ax = subplot(3, 4, i);
+        pdir = fullfile(landscape_base, suite_names{row, col});
+        plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'plasma', 7, plasma_map, cividis_map);
+    end
+    sgtitle('FreePeaks Multi-party 2D p1-p12: Party-1 objective landscapes', ...
+            'FontSize',16,'FontWeight','bold');
+    save_overview_fig(fig1, fullfile(output_dir, 'fig1_party1_landscapes.png'));
+
+    % Figure 2: Party-2 Objective Landscapes (grid_2d.tsv col 8 = p2_obj)
+    fprintf('Generating Figure 2: Party-2 Objective Landscapes...\n');
+    fig2 = figure('Color','w','Position',[60 60 1600 1200]);
+    for i = 1:12
+        row = ceil(i / 4);
+        col = mod(i - 1, 4) + 1;
+        ax = subplot(3, 4, i);
+        pdir = fullfile(landscape_base, suite_names{row, col});
+        plot_landscape_panel(ax, pdir, problem_labels{row, col}, 'cividis', 8, plasma_map, cividis_map);
+    end
+    sgtitle('FreePeaks Multi-party 2D p1-p12: Party-2 objective landscapes', ...
+            'FontSize',16,'FontWeight','bold');
+    save_overview_fig(fig2, fullfile(output_dir, 'fig2_party2_landscapes.png'));
+
+    % Figure 3: Pareto Rank Landscapes (grid_2d.tsv col 9 = rank, 0=non-dominated)
+    %fprintf('Generating Figure 3: Two-Objective Rank Landscapes...\n');
+    %fig3 = figure('Color','w','Position',[70 70 1600 1200]);
+    for i = 1:12
+        row = ceil(i / 4);
+        col = mod(i - 1, 4) + 1;
+        ax = subplot(3, 4, i);
+        pdir = fullfile(landscape_base, suite_names{row, col});
+        plot_rank_panel(ax, pdir, problem_labels{row, col}, viridis_map);
+    end
+    sgtitle('FreePeaks Multi-party 2D p1-p12: Pareto Rank Landscapes (rank 0 = non-dominated)', ...
+            'FontSize',16,'FontWeight','bold');
+    save_overview_fig(fig3, fullfile(output_dir, 'fig3_rank_landscapes.png'));
+
+    fprintf('\nAll 3 overview figures saved to: %s\n', output_dir);
+end
+
+
+%  PANEL PLOTTERS
+
+function plot_landscape_panel(ax, pdir, title_str, cmap_name, col_idx, plasma_map, cividis_map)
+% col_idx: 7 = party-1 objective, 8 = party-2 objective
+    [X, Y, Z] = load_landscape(pdir, col_idx);
+
+    if isempty(X)
+        axis(ax, 'off');
+        text(ax, 0.5, 0.5, 'No data', 'Units','normalized', ...
+             'HorizontalAlignment','center', 'FontSize',10);
+        title(ax, title_str, 'FontSize',9);
+        return;
+    end
+
+    contourf(ax, X, Y, Z, 30, 'LineColor','none');
+    if strcmp(cmap_name, 'plasma')
+        colormap(ax, plasma_map);
+    elseif strcmp(cmap_name, 'cividis')
+        colormap(ax, cividis_map);
+    else
+        colormap(ax, cmap_name);
+    end
+
+    cb = colorbar(ax, 'Location','eastoutside');
+    cb.FontSize = 7;
+
+    cNorm = load_optima(pdir);
+    hold(ax, 'on');
+    for j = 1:size(cNorm, 1)
+        x = cNorm(j, 1); y = cNorm(j, 2);
+        if x >= 0 && x <= 1 && y >= 0 && y <= 1
+            scatter(ax, x, y, 60, 'g', '*', 'LineWidth', 1.2);
+        end
+    end
+    hold(ax, 'off');
+
+    xlabel(ax, 'x0', 'FontSize',8);
+    ylabel(ax, 'x1', 'FontSize',8);
+    title(ax, title_str, 'FontSize',9, 'FontWeight','bold');
+    ax.Box = 'on'; ax.FontSize = 8;
+    ax.XTick = 0:0.2:1; ax.YTick = 0:0.2:1;
+    axis(ax, 'equal'); axis(ax, 'tight');
+end
+
+
+function plot_rank_panel(ax, pdir, title_str, viridis_map)
+% Rank is 0-indexed (0 = non-dominated = best). Log transform: log10(rank+1).
+    [X, Y, Z] = load_landscape(pdir, 9);
+
+    if isempty(X)
+        axis(ax, 'off');
+        text(ax, 0.5, 0.5, 'No data', 'Units','normalized', ...
+             'HorizontalAlignment','center', 'FontSize',10);
+        title(ax, title_str, 'FontSize',9);
+        return;
+    end
+
+    Zlog = log10(Z + 1);   % rank 0 -> 0 (darkest/best), higher ranks -> brighter
+
+    contourf(ax, X, Y, Zlog, 25, 'LineColor','none');
+    colormap(ax, viridis_map);
+
+    cb = colorbar(ax, 'Location','eastoutside');
+    cb.Label.String = 'Pareto rank (log_{10}(rank+1))';
+    cb.Label.FontSize = 8;
+    cb.Label.Interpreter = 'tex';
+    cb.FontSize = 7;
+
+    cNorm = load_optima(pdir);
+    hold(ax, 'on');
+    for j = 1:size(cNorm, 1)
+        x = cNorm(j, 1); y = cNorm(j, 2);
+        if x >= 0 && x <= 1 && y >= 0 && y <= 1
+            scatter(ax, x, y, 60, 'g', '*', 'LineWidth', 1.2);
+        end
+    end
+    hold(ax, 'off');
+
+    xlabel(ax, 'x0', 'FontSize',8); ylabel(ax, 'x1', 'FontSize',8);
+    title(ax, title_str, 'FontSize',9, 'FontWeight','bold');
+    ax.Box = 'on'; ax.FontSize = 8;
+    ax.XTick = 0:0.2:1; ax.YTick = 0:0.2:1;
+    axis(ax, 'equal'); axis(ax, 'tight');
+end
+
+
+%  HELPERS
+
+function cNorm = load_optima(pdir)
+% Reads optima_2d.tsv (tab-separated, 1 header line).
+% Columns: idx x0_norm x1_norm x0_plot x1_plot p1_obj p2_obj rank
+% Returns Nx2 matrix of [x0_norm x1_norm] (MATLAB cols 2,3).
+    cNorm = zeros(0, 2);
+    fpath = fullfile(pdir, 'optima_2d.tsv');
+    if ~isfile(fpath)
+        fprintf('[WARN] optima_2d.tsv not found: %s\n', fpath);
+        return;
+    end
+    try
+        data = importdata(fpath, '\t', 1);
+        if isstruct(data) && isfield(data, 'data')
+            M = data.data;
+        elseif isnumeric(data)
+            M = data;
+        else
+            return;
+        end
+        if ~isempty(M) && size(M, 2) >= 3
+            cNorm = M(:, 2:3);   % x0_norm, x1_norm
+        end
+    catch ME
+        fprintf('[WARN] Failed to load %s: %s\n', fpath, ME.message);
+    end
+end
+
+
+function [X, Y, Z] = load_landscape(pdir, col_idx)
+% Reads grid_2d.tsv (tab-separated, 1 header line, j-outer i-inner loop order).
+% Columns: i(1) j(2) x0_norm(3) x1_norm(4) x0_plot(5) x1_plot(6) p1_obj(7) p2_obj(8) rank(9)
+% col_idx: 7=party-0, 8=party-1, 9=rank.
+%       Transpose after reshape so that X increases along columns (x-axis)
+%       and Y increases along rows (y-axis) as contourf expects.
+    X = []; Y = []; Z = [];
+    filepath = fullfile(pdir, 'grid_2d.tsv');
+    if ~isfile(filepath), return; end
+
+    try
+        data = importdata(filepath, '\t', 1);
+        if isstruct(data) && isfield(data, 'data')
+            M = data.data;
+        elseif isnumeric(data)
+            M = data;
+        else
+            return;
+        end
+    catch
+        return;
+    end
+
+    if isempty(M) || size(M, 2) < col_idx
+        return;
+    end
+
+    x = M(:, 3);        % x0_norm
+    y = M(:, 4);        % x1_norm
+    v = M(:, col_idx);
+
+    n = round(sqrt(numel(x)));
+    if n * n ~= numel(x)
+        fprintf('[WARN] Grid size mismatch in: %s\n', filepath);
+        return;
+    end
+
+    % C++ loop: j outer (x1 slow), i inner (x0 fast).
+    % reshape(v, n, n) fills column-by-column in MATLAB, so:
+    %   col k holds data for j=k-1 (all i=0..n-1) -> x0 varies along rows, x1 along cols.
+    % Transpose so that x0 varies along cols and x1 along rows (standard for contourf).
+    X = reshape(x, n, n)';
+    Y = reshape(y, n, n)';
+    Z = reshape(v, n, n)';
+end
+
+
+function save_overview_fig(fig, fpath)
+    try
+        exportgraphics(fig, fpath, 'Resolution', 220);
+    catch
+        print(fig, fpath, '-dpng', '-r220');
+    end
+    try
+        close(fig);
+        fprintf('  Saved: %s\n', fpath);
+    catch ME
+        fprintf('  [WARN] Could not save %s: %s\n', fpath, ME.message);
+    end
+end
+
+function cmap = build_plasma()
+    % Perceptually uniform plasma colormap (256 levels)
+    c = [0.050383 0.029803 0.527975;
+         0.141935 0.062145 0.555357;
+         0.197656 0.091360 0.563007;
+         0.243327 0.121380 0.555295;
+         0.282327 0.153364 0.534892;
+         0.317021 0.187564 0.504071;
+         0.348409 0.223479 0.465203;
+         0.377779 0.260433 0.419943;
+         0.405953 0.297718 0.370594;
+         0.433450 0.334529 0.318929;
+         0.460625 0.370036 0.266919;
+         0.487721 0.403386 0.216218;
+         0.514874 0.433738 0.168421;
+         0.542139 0.460244 0.125195;
+         0.569533 0.482173 0.088857;
+         0.597054 0.498911 0.061771;
+         0.624700 0.509983 0.046667;
+         0.652459 0.515163 0.045000;
+         0.680316 0.514563 0.056667;
+         0.708255 0.507743 0.080000;
+         0.736264 0.494743 0.113333;
+         0.764326 0.475243 0.154667;
+         0.792427 0.449243 0.201333;
+         0.820553 0.417243 0.250667;
+         0.848691 0.380243 0.299333;
+         0.876828 0.339243 0.344000;
+         0.904952 0.295243 0.381333;
+         0.933050 0.249243 0.408000;
+         0.961111 0.202243 0.421333;
+         0.989123 0.155243 0.418667;
+         1.000000 0.116537 0.388235];
+    cmap = max(0, min(1, interp1(linspace(0,1,size(c,1)), c, linspace(0,1,256))));
+end
+
+function cmap = build_cividis()
+    % Perceptually uniform cividis colormap (256 levels)
+    c = [0.000000 0.126200 0.301500;
+         0.000000 0.144300 0.317700;
+         0.000000 0.162300 0.333700;
+         0.000000 0.180700 0.349100;
+         0.000000 0.199100 0.363500;
+         0.000000 0.217800 0.376700;
+         0.000000 0.236600 0.388600;
+         0.000000 0.255500 0.399200;
+         0.000000 0.274500 0.408500;
+         0.005500 0.293500 0.416500;
+         0.029300 0.312500 0.423200;
+         0.054100 0.331400 0.428600;
+         0.077900 0.350300 0.432700;
+         0.100700 0.369000 0.435500;
+         0.122800 0.387600 0.437000;
+         0.144300 0.406100 0.437200;
+         0.165400 0.424400 0.436100;
+         0.186300 0.442500 0.433700;
+         0.207100 0.460500 0.430000;
+         0.227900 0.478200 0.425000;
+         0.248800 0.495700 0.418700;
+         0.269800 0.513000 0.411100;
+         0.291000 0.530000 0.402200;
+         0.312500 0.546700 0.392000;
+         0.334200 0.563200 0.380500;
+         0.356200 0.579300 0.367700;
+         0.378500 0.595100 0.353600;
+         0.401100 0.610500 0.338200;
+         0.424000 0.625600 0.321500;
+         0.447200 0.640300 0.303500;
+         0.470700 0.654600 0.284200;
+         0.494400 0.668500 0.263600;
+         0.518400 0.682000 0.241700;
+         0.542700 0.695100 0.218500;
+         0.567200 0.707800 0.194000;
+         0.591900 0.720100 0.168200;
+         0.616800 0.732000 0.141100;
+         0.641900 0.743500 0.112700;
+         0.667200 0.754600 0.083000;
+         0.692700 0.765300 0.052000;
+         0.718400 0.775600 0.019700;
+         0.744200 0.785500 0.000000;
+         0.770100 0.795000 0.000000;
+         0.796200 0.804100 0.000000;
+         0.822500 0.812800 0.000000;
+         0.848800 0.821100 0.000000;
+         0.875200 0.829000 0.000000;
+         0.901700 0.836500 0.000000;
+         0.928300 0.843600 0.000000;
+         0.954900 0.850300 0.000000;
+         0.981500 0.856600 0.000000;
+         1.000000 0.865000 0.000000];
+    cmap = max(0, min(1, interp1(linspace(0,1,size(c,1)), c, linspace(0,1,256))));
+end
+
+function cmap = build_viridis()
+    % Perceptually uniform viridis colormap (256 levels)
+    c = [0.267004 0.004874 0.329415;
+         0.268510 0.009605 0.335427;
+         0.269944 0.014624 0.341379;
+         0.271305 0.019942 0.347269;
+         0.272594 0.025563 0.353093;
+         0.273809 0.031497 0.358848;
+         0.274952 0.037752 0.364529;
+         0.276022 0.044167 0.370134;
+         0.277018 0.050344 0.375657;
+         0.277941 0.056324 0.381096;
+         0.278791 0.062145 0.386446;
+         0.279568 0.067836 0.391705;
+         0.280273 0.073417 0.396871;
+         0.280905 0.078903 0.401941;
+         0.281466 0.084320 0.406914;
+         0.281956 0.089681 0.411788;
+         0.282376 0.094955 0.416562;
+         0.282727 0.100196 0.421236;
+         0.283012 0.105393 0.425809;
+         0.283232 0.110553 0.430282;
+         0.283389 0.115680 0.434656;
+         0.283484 0.120777 0.438929;
+         0.283519 0.125848 0.443102;
+         0.283495 0.130895 0.447177;
+         0.283414 0.135920 0.451154;
+         0.283277 0.140926 0.455033;
+         0.283087 0.145912 0.458815;
+         0.282846 0.150881 0.462501;
+         0.282555 0.155834 0.466091;
+         0.282217 0.160771 0.469587;
+         0.281833 0.165693 0.472989;
+         0.281407 0.170599 0.476298;
+         0.280941 0.175490 0.479515;
+         0.280435 0.180367 0.482641;
+         0.279893 0.185228 0.485677;
+         0.279316 0.190074 0.488624;
+         0.278706 0.194905 0.491483;
+         0.278065 0.199721 0.494255;
+         0.277395 0.204520 0.496940;
+         0.276698 0.209303 0.499541;
+         0.275976 0.214069 0.502058;
+         0.275230 0.218818 0.504493;
+         0.274463 0.223549 0.506846;
+         0.273677 0.228262 0.509119;
+         0.272873 0.232956 0.511313;
+         0.272053 0.237631 0.513428;
+         0.271219 0.242286 0.515467;
+         0.270373 0.246922 0.517430;
+         0.269516 0.251537 0.519318;
+         0.268651 0.256130 0.521133;
+         0.267778 0.260703 0.522876;
+         0.266899 0.265254 0.524549;
+         0.266016 0.269783 0.526152;
+         0.265131 0.274289 0.527687;
+         0.264245 0.278771 0.529156;
+         0.263360 0.283229 0.530559;
+         0.262477 0.287662 0.531898;
+         0.261599 0.292069 0.533175;
+         0.260727 0.296451 0.534391;
+         0.259862 0.300807 0.535547;
+         0.259006 0.305136 0.536645;
+         0.258160 0.309438 0.537685;
+         0.257326 0.313713 0.538670;
+         0.256506 0.317960 0.539601;
+         0.255701 0.322179 0.540479;
+         0.254913 0.326369 0.541306;
+         0.254143 0.330530 0.542083;
+         0.253393 0.334661 0.542812;
+         0.252664 0.338763 0.543494;
+         0.251957 0.342835 0.544130;
+         0.251274 0.346876 0.544722;
+         0.250616 0.350886 0.545272;
+         0.249985 0.354865 0.545781;
+         0.249381 0.358813 0.546250;
+         0.248806 0.362729 0.546681;
+         0.248261 0.366614 0.547075;
+         0.247746 0.370467 0.547434;
+         0.247263 0.374287 0.547759;
+         0.246812 0.378076 0.548052;
+         0.246394 0.381832 0.548314;
+         0.246010 0.385556 0.548546;
+         0.245661 0.389248 0.548749;
+         0.245347 0.392907 0.548925;
+         0.245069 0.396533 0.549075;
+         0.244828 0.400127 0.549200;
+         0.244623 0.403689 0.549302;
+         0.244456 0.407218 0.549382;
+         0.244327 0.410715 0.549441;
+         0.244237 0.414180 0.549481;
+         0.244186 0.417613 0.549503;
+         0.244175 0.421014 0.549507;
+         0.244204 0.424383 0.549496;
+         0.244274 0.427721 0.549469;
+         0.244386 0.431027 0.549429;
+         0.244539 0.434302 0.549376;
+         0.244735 0.437546 0.549312;
+         0.244973 0.440760 0.549237;
+         0.245254 0.443943 0.549153;
+         0.245578 0.447096 0.549061;
+         0.245945 0.450219 0.548962;
+         0.246356 0.453312 0.548857;
+         0.246811 0.456375 0.548747;
+         0.247310 0.459409 0.548633;
+         0.247853 0.462415 0.548516;
+         0.248440 0.465392 0.548397;
+         0.249072 0.468341 0.548277;
+         0.249748 0.471262 0.548157;
+         0.250469 0.474156 0.548037;
+         0.251234 0.477022 0.547918;
+         0.252044 0.479862 0.547801;
+         0.252899 0.482675 0.547687;
+         0.253799 0.485463 0.547576;
+         0.254743 0.488224 0.547470;
+         0.255733 0.490961 0.547370;
+         0.256768 0.493672 0.547275;
+         0.257848 0.496359 0.547188;
+         0.258973 0.499021 0.547110;
+         0.260143 0.501659 0.547040;
+         0.261359 0.504273 0.546980;
+         0.262620 0.506864 0.546930;
+         0.263926 0.509432 0.546891;
+         0.265278 0.511977 0.546864;
+         0.266676 0.514500 0.546848;
+         0.268120 0.517001 0.546846;
+         0.269610 0.519480 0.546856;
+         0.271146 0.521937 0.546880;
+         0.272728 0.524372 0.546918;
+         0.274357 0.526787 0.546971;
+         0.276032 0.529180 0.547038;
+         0.277754 0.531553 0.547121;
+         0.279523 0.533906 0.547219;
+         0.281339 0.536239 0.547334;
+         0.283202 0.538552 0.547465;
+         0.285112 0.540845 0.547612;
+         0.287070 0.543120 0.547777;
+         0.289076 0.545375 0.547959;
+         0.291130 0.547612 0.548158;
+         0.293232 0.549831 0.548376;
+         0.295383 0.552031 0.548611;
+         0.297583 0.554214 0.548865;
+         0.299832 0.556379 0.549137;
+         0.302130 0.558527 0.549428;
+         0.304478 0.560659 0.549738;
+         0.306876 0.562773 0.550066;
+         0.309324 0.564871 0.550413;
+         0.311822 0.566953 0.550780;
+         0.314371 0.569019 0.551166;
+         0.316971 0.571069 0.551572;
+         0.319622 0.573104 0.551998;
+         0.322325 0.575123 0.552444;
+         0.325080 0.577128 0.552910;
+         0.327887 0.579117 0.553397;
+         0.330746 0.581092 0.553904;
+         0.333658 0.583053 0.554432;
+         0.336623 0.584999 0.554981;
+         0.339641 0.586931 0.555551;
+         0.342712 0.588849 0.556142;
+         0.345837 0.590753 0.556754;
+         0.349016 0.592644 0.557388;
+         0.352249 0.594521 0.558043;
+         0.355536 0.596385 0.558720;
+         0.358879 0.598236 0.559418;
+         0.362276 0.600074 0.560138;
+         0.365729 0.601900 0.560880;
+         0.369237 0.603713 0.561643;
+         0.372801 0.605515 0.562429;
+         0.376422 0.607304 0.563237;
+         0.380099 0.609082 0.564067;
+         0.383834 0.610849 0.564919;
+         0.387626 0.612605 0.565793;
+         0.391476 0.614350 0.566690;
+         0.395384 0.616085 0.567609;
+         0.399351 0.617810 0.568551;
+         0.403377 0.619525 0.569515;
+         0.407463 0.621231 0.570502;
+         0.411609 0.622928 0.571512;
+         0.415816 0.624616 0.572545;
+         0.420084 0.626295 0.573601;
+         0.424414 0.627966 0.574680;
+         0.428806 0.629629 0.575782;
+         0.433261 0.631284 0.576907;
+         0.437779 0.632932 0.578055;
+         0.442361 0.634573 0.579227;
+         0.447008 0.636207 0.580422;
+         0.451720 0.637835 0.581640;
+         0.456497 0.639456 0.582882;
+         0.461341 0.641072 0.584147;
+         0.466251 0.642682 0.585436;
+         0.471229 0.644287 0.586749;
+         0.476275 0.645888 0.588085;
+         0.481390 0.647484 0.589445;
+         0.486574 0.649076 0.590829;
+         0.491828 0.650664 0.592237;
+         0.497153 0.652249 0.593669;
+         0.502550 0.653831 0.595125;
+         0.508019 0.655411 0.596606;
+         0.513561 0.656989 0.598111;
+         0.519176 0.658565 0.599640;
+         0.524866 0.660140 0.601194;
+         0.530631 0.661715 0.602773;
+         0.536473 0.663290 0.604377;
+         0.542391 0.664865 0.606005;
+         0.548387 0.666441 0.607659;
+         0.554461 0.668018 0.609338;
+         0.560614 0.669597 0.611042;
+         0.566847 0.671178 0.612772;
+         0.573160 0.672761 0.614527;
+         0.579555 0.674348 0.616309;
+         0.586032 0.675938 0.618116;
+         0.592592 0.677533 0.619949;
+         0.599236 0.679132 0.621809;
+         0.605965 0.680737 0.623695;
+         0.612779 0.682348 0.625608;
+         0.619680 0.683967 0.627548;
+         0.626668 0.685593 0.629515;
+         0.633744 0.687228 0.631509;
+         0.640909 0.688873 0.633531;
+         0.648164 0.690528 0.635580;
+         0.655509 0.692194 0.637658;
+         0.662946 0.693872 0.639764;
+         0.670476 0.695563 0.641898;
+         0.678099 0.697268 0.644061;
+         0.685816 0.698988 0.646253;
+         0.693628 0.700724 0.648475;
+         0.701536 0.702478 0.650727;
+         0.709542 0.704250 0.653009;
+         0.717646 0.706041 0.655321;
+         0.725850 0.707853 0.657664;
+         0.734155 0.709686 0.660038;
+         0.742563 0.711542 0.662444;
+         0.751075 0.713422 0.664881;
+         0.759693 0.715328 0.667351;
+         0.768417 0.717261 0.669854;
+         0.777250 0.719222 0.672389;
+         0.786192 0.721212 0.674958;
+         0.795245 0.723233 0.677561;
+         0.804410 0.725286 0.680198;
+         0.813689 0.727373 0.682870;
+         0.823083 0.729495 0.685577;
+         0.832594 0.731654 0.688320;
+         0.842223 0.733851 0.691099;
+         0.851972 0.736088 0.693915;
+         0.861843 0.738367 0.696769;
+         0.871837 0.740690 0.699660;
+         0.881956 0.743059 0.702590;
+         0.892202 0.745476 0.705559;
+         0.902576 0.747942 0.708568;
+         0.913080 0.750460 0.711617;
+         0.923715 0.753032 0.714706;
+         0.934483 0.755660 0.717837;
+         0.945386 0.758347 0.721010;
+         0.956425 0.761094 0.724225;
+         0.967602 0.763905 0.727483;
+         0.978919 0.766782 0.730785;
+         0.990378 0.769729 0.734132;
+         1.000000 0.772549 0.737255];
+    cmap = max(0, min(1, interp1(linspace(0,1,size(c,1)), c, linspace(0,1,256))));
+end

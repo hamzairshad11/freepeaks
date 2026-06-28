@@ -1,0 +1,15 @@
+# MPMM-CoEA metrics  P3  D=3  run_seed=14999746
+suite_id       3
+problem_name   p3_neighbor_deception
+feature        broad private peaks placed near shared optima creating spatial deception
+dim            3
+nopt           1
+eval_budget    50000
+# strict eps_x=0.01 eps_f=1.0
+SR_0.01        100.0000
+ANOF_0.01      1.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_0.05        100.0000
+ANOF_0.05      1.0000
+Best_Q         89.8241
+ca_size        200

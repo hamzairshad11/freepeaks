@@ -1,0 +1,15 @@
+# MPMM-CoEA metrics  P1  D=3  run_seed=8999848
+suite_id       1
+problem_name   p1_balanced
+feature        balanced random shared/private optima
+dim            3
+nopt           2
+eval_budget    50000
+# strict eps_x=0.01 eps_f=1.0
+SR_0.01        100.0000
+ANOF_0.01      2.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_0.05        100.0000
+ANOF_0.05      2.0000
+Best_Q         89.9937
+ca_size        200

@@ -1,5 +1,5 @@
-#ifndef OFEC_MPMCOEA_SOLVER_HPP
-#define OFEC_MPMCOEA_SOLVER_HPP
+#ifndef OFEC_MPMMCOEA_SOLVER_HPP
+#define OFEC_MPMMCOEA_SOLVER_HPP
 
 #include "../core/global.h"
 #include "interface.h"
@@ -25,6 +25,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ofec {
@@ -83,7 +84,7 @@ namespace ofec {
         return clusters;
     }
 
-    //  MPMMO_Benchmark - wraps FreePeaksMultiParty
+    //  MPMMO_Benchmark -- wraps FreePeaksMultiParty
     class MPMMO_Benchmark {
     public:
         struct Eval {
@@ -115,18 +116,7 @@ namespace ofec {
             return evaluate(x).obj[static_cast<size_t>(p)];
         }
 
-        //  Dimension-normalised party evaluation for Phase 1b search.
-        //
-        //  Gaussian peaks exp(-r^2 / 2*sig^2) become exponentially narrow in
-        //  high D: at a fixed distance from the peak centre, fitness drops as
-        //  exp(-D*delta^2 / 2*sig^2). For D=10 the peaks are invisible to DE.
-        //
-        //  Rescaling:  f_adj = 100 * (f/100)^(2/D)
-        //    - At D=2: exponent=1.0, no change.
-        //    - At D=10: exponent=0.2, stretches the gradient near-zero values
-        //      up so Phase 1b clearing-DE can detect peak structure.
-        //  Used ONLY for per-party search (NBC init + ClearingDE).
-        //  Archives and metrics use raw evaluate() values.
+        //  Dimension-normalised party evaluation for Phase 1b search
         double evaluatePartyScaled(int p, const std::vector<double>& x) const {
             double f = evaluateParty(p, x);
             if (m_dim <= 2 || f < 1e-12) return f;
@@ -198,8 +188,8 @@ namespace ofec {
         };
     }
 
-    //  MPM-CoEA
-    class MPM_CoEA {
+    //  MPMM-CoEA
+    class MPMM_CoEA {
     private:
         std::shared_ptr<MPMMO_Benchmark> m_bench;
         std::shared_ptr<Environment>     m_env_keeper;
@@ -208,8 +198,10 @@ namespace ofec {
         int    m_niche_pop;
         int    m_med_pop_size;
         int    m_party_gens;
-        int    m_coevo_gens;
+        int    m_eval_budget;   // E_max total evaluation budget (replaces generation count)
         int    m_refine_gens;
+        mutable int m_n_evals = 0;  // cumulative evaluation counter across all phases
+        unsigned    m_run_seed = 0; // per-run algorithm seed (varied across 20 runs)
         double m_sigma;
         double m_de_F;
         double m_de_CR;
@@ -277,6 +269,7 @@ namespace ofec {
         static double clamp01(double v) { return std::max(0.0, std::min(1.0, v)); }
 
         MPMMO_Benchmark::Eval doEval(const std::vector<double>& x) const {
+            ++m_n_evals;
             return m_bench->evaluate(x);
         }
         double evalParty(const std::vector<double>& x, int p) const {
@@ -311,8 +304,7 @@ namespace ofec {
             return best;
         }
 
-        // Build known-basins list from Phase 1b party optima
-        // Called once after all parties' ClearingDE is done
+        // Build known-basins list from Phase 1b party optima.
         void buildKnownBasins() {
             const int D = m_bench->dim();
             m_known_basins.clear();
@@ -335,7 +327,15 @@ namespace ofec {
                 << " distinct basins from Phase 1b party optima\n";
         }
 
-        // Basin-tagged Consensus Archive insertion
+        // Basin-tagged Consensus Archive insertion.
+        //
+        //  Admission:
+        //    - If close (< CA_RADIUS) to an existing member: replace only if better C(x).
+        //    - Otherwise it's a new distinct position:
+        //        * If archive not full: add, tag basin if uncovered.
+        //        * If archive full: evict the lowest-C(x) slot that is NOT the
+        //          sole representative of any basin. If a new basin is uncovered,
+        //          force eviction (override quality check) to guarantee coverage.
         void caInsert(const std::vector<double>& sol, double c) {
             if (!std::isfinite(c) || c < m_ca_min_quality) return;
 
@@ -372,7 +372,7 @@ namespace ofec {
             }
 
             // Archive full: find best eviction candidate.
-            // Prefer to evict a redundant slot (its basin already has another slot).
+            // Prefer to evict a "redundant" slot (its basin already has another slot).
             int evict = -1;
             double worst_c = std::numeric_limits<double>::max();
 
@@ -437,18 +437,26 @@ namespace ofec {
         }
 
         //  Phase 1a: NBC init per party (full D-space)
-        //  Uses evalPartyScaled for fitness in NBC clustering.
         void NBC_init(int party, unsigned seed = 0) {
             const int D = m_bench->dim();
             const int N = m_K * m_niche_pop;
+            // Combine run_seed for per-run variation across 20 runs
             std::mt19937 rng(seed ? seed
-                : static_cast<unsigned>(party * 17417u + 100003u));
+                : static_cast<unsigned>(party * 17417u + 100003u + m_run_seed * 999983u));
             std::uniform_real_distribution<double> u(0.0, 1.0);
 
+            // LHS sampling: x_{i,j} = (π_j(i) - U_{i,j}) / N_pool
+            // Guarantees one sample per stratum in each dimension
             std::vector<std::vector<double>> pop(N, std::vector<double>(D));
+            for (int d = 0; d < D; ++d) {
+                std::vector<int> perm(N);
+                std::iota(perm.begin(), perm.end(), 1);  // perm = {1, 2, ..., N}
+                std::shuffle(perm.begin(), perm.end(), rng);
+                for (int i = 0; i < N; ++i)
+                    pop[i][d] = (perm[i] - u(rng)) / N;
+            }
             std::vector<double> fit(N);
             for (int i = 0; i < N; ++i) {
-                for (auto& v : pop[i]) v = u(rng);
                 // use scaled fitness for clustering so high-D peaks are detectable
                 fit[i] = evalPartyScaled(pop[i], party);
             }
@@ -491,7 +499,7 @@ namespace ofec {
         void ClearingDE(int party, unsigned seed = 0) {
             const int D = m_bench->dim();
             std::mt19937 rng(seed ? seed
-                : static_cast<unsigned>(party * 31337u + 77777u));
+                : static_cast<unsigned>(party * 31337u + 77777u + m_run_seed * 999983u));
             std::uniform_real_distribution<double> u(0.0, 1.0);
             constexpr double PARTY_CR = 0.50;
 
@@ -567,7 +575,7 @@ namespace ofec {
             const int D = m_bench->dim();
             const int M = m_bench->numParties();
             const int npm = m_med_pop_size;
-            std::mt19937 rng(static_cast<unsigned>(54321u));
+            std::mt19937 rng(static_cast<unsigned>(54321u + m_run_seed * 999983u));
             std::uniform_real_distribution<double> u(0.0, 1.0);
 
             std::vector<std::vector<double>> seeds;
@@ -643,7 +651,6 @@ namespace ofec {
                                 ? clamp01(pop[r1][d] + m_de_F * (pop[r2][d] - pop[r3][d]))
                                 : pop[i][d];
                         }
-                        // use scaled eval in competing loop too
                         double tf = evalPartyScaled(trial, party);
                         if (tf > fit[i]) { pop[i] = trial; fit[i] = tf; }
                     }
@@ -808,7 +815,7 @@ namespace ofec {
         //  Phase 3d: Stagnation detection + restart
         //
         //  On restart, also inject from uncovered basins.
-        //  Uncovered basins (m_basin_ca_slot[b]=-1) were never explored
+        //  Uncovered basins (m_basin_ca_slot[b]==-1) were never explored;
         //  force-inject a perturbed version of each into the mediating pop.
         bool checkAndRestart() {
             double cur = *std::max_element(
@@ -862,7 +869,7 @@ namespace ofec {
             // Force-inject from uncovered basins
             int injected_basins = 0;
             for (int b = 0; b < static_cast<int>(m_known_basins.size()); ++b) {
-                if (m_basin_ca_slot[b] >= 0) continue; 
+                if (m_basin_ca_slot[b] >= 0) continue;  // already covered
                 // Perturb basin centre and inject into weakest mediating slot
                 std::vector<double> seed = m_known_basins[b];
                 const double perturb = 0.05;
@@ -1002,8 +1009,8 @@ namespace ofec {
                         f << grid[k].x0 << " " << grid[k].x1 << " " << val(k) << "\n";
                 };
 
-            write("landscape_f0.txt", "# Party-1 landscape F0(x)", [&](size_t k) { return grid[k].f0; });
-            write("landscape_f1.txt", "# Party-2 landscape F1(x)", [&](size_t k) { return grid[k].f1; });
+            write("landscape_f0.txt", "# Party-0 landscape F0(x)", [&](size_t k) { return grid[k].f0; });
+            write("landscape_f1.txt", "# Party-1 landscape F1(x)", [&](size_t k) { return grid[k].f1; });
             write("landscape_consensus.txt", "# Consensus C(x)=min(F0,F1)", [&](size_t k) { return grid[k].cons; });
             write("landscape_rank.txt", "# Two-objective rank landscape", [&](size_t k) { return static_cast<double>(prank[k]); });
 
@@ -1093,27 +1100,27 @@ namespace ofec {
     public:
         //  Constructor
         //  m_ca_min_quality is dimension-dependent.
-        MPM_CoEA(std::shared_ptr<MPMMO_Benchmark> bench,
+        MPMM_CoEA(std::shared_ptr<MPMMO_Benchmark> bench,
             std::shared_ptr<Environment>     env,
-            int    K = 8,
-            int    niche_pop = 20,
-            int    med_pop = 300,
-            int    party_gens = 120,
-            int    coevo_gens = 400,
-            int    refine_gens = 80,
-            double sigma = 0.12,
-            double de_F = 0.5,
-            double de_CR = 0.9,
-            double sharing_a = 2.0,
+            int      K = 8,
+            int      niche_pop = 20,
+            int      med_pop = 300,
+            int      party_gens = 120,
+            int      eval_budget = 30000,  // E_max: total eval budget across all phases
+            int      refine_gens = 80,
+            double   sigma = 0.12,
+            double   de_F = 0.5,
+            double   de_CR = 0.9,
+            double   sharing_a = 2.0,
+            unsigned run_seed = 0,       // per-run algorithm seed for 20-run averaging
             const std::string& out_dir = "Visualization/solutions")
             : m_bench(bench), m_env_keeper(env),
             m_K(K), m_niche_pop(niche_pop), m_med_pop_size(med_pop),
-            m_party_gens(party_gens), m_coevo_gens(coevo_gens),
+            m_party_gens(party_gens), m_eval_budget(eval_budget),
             m_refine_gens(refine_gens), m_sigma(sigma),
             m_de_F(de_F), m_de_CR(de_CR), m_sharing_alpha(sharing_a),
-            m_osa_radius(0.04), m_out_dir(out_dir)
+            m_run_seed(run_seed), m_osa_radius(0.04), m_out_dir(out_dir)
         {
-            // dim-dependent CA quality threshold
             const int D = bench->dim();
             if (D <= 2)       m_ca_min_quality = 20.0;
             else if (D <= 5)  m_ca_min_quality = 5.0;
@@ -1138,14 +1145,14 @@ namespace ofec {
             saveLandscapes();
 
             // Phase 1a: NBC
-            std::cout << "\n>>> [MPM-CoEA] Phase 1a: NBC init\n";
+            std::cout << "\n>>> [MPMM-CoEA] Phase 1a: NBC init\n";
             for (int p = 0; p < M; ++p) NBC_init(p);
             for (int p = 0; p < M; ++p)
                 std::cout << "  P" << p << ": "
                 << m_party_optima[p].size() << " initial optima\n";
 
             // Phase 1b: ClearingDE
-            std::cout << ">>> [MPM-CoEA] Phase 1b: ClearingDE ("
+            std::cout << ">>> [MPMM-CoEA] Phase 1b: ClearingDE ("
                 << m_party_gens << " gens, scaled eval D=" << D << ")\n";
             for (int p = 0; p < M; ++p) ClearingDE(p);
             for (int p = 0; p < M; ++p)
@@ -1160,12 +1167,13 @@ namespace ofec {
             saveOptima();
 
             // Phase 2
-            std::cout << ">>> [MPM-CoEA] Phase 2: CartesianSeed\n";
+            std::cout << ">>> [MPMM-CoEA] Phase 2: CartesianSeed\n";
             CartesianSeed();
 
-            // Phase 3
-            std::cout << ">>> [MPM-CoEA] Phase 3: Co-evolution ("
-                << m_coevo_gens << " gens)\n";
+            // Phase 3: Co-evolution — terminates on E_max budget
+            // E_max: 30,000 (D≤2), 50,000 (D≤3), 100,000 (D≤5), 250,000 (D=10)
+            std::cout << ">>> [MPMM-CoEA] Phase 3: Co-evolution (E_max="
+                << m_eval_budget << ", evals_used_so_far=" << m_n_evals << ")\n";
             std::cout << "  CA_MIN_QUALITY=" << m_ca_min_quality
                 << "  Basins=" << m_known_basins.size() << "\n";
 
@@ -1179,7 +1187,7 @@ namespace ofec {
 
             static const int snaps[] = { 10, 50, 100, 200, 300, 400, -1 };
 
-            for (m_generation = 1; m_generation <= m_coevo_gens; ++m_generation) {
+            for (m_generation = 1; m_n_evals < m_eval_budget; ++m_generation) {
                 adaptOsaRadius();
                 evolveCompeting();
                 evolveMediating();
@@ -1187,7 +1195,7 @@ namespace ofec {
                 checkAndRestart();
 
                 for (int k = 0; snaps[k] > 0; ++k)
-                    if (m_generation == snaps[k] || m_generation == m_coevo_gens)
+                    if (m_generation == snaps[k])
                         saveVisualizationData(m_generation);
 
                 if (m_generation % 5 == 0) {
@@ -1207,7 +1215,7 @@ namespace ofec {
             }
 
             // Phase 4: Refinement
-            std::cout << ">>> [MPM-CoEA] Phase 4: JointRefine\n";
+            std::cout << ">>> [MPMM-CoEA] Phase 4: JointRefine\n";
             auto finals = collectCandidates();
             finals.resize(std::min(static_cast<int>(finals.size()), 120));
             for (size_t i = 0; i < finals.size(); ++i) {
@@ -1235,6 +1243,7 @@ namespace ofec {
         }
 
         //  Accessors
+        int    totalEvals()     const { return m_n_evals; }
         double getBestFitness() const {
             if (m_mediating_fit.empty()) return DEAD;
             return *std::max_element(m_mediating_fit.begin(), m_mediating_fit.end());
@@ -1291,7 +1300,7 @@ namespace ofec {
                 out << m_mediating_fit[i] << "\n";
             }
         }
-    };  // class MPM_CoEA
+    };  // class MPMM_CoEA
 
     //  Benchmark result struct
     struct BenchmarkResult {
@@ -1299,10 +1308,11 @@ namespace ofec {
         int         suite_id = 0;
         int         dim = 0;
         int         nopt = 0;
-        double      sr_strict = 0, anof_strict = 0, mpr_strict = 0;
-        double      sr_loose = 0, anof_loose = 0, mpr_loose = 0;
+        // Five metrics : SR-0.01, SR-0.05, ANOF-0.01, ANOF-0.05, Best Q
+        double      sr_strict = 0, anof_strict = 0;   // eps_x=0.01, eps_f=1.0
+        double      sr_loose = 0, anof_loose = 0;   // eps_x=0.05, eps_f=2.0
+        double      best_q = 0;  // max Q(x)=min_p F_p(x) in mediating pop (Best Q)
         int         ca_size = 0;
-        double      best_fitness = 0;
     };
 
     //  Single problem instance runner
@@ -1310,10 +1320,11 @@ namespace ofec {
         int         suite_id,
         size_t      dimension,
         const std::string& vis_dir,
-        int         coevo_gens = 400)
+        int         eval_budget = 30000,
+        unsigned    run_seed = 0)       // varies across 20 runs
     {
         std::cout << "\n[runSingleBenchmark] P" << suite_id
-            << "  D=" << dimension << "\n";
+            << "  D=" << dimension << "  run_seed=" << run_seed << "\n";
 
         std::shared_ptr<Environment> env(
             generateEnvironmentByFactory("free_peaks_multiparty"));
@@ -1323,7 +1334,13 @@ namespace ofec {
         pm["suite_id"] = suite_id;
         pm["problem_dimension"] = dimension;
         env->problem()->inputParameters().input(pm);
-        env->initializeProblem(0.5);
+        static const double NEW_RAN_MAX = 2147483647.0;
+        unsigned int seed_int = (suite_id * 1103515245u + static_cast<unsigned>(dimension) * 12345u + 1u) & 0x7FFFFFFFu;
+        const Real instance_seed = static_cast<Real>(seed_int / NEW_RAN_MAX);
+
+        // Safety clamp (protects against FP edge cases)
+        const Real safe_seed = std::max(0.0001, std::min(0.9999, static_cast<double>(instance_seed)));
+        env->initializeProblem(instance_seed);
 
         auto* fp = dynamic_cast<FreePeaksMultiParty*>(env->problem());
         if (!fp) throw std::runtime_error("FreePeaksMultiParty cast failed");
@@ -1337,17 +1354,18 @@ namespace ofec {
 
         auto bench = std::make_shared<MPMMO_Benchmark>(fp, env.get());
 
-        MPM_CoEA solver(bench, env,
+        MPMM_CoEA solver(bench, env,
             /*K*/           8,
             /*niche_pop*/  20,
             /*med_pop*/   300,
             /*party_gens*/120,
-            /*coevo_gens*/coevo_gens,
+            /*eval_budget*/eval_budget,
             /*refine_gens*/ 80,
             /*sigma*/      0.12,
             /*de_F*/       0.5,
             /*de_CR*/      0.9,
             /*sharing_a*/  2.0,
+            /*run_seed*/   run_seed,
             vis_dir);
 
         solver.run();
@@ -1359,37 +1377,36 @@ namespace ofec {
         auto ms = evaluateCEC2015Metrics(candidates, *bench, 0.01, 1.0);
         auto ml = evaluateCEC2015Metrics(candidates, *bench, 0.05, 2.0);
 
-        std::cout << "  CEC-2015 strict (eps_x=0.01, eps_f=1.0):\n"
-            << "    SR=" << ms.SR << "%  ANOF=" << ms.ANOF
-            << "  MPR=" << ms.MPR << "\n"
-            << "  CEC-2015 loose (eps_x=0.05, eps_f=2.0):\n"
-            << "    SR=" << ml.SR << "%  ANOF=" << ml.ANOF
-            << "  MPR=" << ml.MPR << "\n"
+        const double best_q = solver.getBestFitness();
+        std::cout << "  Strict (eps_x=0.01, eps_f=1.0):  SR=" << ms.SR
+            << "%  ANOF=" << ms.ANOF << "\n"
+            << "  Loose  (eps_x=0.05, eps_f=2.0):  SR=" << ml.SR
+            << "%  ANOF=" << ml.ANOF << "\n"
+            << "  Best_Q=" << std::fixed << std::setprecision(4) << best_q
             << "  CA=" << solver.getConsensusArchive().size()
-            << "  best_C=" << std::fixed << std::setprecision(4)
-            << solver.getBestFitness() << "\n";
+            << "  evals=" << solver.totalEvals() << "\n";
 
         {
             std::filesystem::create_directories(vis_dir);
-            std::ofstream mf(vis_dir + "/cec2015_metrics.txt");
+            std::ofstream mf(vis_dir + "/metrics.txt");
             if (mf.is_open()) {
                 mf << std::fixed << std::setprecision(4)
-                    << "# CEC-2015 metrics  P" << suite_id << "  D=" << dimension << "\n"
+                    << "# MPMM-CoEA metrics  P" << suite_id << "  D=" << dimension
+                    << "  run_seed=" << run_seed << "\n"
                     << "suite_id       " << suite_id << "\n"
                     << "problem_name   " << spec.name << "\n"
                     << "feature        " << spec.feature << "\n"
                     << "dim            " << dimension << "\n"
                     << "nopt           " << nopt << "\n"
+                    << "eval_budget    " << eval_budget << "\n"
                     << "# strict eps_x=0.01 eps_f=1.0\n"
-                    << "SR_strict      " << ms.SR << "\n"
-                    << "ANOF_strict    " << ms.ANOF << "\n"
-                    << "MPR_strict     " << ms.MPR << "\n"
+                    << "SR_0.01        " << ms.SR << "\n"
+                    << "ANOF_0.01      " << ms.ANOF << "\n"
                     << "# loose  eps_x=0.05 eps_f=2.0\n"
-                    << "SR_loose       " << ml.SR << "\n"
-                    << "ANOF_loose     " << ml.ANOF << "\n"
-                    << "MPR_loose      " << ml.MPR << "\n"
-                    << "ca_size        " << solver.getConsensusArchive().size() << "\n"
-                    << "best_consensus " << solver.getBestFitness() << "\n";
+                    << "SR_0.05        " << ml.SR << "\n"
+                    << "ANOF_0.05      " << ml.ANOF << "\n"
+                    << "Best_Q         " << best_q << "\n"
+                    << "ca_size        " << solver.getConsensusArchive().size() << "\n";
             }
         }
 
@@ -1398,15 +1415,14 @@ namespace ofec {
         r.suite_id = suite_id;
         r.dim = static_cast<int>(dimension);
         r.nopt = nopt;
-        r.sr_strict = ms.SR;    r.anof_strict = ms.ANOF;  r.mpr_strict = ms.MPR;
-        r.sr_loose = ml.SR;    r.anof_loose = ml.ANOF;  r.mpr_loose = ml.MPR;
+        r.sr_strict = ms.SR;    r.anof_strict = ms.ANOF;
+        r.sr_loose = ml.SR;    r.anof_loose = ml.ANOF;
+        r.best_q = best_q;
         r.ca_size = static_cast<int>(solver.getConsensusArchive().size());
-        r.best_fitness = solver.getBestFitness();
         return r;
     }
 
     //  Full suite runner
-    //  Adaptive generation according to dimension.
     inline void runBenchmarkSuiteAll() {
         registerInstance();
 
@@ -1414,99 +1430,145 @@ namespace ofec {
             "E:\\HITSZ\\Research\\Multimodal_Multiparty_Optimization"
             "\\ThesisProject\\Visualization";
 
-        std::cout << " MPM-CoEA Benchmark Suite\n";
+        std::cout << " MPMM-CoEA Benchmark Suite\n";
 
-        const std::vector<int>    suite_ids = { 1,2,3,4,5,6,7,8,9,10,11,12 };
+        const std::vector<int>    suite_ids = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
         const std::vector<size_t> dimensions = { 2, 3, 5, 10 };
+        constexpr int N_RUNS = 20;  // 20 independent runs per instance (Sec 5 of report)
 
-        struct Inst { int sid; size_t dim; int gens; };
+        // E_max budget per dimension
+        // D=2 → 30,000   D=3 → 50,000   D=5 → 100,000   D=10 → 250,000
+        auto emax = [](size_t d) -> int {
+            if (d <= 2)  return 30000;
+            if (d <= 3)  return 50000;
+            if (d <= 5)  return 100000;
+            return 250000;
+            };
+
+        struct Inst { int sid; size_t dim; };
         std::vector<Inst> instances;
-        for (int sid : suite_ids) {
-            for (size_t d : dimensions) {
-                // Adaptive budget - 2D converges fast, high-D needs more time
-                int gens;
-                if (d <= 2)  gens = 300;
-                else if (d <= 5)  gens = 500;
-                else              gens = 800;
-                instances.push_back({ sid, d, gens });
-            }
-        }
+        for (int sid : suite_ids)
+            for (size_t d : dimensions)
+                instances.push_back({ sid, d });
 
         std::vector<BenchmarkResult> results;
         int idx = 0;
         for (const auto& inst : instances) {
             ++idx;
+            const int budget = emax(inst.dim);
             std::cout << "\n[" << idx << "/" << instances.size() << "]  "
                 << "P" << inst.sid << "  D=" << inst.dim
-                << "  gens=" << inst.gens << "\n";
-            std::string vis_dir = vis_base + "/mpmcoea_P"
+                << "  E_max=" << budget << "  runs=" << N_RUNS << "\n";
+            std::string base_vis = vis_base + "/mpmcoea_P"
                 + std::to_string(inst.sid) + "_D" + std::to_string(inst.dim);
-            try {
-                results.push_back(runSingleBenchmark(inst.sid, inst.dim, vis_dir, inst.gens));
+
+            // 20-run averaging
+            BenchmarkResult agg;
+            int n_ok = 0;
+            for (int run = 0; run < N_RUNS; ++run) {
+                // Last run saves full visualisation; others use lightweight dir
+                std::string vis_dir = (run == N_RUNS - 1)
+                    ? base_vis
+                    : base_vis + "_run" + std::to_string(run);
+                try {
+                    auto r = runSingleBenchmark(
+                        inst.sid, inst.dim, vis_dir, budget,
+                        static_cast<unsigned>(run * 999983u + 1u));
+                    if (n_ok == 0) {
+                        agg.name = r.name; agg.suite_id = r.suite_id;
+                        agg.dim = r.dim;  agg.nopt = r.nopt;
+                        agg.ca_size = r.ca_size;
+                    }
+                    agg.sr_strict += r.sr_strict;
+                    agg.anof_strict += r.anof_strict;
+                    agg.sr_loose += r.sr_loose;
+                    agg.anof_loose += r.anof_loose;
+                    agg.best_q += r.best_q;
+                    agg.ca_size = r.ca_size;  // keep last run's CA size
+                    ++n_ok;
+                }
+                catch (const std::exception& ex) {
+                    std::cerr << "  [FAIL] run=" << run << " P" << inst.sid
+                        << " D=" << inst.dim << ": " << ex.what() << "\n";
+                }
             }
-            catch (const std::exception& ex) {
-                std::cerr << "  [FAIL] P" << inst.sid
-                    << " D=" << inst.dim << ": " << ex.what() << "\n";
+            if (n_ok > 0) {
+                agg.sr_strict /= n_ok;
+                agg.anof_strict /= n_ok;
+                agg.sr_loose /= n_ok;
+                agg.anof_loose /= n_ok;
+                agg.best_q /= n_ok;
+                results.push_back(agg);
             }
         }
+
+        // Suite-to-P-number map
+        auto pnum = [](int sid) -> std::string {
+            static const std::unordered_map<int, int> m{
+                {1,1},{2,2},{4,3},{5,4},{9,5},{10,6},{11,7},{12,8},  
+                {3,9},{6,10},{7,11},{8,12}                           
+            };
+            auto it = m.find(sid);
+            return it != m.end() ? "P" + std::string(it->second < 10 ? "0" : "") + std::to_string(it->second)
+                : "P??";
+            };
 
         // Summary table
         std::cout << "\n>>> Results (" << results.size()
             << "/" << instances.size() << ")\n";
+        // Console summary table (mean over 20 runs)
         std::cout << std::left
-            << std::setw(32) << "Problem"
-            << std::setw(5) << "Sid"
-            << std::setw(5) << "Dim"
+            << std::setw(5) << "PID"
+            << std::setw(30) << "Problem"
+            << std::setw(5) << "D"
             << std::setw(5) << "Opt"
-            << std::setw(9) << "SR(s)%"
-            << std::setw(9) << "ANOF(s)"
-            << std::setw(9) << "SR(l)%"
-            << std::setw(9) << "ANOF(l)"
-            << std::setw(7) << "CA_sz"
-            << std::setw(10) << "Best_C"
-            << "\n" << std::string(100, '-') << "\n";
+            << std::setw(10) << "SR-0.01%"
+            << std::setw(10) << "ANOF-0.01"
+            << std::setw(10) << "SR-0.05%"
+            << std::setw(10) << "ANOF-0.05"
+            << std::setw(10) << "Best_Q"
+            << "\n" << std::string(110, '-') << "\n";
         for (const auto& r : results) {
             std::cout << std::left
-                << std::setw(32) << r.name
-                << std::setw(5) << r.suite_id
+                << std::setw(5) << pnum(r.suite_id)
+                << std::setw(30) << r.name
                 << std::setw(5) << r.dim
                 << std::setw(5) << r.nopt
-                << std::setw(9) << std::fixed << std::setprecision(1) << r.sr_strict
-                << std::setw(9) << std::setprecision(3) << r.anof_strict
-                << std::setw(9) << std::setprecision(1) << r.sr_loose
-                << std::setw(9) << std::setprecision(3) << r.anof_loose
-                << std::setw(7) << r.ca_size
-                << std::setw(10) << std::setprecision(2) << r.best_fitness
+                << std::setw(10) << std::fixed << std::setprecision(1) << r.sr_strict
+                << std::setw(10) << std::setprecision(3) << r.anof_strict
+                << std::setw(10) << std::setprecision(1) << r.sr_loose
+                << std::setw(10) << std::setprecision(3) << r.anof_loose
+                << std::setw(10) << std::setprecision(2) << r.best_q
                 << "\n";
         }
 
-        // CSV
+        // Aggregated CSV (one row per instance, mean over 20 runs)
         const std::string csv_path = vis_base + "/mpmcoea_suite_summary.csv";
         {
             std::ofstream csv(csv_path);
             if (csv.is_open()) {
-                csv << "problem_name,suite_id,dim,nopt,"
-                    "sr_strict,anof_strict,mpr_strict,"
-                    "sr_loose,anof_loose,mpr_loose,"
-                    "ca_size,best_fitness\n"
+                csv << "p_id,problem_name,suite_id,dim,nopt,"
+                    "SR-0.01,ANOF-0.01,"
+                    "SR-0.05,ANOF-0.05,"
+                    "Best_Q\n"
                     << std::fixed << std::setprecision(4);
                 for (const auto& r : results)
-                    csv << r.name << "," << r.suite_id << ","
+                    csv << pnum(r.suite_id) << "," << r.name << "," << r.suite_id << ","
                     << r.dim << "," << r.nopt << ","
-                    << r.sr_strict << "," << r.anof_strict << "," << r.mpr_strict << ","
-                    << r.sr_loose << "," << r.anof_loose << "," << r.mpr_loose << ","
-                    << r.ca_size << "," << r.best_fitness << "\n";
+                    << r.sr_strict << "," << r.anof_strict << ","
+                    << r.sr_loose << "," << r.anof_loose << ","
+                    << r.best_q << "\n";
                 std::cout << "[INFO] CSV: " << csv_path << "\n";
             }
         }
-        std::cout << "\n>>> [MPM-CoEA Suite] Complete.\n";
+        std::cout << "\n>>> [MPMM-CoEA Suite] Complete.\n";
     }
 
     //  Entry point
-    inline void runMPMCoEAExperiment() {
+    inline void runMPMMCoEAExperiment() {
         runBenchmarkSuiteAll();
     }
 
 }  // namespace ofec
 
-#endif  // OFEC_MPMCOEA_SOLVER_HPP
+#endif  // OFEC_MPMMCOEA_SOLVER_HPP

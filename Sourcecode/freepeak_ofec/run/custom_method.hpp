@@ -4,10 +4,13 @@
 #include "../core/global.h"
 #include "interface.h"
 
-#include <iostream>
-#include <fstream>
-#include <string>
+#include <algorithm>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <string>
+#include <unordered_map>
 
 #include "../instance/problem/continuous/free_peaks/free_peaks.h"
 #include "../instance/problem/continuous/free_peaks/subproblem/subproblem.h"
@@ -15,10 +18,19 @@
 #include "../instance/problem/continuous/free_peaks/factory.h"
 #include "../instance/problem/continuous/free_peaks/free_peaks_multiparty.h"
 #include "mpmcoea_solver.hpp"
-#include <iomanip>
-
 
 namespace fs = std::filesystem;
+
+// Maps suite_id → "P01"-"P12" label (P01-P08 = report, P09-P12 = supplementary)
+inline std::string suitePLabel(int suite_id) {
+    static const std::unordered_map<int, int> m{
+        {1,1},{2,2},{4,3},{5,4},{9,5},{10,6},{11,7},{12,8},
+        {3,9},{6,10},{7,11},{8,12}
+    };
+    auto it = m.find(suite_id);
+    int n = it != m.end() ? it->second : suite_id;
+    return "P" + std::string(n < 10 ? "0" : "") + std::to_string(n);
+}
 
 
 /*void printBenchmarkStructure(ofec::FreePeaks* fp) {
@@ -613,14 +625,13 @@ namespace ofec {
         using namespace std;
 
 
-        // multiparty multiobjective
-        // 
-        // 
+        // Multiparty Multimodal Optimization (MPMMO)
+        // Find ALL x* where consensus Q(x*) = min_p F_p(x*) is maximised.
         ofec::g_working_directory = "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Data/ofec_data_new";
 
 
-        // Run the full MPMMO 2-D benchmark suite (F01–F08)
-        ofec::runMPMCoEAExperiment();
+        // Run the full MPMMO 2-D benchmark suite
+        ofec::runMPMMCoEAExperiment();
 
     }
 }
@@ -642,12 +653,13 @@ void outputFreePeaksMultipartyLandscape12(const std::string& dir) {
         pm["suite_id"] = suite_id;
         pm["problem_dimension"] = dimension;
         env->problem()->inputParameters().input(pm);
-        env->initializeProblem(0.5);
+        const Real instance_seed = static_cast<Real>(suite_id * 1000 + static_cast<int>(dimension));
+        env->initializeProblem(instance_seed);
         auto* problem = dynamic_cast<FreePeaksMultiParty*>(env->problem());
         if (!problem) throw std::runtime_error("free_peaks_multiparty initialization failed");
         const auto& spec = problem->currentSpec();
         std::filesystem::path suite_dir = output_root /
-            ("suite_" + std::to_string(suite_id) + "_" + spec.name);
+            (suitePLabel(suite_id) + "_suite" + std::to_string(suite_id) + "_" + spec.name);
         std::filesystem::create_directories(suite_dir);
 
         // 400x400 grid (j=x1 outer, i=x0 inner)
@@ -669,45 +681,18 @@ void outputFreePeaksMultipartyLandscape12(const std::string& dir) {
             }
         }
 
-        // Fast O(N log N) Pareto ranking for 2 maximization objectives.
-        // Equivalent output to filterSortP (0-indexed, 0 = non-dominated = best front)
-        // but runs in ~1s instead of hours on 160k points.
-        //
-        // Algorithm: sort by f0 DESC (ties: f1 ASC so equal-f0 points don't dominate each other).
-        // Maintain front_max_f1[r] = current max f1 in front r (strictly decreasing across fronts).
-        // Each point goes into the lowest front r where front_max_f1[r] < f1[point].
+
         const int N = static_cast<int>(indiObjs.size());
-        std::vector<int> rank(N, 0);
-        {
-            std::vector<int> idx(N);
-            std::iota(idx.begin(), idx.end(), 0);
-            std::sort(idx.begin(), idx.end(), [&](int a, int b) {
-                if (indiObjs[a][0] != indiObjs[b][0]) return indiObjs[a][0] > indiObjs[b][0];
-                return indiObjs[a][1] < indiObjs[b][1]; // ties: f1 asc avoids false dominance
-                });
-            std::vector<double> front_max_f1; // strictly decreasing
-            for (int k = 0; k < N; ++k) {
-                const int id = idx[k];
-                const double f1 = indiObjs[id][1];
-                // Binary search: lowest r where front_max_f1[r] < f1
-                int lo = 0, hi = static_cast<int>(front_max_f1.size());
-                while (lo < hi) {
-                    const int mid = (lo + hi) / 2;
-                    if (front_max_f1[mid] < f1) hi = mid;
-                    else lo = mid + 1;
-                }
-                rank[id] = lo;
-                if (lo == static_cast<int>(front_max_f1.size()))
-                    front_max_f1.push_back(f1);
-                else
-                    front_max_f1[lo] = std::max(front_max_f1[lo], f1);
-            }
-        }
+        std::vector<double> consensus(N);
+        for (int k = 0; k < N; ++k)
+            consensus[k] = std::min(indiObjs[k][0], indiObjs[k][1]);
 
         // Write grid_2d.tsv
+        // Column consensus_min = min(F0,F1): the MPMMO quality measure.
+        // Shared optima are grid cells where consensus_min ≈ 90.
         std::ofstream grid_f(suite_dir / "grid_2d.tsv");
         grid_f << std::fixed << std::setprecision(10);
-        grid_f << "i\tj\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tp1_obj\tp2_obj\trank\n";
+        grid_f << "i\tj\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tf_party0\tf_party1\tconsensus_min\n";
         for (int j = 0; j < grid_resolution; ++j) {
             for (int i = 0; i < grid_resolution; ++i) {
                 const int idx = j * grid_resolution + i;
@@ -718,37 +703,42 @@ void outputFreePeaksMultipartyLandscape12(const std::string& dir) {
                     << (var[1] * 7.0 - 3.5) << '\t'
                     << sols[idx]->objective(0) << '\t'
                     << sols[idx]->objective(1) << '\t'
-                    << rank[idx] << "\n";
+                    << consensus[idx] << "\n";
             }
         }
 
-        // Write optima_2d.tsv
+        // Write optima_2d.tsv — shared optima where Q(x*) = min(F0,F1) ≈ 90
         std::ofstream optima_f(suite_dir / "optima_2d.tsv");
         optima_f << std::fixed << std::setprecision(10);
-        optima_f << "idx\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tp1_obj\tp2_obj\trank\n";
+        optima_f << "idx\tx0_norm\tx1_norm\tx0_plot\tx1_plot\tf_party0\tf_party1\tconsensus_min\n";
         if (problem->optima()) {
             for (size_t opt_id = 0; opt_id < problem->optima()->numberSolutions(); ++opt_id) {
                 const auto& opt_sol = problem->optima()->solution(opt_id);
                 const auto& opt_var = opt_sol.variable().vector();
+                const double q = std::min(opt_sol.objective(0), opt_sol.objective(1));
                 optima_f << opt_id << '\t'
                     << opt_var[0] << '\t' << opt_var[1] << '\t'
                     << (opt_var[0] * 7.0 - 3.5) << '\t'
                     << (opt_var[1] * 7.0 - 3.5) << '\t'
                     << opt_sol.objective(0) << '\t'
                     << opt_sol.objective(1) << '\t'
-                    << 0 << "\n";
+                    << q << "\n";
             }
         }
 
         // Write run_info.txt
         std::ofstream info_f(suite_dir / "run_info.txt");
+        info_f << "p_id " << suitePLabel(suite_id) << "\n";
         info_f << "suite " << suite_id << "\n";
         info_f << "name " << spec.name << "\n";
         info_f << "feature " << spec.feature << "\n";
         info_f << "dimension " << dimension << "\n";
+        info_f << "instance_seed " << static_cast<int>(instance_seed) << "\n";
         info_f << "grid_resolution " << grid_resolution << "\n";
-        info_f << "rank_definition nondominated_sort_rank_fast2obj_best_front_is_0\n";
-        std::cout << "[landscape] suite " << suite_id << " " << spec.name
+        info_f << "consensus_definition min(F_party0, F_party1)\n";
+        info_f << "shared_optima_count " << (problem->optima() ? problem->optima()->numberSolutions() : 0) << "\n";
+        std::cout << "[landscape] " << suitePLabel(suite_id)
+            << " suite " << suite_id << " " << spec.name
             << " -> " << suite_dir.string() << "\n";
     }
 }
