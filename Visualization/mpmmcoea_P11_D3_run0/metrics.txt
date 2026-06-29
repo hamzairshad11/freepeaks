@@ -7,10 +7,10 @@ nopt           8
 eval_budget    50000
 # strict eps_x=0.01 eps_f=1.0
 SR_0.01        0.0000
-ANOF_0.01      2.0000
+ANOF_0.01      7.0000
 # loose  eps_x=0.05 eps_f=2.0
 SR_0.05        0.0000
-ANOF_0.05      2.0000
-E_WP           0.7072
-D_PO           0.0012
+ANOF_0.05      7.0000
+E_WP           0.0329
+D_PO           0.0015
 ca_size        200

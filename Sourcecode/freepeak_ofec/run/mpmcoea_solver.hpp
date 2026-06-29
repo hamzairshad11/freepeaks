@@ -148,6 +148,22 @@ namespace ofec {
         const std::vector<std::vector<Real>>& sharedOptima() const {
             return m_problem->currentSpec().shared_optima;
         }
+
+        // All peak centres of party p  (= X*_p, the per-party global-optimum set).
+        // In FreePeak every peak has the same height G_p = partyPeakHeight().
+        std::vector<std::vector<double>> partyOptima(int p) const {
+            const auto& peaks =
+                m_problem->currentSpec().parties[static_cast<size_t>(p)].peaks;
+            std::vector<std::vector<double>> result;
+            result.reserve(peaks.size());
+            for (const auto& pk : peaks)
+                result.push_back(
+                    std::vector<double>(pk.center.begin(), pk.center.end()));
+            return result;
+        }
+        // All FreePeak peaks share height h = 90  →  G_p = 90 for every party p.
+        static constexpr double partyPeakHeight() { return 90.0; }
+
         std::string problemName() const { return m_problem->currentSpec().name; }
         std::string feature()     const { return m_problem->currentSpec().feature; }
 
@@ -197,6 +213,67 @@ namespace ofec {
             static_cast<double>(n_found),
             static_cast<double>(n_found) / static_cast<double>(nopt)
         };
+    }
+
+
+    // Worst-party target error (E_WP)
+    //   E_WP(x) = max_p  (G_p − F_p(x))
+    // Returns the *lowest* E_WP across all mediating-population members at run end.
+    //   Near 0  → every party has reached its global-optimum fitness.
+    //   Large   → no satisfactory shared optimum was located.
+    // med_obj[i][p] must hold the raw F_p(x_i) value stored during search.
+    inline double computeWorstPartyError(
+        const std::vector<std::vector<double>>& med_pop,
+        const std::vector<std::vector<double>>& med_obj,
+        const MPMMO_Benchmark& bench)
+    {
+        const double G = MPMMO_Benchmark::partyPeakHeight();
+        const int    M = bench.numParties();
+        double best_ewp = std::numeric_limits<double>::max();
+        for (size_t i = 0; i < med_pop.size(); ++i) {
+            if (i >= med_obj.size()) continue;
+            double ewp = 0.0;
+            for (int p = 0; p < M; ++p)
+                ewp = std::max(ewp, G - med_obj[i][static_cast<size_t>(p)]);
+            best_ewp = std::min(best_ewp, ewp);
+        }
+        // If mediating pop is empty return G (worst possible error).
+        return (best_ewp == std::numeric_limits<double>::max()) ? G : best_ewp;
+    }
+
+    // Best distance to party-optimum sets (D_PO)
+    //   D_PO(x) = sum_p  min_{x*_p ∈ X*_p}  ||x − x*_p||
+    // Returns the *lowest* D_PO across all mediating-population members at run end.
+    //   Near 0  → solution is close to at least one global optimum of every party.
+    //   Large   → the located solution remains far from all party-specific optima.
+    inline double computeBestDistToPO(
+        const std::vector<std::vector<double>>& med_pop,
+        const MPMMO_Benchmark& bench)
+    {
+        const int M = bench.numParties();
+        // Pre-fetch per-party optima once (avoids repeated spec traversal).
+        std::vector<std::vector<std::vector<double>>> party_opts(
+            static_cast<size_t>(M));
+        for (int p = 0; p < M; ++p)
+            party_opts[static_cast<size_t>(p)] = bench.partyOptima(p);
+
+        double best_dpo = std::numeric_limits<double>::max();
+        for (const auto& x : med_pop) {
+            double dpo = 0.0;
+            for (int p = 0; p < M; ++p) {
+                double d_min = std::numeric_limits<double>::max();
+                for (const auto& xs : party_opts[static_cast<size_t>(p)]) {
+                    double d2 = 0.0;
+                    for (size_t k = 0; k < x.size() && k < xs.size(); ++k) {
+                        double dv = x[k] - xs[k]; d2 += dv * dv;
+                    }
+                    d_min = std::min(d_min, std::sqrt(d2));
+                }
+                if (d_min < std::numeric_limits<double>::max()) dpo += d_min;
+            }
+            best_dpo = std::min(best_dpo, dpo);
+        }
+        return (best_dpo == std::numeric_limits<double>::max()) ? 0.0 : best_dpo;
     }
 
     //  MPMM-CoEA
@@ -1279,6 +1356,10 @@ namespace ofec {
         }
         const std::vector<std::vector<double>>& getConsensusArchive()    const { return m_ca; }
         const std::vector<double>& getConsensusArchiveFit() const { return m_ca_fit; }
+        // Mediating-population accessors (needed for E_WP and D_PO computation).
+        const std::vector<std::vector<double>>& getMediatingPop() const { return m_mediating_pop; }
+        // Returns {F_0(x_i), F_1(x_i), ...} for each mediating-pop member i.
+        const std::vector<std::vector<double>>& getMediatingObj() const { return m_mediating_obj; }
 
         //  Save functions
         void saveConvergenceCurve() const {
@@ -1328,10 +1409,11 @@ namespace ofec {
         int         suite_id = 0;
         int         dim = 0;
         int         nopt = 0;
-        // Five metrics: SR-0.01, SR-0.05, ANOF-0.01, ANOF-0.05, Best Q
+        // Six metrics: SR-0.01, SR-0.05, ANOF-0.01, ANOF-0.05, E_WP, D_PO
         double      sr_strict = 0, anof_strict = 0;   // eps_x=0.01, eps_f=1.0
         double      sr_loose = 0, anof_loose = 0;   // eps_x=0.05, eps_f=2.0
-        double      best_q = 0;  // max Q(x)=min_p F_p(x) in mediating pop (Best Q)
+        double      ewp = 0;   // min E_WP(x) over mediating pop (lower = better)
+        double      dpo = 0;   // min D_PO(x) over mediating pop (lower = better)
         int         ca_size = 0;
     };
 
@@ -1399,12 +1481,15 @@ namespace ofec {
         auto ms = evaluateCEC2015Metrics(candidates, *bench, 0.01, 1.0);
         auto ml = evaluateCEC2015Metrics(candidates, *bench, 0.05, 2.0);
 
-        const double best_q = solver.getBestFitness();
+        const double ewp = computeWorstPartyError(
+            solver.getMediatingPop(), solver.getMediatingObj(), *bench);
+        const double dpo = computeBestDistToPO(solver.getMediatingPop(), *bench);
         std::cout << "  Strict (eps_x=0.01, eps_f=1.0):  SR=" << ms.SR
             << "%  ANOF=" << ms.ANOF << "\n"
             << "  Loose  (eps_x=0.05, eps_f=2.0):  SR=" << ml.SR
             << "%  ANOF=" << ml.ANOF << "\n"
-            << "  Best_Q=" << std::fixed << std::setprecision(4) << best_q
+            << "  E_WP=" << std::fixed << std::setprecision(4) << ewp
+            << "  D_PO=" << std::setprecision(6) << dpo
             << "  CA=" << solver.getConsensusArchive().size()
             << "  evals=" << solver.totalEvals() << "\n";
 
@@ -1427,7 +1512,8 @@ namespace ofec {
                     << "# loose  eps_x=0.05 eps_f=2.0\n"
                     << "SR_0.05        " << ml.SR << "\n"
                     << "ANOF_0.05      " << ml.ANOF << "\n"
-                    << "Best_Q         " << best_q << "\n"
+                    << "E_WP           " << ewp << "\n"
+                    << "D_PO           " << dpo << "\n"
                     << "ca_size        " << solver.getConsensusArchive().size() << "\n";
             }
         }
@@ -1439,18 +1525,19 @@ namespace ofec {
         r.nopt = nopt;
         r.sr_strict = ms.SR;    r.anof_strict = ms.ANOF;
         r.sr_loose = ml.SR;    r.anof_loose = ml.ANOF;
-        r.best_q = best_q;
+        r.ewp = ewp;
+        r.dpo = dpo;
         r.ca_size = static_cast<int>(solver.getConsensusArchive().size());
         return r;
     }
 
     //  Full suite runner
-  
+
     inline void runBenchmarkSuiteAll() {
         registerInstance();
 
         const std::string vis_base =
-            "E:\\HITSZ\\Research\\Multimodal_Multiparty_Optimization"
+            "D:\\Research\\ThesisProject"
             "\\ThesisProject\\Visualization";
 
         std::cout << " MPMM-CoEA Benchmark Suite\n";
@@ -1460,7 +1547,7 @@ namespace ofec {
         const std::vector<size_t> dimensions = { 2, 3, 5, 10 };
         constexpr int N_RUNS = 20;  // 20 independent runs per instance
 
-        // E_max budget per dimension (report Table 3):
+        // E_max budget per dimension:
         // D=2 → 30,000   D=3 → 50,000   D=5 → 100,000   D=10 → 250,000
         // Higher budgets for D≥5 compensate for the exponential growth of search space volume.
         auto emax = [](size_t d) -> int {
@@ -1510,7 +1597,8 @@ namespace ofec {
                     agg.anof_strict += r.anof_strict;
                     agg.sr_loose += r.sr_loose;
                     agg.anof_loose += r.anof_loose;
-                    agg.best_q += r.best_q;
+                    agg.ewp += r.ewp;
+                    agg.dpo += r.dpo;
                     agg.ca_size = r.ca_size;  // keep last run's CA size
                     ++n_ok;
                 }
@@ -1524,7 +1612,8 @@ namespace ofec {
                 agg.anof_strict /= n_ok;
                 agg.sr_loose /= n_ok;
                 agg.anof_loose /= n_ok;
-                agg.best_q /= n_ok;
+                agg.ewp /= n_ok;
+                agg.dpo /= n_ok;
                 results.push_back(agg);
             }
         }
@@ -1553,8 +1642,9 @@ namespace ofec {
             << std::setw(10) << "ANOF-0.01"
             << std::setw(10) << "SR-0.05%"
             << std::setw(10) << "ANOF-0.05"
-            << std::setw(10) << "Best_Q"
-            << "\n" << std::string(110, '-') << "\n";
+            << std::setw(12) << "E_WP"
+            << std::setw(12) << "D_PO"
+            << "\n" << std::string(122, '-') << "\n";
         for (const auto& r : results) {
             std::cout << std::left
                 << std::setw(5) << pnum(r.suite_id)
@@ -1565,7 +1655,8 @@ namespace ofec {
                 << std::setw(10) << std::setprecision(3) << r.anof_strict
                 << std::setw(10) << std::setprecision(1) << r.sr_loose
                 << std::setw(10) << std::setprecision(3) << r.anof_loose
-                << std::setw(10) << std::setprecision(2) << r.best_q
+                << std::setw(12) << std::setprecision(4) << r.ewp
+                << std::setw(12) << std::setprecision(6) << r.dpo
                 << "\n";
         }
 
@@ -1577,14 +1668,14 @@ namespace ofec {
                 csv << "p_id,problem_name,suite_id,dim,nopt,"
                     "SR-0.01,ANOF-0.01,"
                     "SR-0.05,ANOF-0.05,"
-                    "Best_Q\n"
+                    "E_WP,D_PO\n"
                     << std::fixed << std::setprecision(4);
                 for (const auto& r : results)
                     csv << pnum(r.suite_id) << "," << r.name << "," << r.suite_id << ","
                     << r.dim << "," << r.nopt << ","
                     << r.sr_strict << "," << r.anof_strict << ","
                     << r.sr_loose << "," << r.anof_loose << ","
-                    << r.best_q << "\n";
+                    << r.ewp << "," << r.dpo << "\n";
                 std::cout << "[INFO] CSV: " << csv_path << "\n";
             }
         }

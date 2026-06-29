@@ -21,15 +21,11 @@
 
 namespace fs = std::filesystem;
 
-// Maps suite_id → "P01"-"P12" label (P01-P08 = report, P09-P12 = supplementary)
+// Maps suite_id "P01"-"P12" label
 inline std::string suitePLabel(int suite_id) {
-    static const std::unordered_map<int, int> m{
-        {1,1},{2,2},{4,3},{5,4},{9,5},{10,6},{11,7},{12,8},
-        {3,9},{6,10},{7,11},{8,12}
-    };
-    auto it = m.find(suite_id);
-    int n = it != m.end() ? it->second : suite_id;
-    return "P" + std::string(n < 10 ? "0" : "") + std::to_string(n);
+    char buf[8];
+	snprintf(buf, sizeof(buf), "P%02d", suite_id);
+	return std::string(buf);
 }
 
 
@@ -246,7 +242,7 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
         return;
     }
 
-    std::cout << "\n=== Problem Domain Information ===" << std::endl;
+    std::cout << "\n Problem Domain Information " << std::endl;
     for (int idx = 0; idx < dim; ++idx) {
         std::cout << "Variable " << idx << ": ["
             << domain[idx].limit.first << ", "
@@ -271,7 +267,7 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
     double dx1 = (x1_max - x1_min) / (grid_size - 1);
     double dx2 = (x2_max - x2_min) / (grid_size - 1);
 
-    std::cout << "\n=== Grid Sampling Parameters ===" << std::endl;
+    std::cout << "\n Grid Sampling Parameters " << std::endl;
     std::cout << "Grid size: " << grid_size << "x" << grid_size
         << " = " << grid_size * grid_size << " points" << std::endl;
     std::cout << "x1 step: " << dx1 << std::endl;
@@ -282,7 +278,7 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
     int total_points = grid_size * grid_size;
     int current_point = 0;
 
-    std::cout << "\n=== Start Grid Sampling ===" << std::endl;
+    std::cout << "\n Start Grid Sampling " << std::endl;
 
     for (int i = 0; i < grid_size; ++i) {
         double x1 = x1_min + i * dx1;
@@ -308,7 +304,7 @@ void gridSampling(ofec::Environment* env, const std::string& filename,
 
     outfile.close();
 
-    std::cout << "\n=== Grid Sampling Completed ===" << std::endl;
+    std::cout << "\n Grid Sampling Completed " << std::endl;
     std::cout << "Data saved to: " << filename << std::endl;
     std::cout << "Total points: " << total_points << std::endl;
 }
@@ -653,7 +649,8 @@ void outputFreePeaksMultipartyLandscape12(const std::string& dir) {
         pm["suite_id"] = suite_id;
         pm["problem_dimension"] = dimension;
         env->problem()->inputParameters().input(pm);
-        const Real instance_seed = static_cast<Real>(suite_id * 1000 + static_cast<int>(dimension));
+        const int raw_instance_seed = suite_id * 1000 + static_cast<int>(dimension);
+        const Real instance_seed = static_cast<Real>(raw_instance_seed) / 1.0e6;
         env->initializeProblem(instance_seed);
         auto* problem = dynamic_cast<FreePeaksMultiParty*>(env->problem());
         if (!problem) throw std::runtime_error("free_peaks_multiparty initialization failed");

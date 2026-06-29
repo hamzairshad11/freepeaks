@@ -12,7 +12,7 @@ int main() {
         // Produces grid_2d.tsv (400x400) + optima_2d.tsv for each of the 12 suites.
         std::cout << "\n>>> [Landscape] Generating 400x400 benchmark landscapes for P1-P12...\n";
         const std::string thesis_root =
-            "E:\\HITSZ\\Research\\Multimodal_Multiparty_Optimization\\ThesisProject\\";
+            "D:\\Research\\ThesisProject\\ThesisProject\\";
         outputFreePeaksMultipartyLandscape12(thesis_root);
         std::cout << ">>> [Landscape] Done.\n";
     }

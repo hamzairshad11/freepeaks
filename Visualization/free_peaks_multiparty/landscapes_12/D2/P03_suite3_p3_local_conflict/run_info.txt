@@ -1,0 +1,9 @@
+p_id P03
+suite 3
+name p3_local_conflict
+feature random shared optima plus party-private local conflicts
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 1

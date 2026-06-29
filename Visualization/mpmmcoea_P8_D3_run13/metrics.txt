@@ -1,16 +1,16 @@
 # MPMM-CoEA metrics  P8  D=3  run_seed=12999780
 suite_id       8
-problem_name   p8_party_asymmetric
-feature        party-0 broad smooth basins vs party-1 narrow ill-conditioned basins sharing common optima
+problem_name   p8_disconnected
+feature        random common optima across disconnected party partitions
 dim            3
 nopt           2
 eval_budget    50000
 # strict eps_x=0.01 eps_f=1.0
-SR_0.01        0.0000
-ANOF_0.01      0.0000
+SR_0.01        100.0000
+ANOF_0.01      2.0000
 # loose  eps_x=0.05 eps_f=2.0
-SR_0.05        0.0000
-ANOF_0.05      0.0000
-E_WP           8.4323
-D_PO           0.0159
-ca_size        15
+SR_0.05        100.0000
+ANOF_0.05      2.0000
+E_WP           0.0075
+D_PO           0.0024
+ca_size        200

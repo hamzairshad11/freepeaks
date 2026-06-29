@@ -11,6 +11,6 @@ ANOF_0.01      2.0000
 # loose  eps_x=0.05 eps_f=2.0
 SR_0.05        100.0000
 ANOF_0.05      2.0000
-E_WP           0.0007
-D_PO           0.0005
-ca_size        62
+E_WP           0.0009
+D_PO           0.0004
+ca_size        71

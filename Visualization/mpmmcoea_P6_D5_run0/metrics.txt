@@ -1,7 +1,7 @@
 # MPMM-CoEA metrics  P6  D=5  run_seed=1
 suite_id       6
-problem_name   p6_strong_deception
-feature        narrow shared optima (h=90) embedded in very broad high-fitness private basins (h~87)
+problem_name   p6_deceptive
+feature        random narrow shared optima embedded in broad private basins
 dim            5
 nopt           2
 eval_budget    100000
@@ -11,6 +11,6 @@ ANOF_0.01      0.0000
 # loose  eps_x=0.05 eps_f=2.0
 SR_0.05        0.0000
 ANOF_0.05      0.0000
-E_WP           19.5683
-D_PO           0.3620
-ca_size        200
+E_WP           84.0951
+D_PO           0.1705
+ca_size        1

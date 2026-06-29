@@ -1,7 +1,7 @@
 # MPMM-CoEA metrics  P7  D=5  run_seed=1999967
 suite_id       7
-problem_name   p7_multiscale_hierarchy
-feature        extreme k-d weight contrast: broad private peaks in large leaves, shared peaks in tiny leaves
+problem_name   p7_hierarchical
+feature        random broad shared basins plus sharp local peaks
 dim            5
 nopt           2
 eval_budget    100000
@@ -10,7 +10,7 @@ SR_0.01        0.0000
 ANOF_0.01      0.0000
 # loose  eps_x=0.05 eps_f=2.0
 SR_0.05        0.0000
-ANOF_0.05      0.0000
-E_WP           42.8460
-D_PO           0.4862
+ANOF_0.05      1.0000
+E_WP           1.9513
+D_PO           0.0173
 ca_size        200

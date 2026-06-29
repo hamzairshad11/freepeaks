@@ -301,11 +301,21 @@ namespace ofec {
                         peak.condition = (party == 0 ? 10 : 16) + mode * 4 + 16 * unit();
                         peak.rotation = (party == 0 ? 1 : -1) * (0.55 + 0.28 * mode + 1.05 * unit());
                     }
-                    else {
-                        peak.radius = (mode == 0 || mode == 3 ? 76 : 150) + (party == 0 ? 38 : 52) * unit();
-                        peak.condition = (party == 0 ? 8 : 14) + mode * 3 + 18 * unit();
-                        peak.rotation = (party == 0 ? 1 : -1) * (0.30 + 0.20 * mode + 0.85 * unit());
-                        peak.deceptive = (mode % 2 == 0 ? 0.08 : 0.18) + (party == 0 ? 0.14 : 0.22) * unit();
+                    else { // id == 8: extreme party-wise geometric asymmetry (shared peaks)
+                        if (party == 0) {
+                            // Party-0: wide circular basins -- clearly identifiable as shared optima
+                            peak.radius = 155 + 45 * unit();     // 155-200: very broad
+                            peak.condition = 1.5 + 2.5 * unit(); // 1.5-4.0: near-circular
+                            peak.rotation = 0.10 + 0.40 * unit();
+                            peak.deceptive = 0.04 + 0.08 * unit();
+                        }
+                        else {
+                            // Party-1: narrow elongated ridges at exactly the same locations
+                            peak.radius = 18 + 16 * unit();      // 18-34: thin strips
+                            peak.condition = 45 + 55 * unit();   // 45-100: highly elongated
+                            peak.rotation = 0.45 + 1.55 * unit();
+                            peak.deceptive = 0.30 + 0.30 * unit();
+                        }
                     }
                 }
                 if (id == 6) {
@@ -315,15 +325,9 @@ namespace ofec {
                     peak.condition = (party == 0 ? 14 : 30) + mode * 8 + 42 * unit();
                 }
                 if (id == 7) {
-                    const size_t mode = shared_count % 4;
-                    if (party == 0) {
-                        peak.radius = (mode == 0 ? 175 : (mode == 1 ? 58 : 118)) + 34 * unit();
-                        peak.condition = (mode == 0 ? 2 : 9) + 16 * unit();
-                    }
-                    else {
-                        peak.radius = (mode == 0 ? 62 : (mode == 1 ? 170 : 92)) + 42 * unit();
-                        peak.condition = (mode == 1 ? 3 : 12) + 18 * unit();
-                    }
+                    // Tiny shared optima -- intentionally compact for extreme scale contrast with broad private peaks
+                    peak.radius = 20 + 18 * unit();         // 20-38: small compact basin
+                    peak.condition = 1.8 + 2.8 * unit();    // near-circular appearance
                 }
                 if (id == 9) {
                     const size_t mode = shared_count % 5;
@@ -463,12 +467,25 @@ namespace ofec {
                     }
                 }
                 if (id == 3) {
-                    const size_t mode = (i * 2 + party) % 5;
-                    peak.height = party == 0 ? 66 + 18 * unit() : 56 + 30 * unit();
-                    peak.radius = (mode < 2 ? 18 : 105) + (party == 0 ? 22 : 38) * unit();
-                    peak.condition = (party == 0 ? 12 : 26) + mode * 9 + 36 * unit();
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.25 + 1.80 * unit());
-                    if (mode == 1 || mode == 3 || party == 1) peak.deceptive = 0.10 + 0.28 * unit();
+                    // Proximity trap: place each private peak immediately adjacent to a shared optimum.
+                    // The basin is broad and circular so it is clearly visible; the challenge is purely
+                    // spatial proximity, not volume or shape (contrast with P06 and P08).
+                    peak.height = 76 + 10 * unit();         // 76-86: attractive but below threshold 90
+                    peak.radius = 120 + 60 * unit();         // 120-180: broad visible basin
+                    peak.condition = 1.5 + 2.5 * unit();     // 1.5-4.0: near-circular (not elongated)
+                    peak.rotation = (party == 0 ? 1 : -1) * (0.10 + 0.30 * unit());
+                    // Override center: offset from nearest shared optimum
+                    if (!spec.shared_optima.empty()) {
+                        const auto& opt = spec.shared_optima[i % spec.shared_optima.size()];
+                        for (size_t d = 0; d < peak.center.size(); ++d) {
+                            const int sign = ((int(i) + int(d) + int(party)) % 2 == 0) ? 1 : -1;
+                            const Real mag = 0.10 + 0.08 * (i % 3);  // 0.10, 0.18, or 0.26
+                            const Real w = box[d].second - box[d].first;
+                            const Real lo = box[d].first + 0.10 * w;
+                            const Real hi = box[d].second - 0.10 * w;
+                            peak.center[d] = std::max(lo, std::min(hi, opt[d] + sign * mag));
+                        }
+                    }
                 }
                 if (id == 6 && i < 2) {
                     peak.radius = 105 + 30 * unit();
@@ -481,11 +498,22 @@ namespace ofec {
                         peak.condition = (party == 0 ? 34 : 72) + mode * 16 + 62 * unit();
                         peak.rotation = (party == 0 ? 1 : -1) * (0.75 + 0.65 * mode + 2.45 * unit());
                     }
-                    else {
-                        peak.radius = (mode == 0 || mode == 4 ? 22 : 142) + (party == 0 ? 34 : 54) * unit();
-                        peak.condition = (party == 0 ? 28 : 58) + mode * 10 + 62 * unit();
-                        peak.rotation = (party == 0 ? 1 : -1) * (0.55 + 0.50 * mode + 2.10 * unit());
-                        peak.deceptive = (mode % 2 == 0 ? 0.16 : 0.34) + (party == 0 ? 0.28 : 0.40) * unit();
+                    else { // id == 8: private peaks mirror extreme party asymmetry
+                        if (party == 0) {
+                            // Party-0 private: very broad smooth blobs -- landscape looks uniformly round
+                            peak.height = 64 + 18 * unit();
+                            peak.radius = 160 + 60 * unit();     // 160-220: large blobs
+                            peak.condition = 1.5 + 2.0 * unit(); // 1.5-3.5: near-circular
+                            peak.rotation = 0.05 + 0.20 * unit();
+                        }
+                        else {
+                            // Party-1 private: extreme narrow ridges at varied orientations
+                            peak.height = 60 + 22 * unit();
+                            peak.radius = 14 + 18 * unit();      // 14-32: very narrow
+                            peak.condition = 60 + 80 * unit();   // 60-140: extreme elongation
+                            peak.rotation = (0.35 + 1.75 * unit());
+                            peak.deceptive = 0.28 + 0.38 * unit();
+                        }
                     }
                 }
                 if (id == 4) {
@@ -523,16 +551,10 @@ namespace ofec {
                     }
                 }
                 if (id == 7) {
-                    const size_t mode = (i + party) % 4;
-                    peak.height = 60 + (party == 0 ? 24 : 18) * unit();
-                    if (party == 0) {
-                        peak.radius = (mode == 0 ? 205 : (mode == 1 ? 15 : 96)) + 32 * unit();
-                        peak.condition = (mode == 0 ? 2 : 42) + 60 * unit();
-                    }
-                    else {
-                        peak.radius = (mode == 0 ? 18 : (mode == 1 ? 195 : 36)) + 42 * unit();
-                        peak.condition = (mode == 1 ? 3 : 55) + 65 * unit();
-                    }
+                    // All private peaks: broad smooth blobs -- clearly visible vs tiny shared optima
+                    peak.height = 74 + (party == 0 ? 14 : 10) * unit();   // 74-88: below threshold 90
+                    peak.radius = 215 + 55 * unit();                        // 215-270: always large
+                    peak.condition = 1.5 + 2.0 * unit();                    // 1.5-3.5: near-circular
                 }
                 if (id == 10) {
                     const size_t mode = (i * 3 + party) % 7;
@@ -787,3 +809,4 @@ namespace ofec {
         calculateOptima();
     }
 }
+

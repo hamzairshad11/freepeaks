@@ -6,11 +6,11 @@ dim            2
 nopt           8
 eval_budget    30000
 # strict eps_x=0.01 eps_f=1.0
-SR_0.01        0.0000
-ANOF_0.01      3.0000
+SR_0.01        100.0000
+ANOF_0.01      8.0000
 # loose  eps_x=0.05 eps_f=2.0
-SR_0.05        0.0000
-ANOF_0.05      4.0000
-E_WP           0.1542
-D_PO           0.0012
-ca_size        11
+SR_0.05        100.0000
+ANOF_0.05      8.0000
+E_WP           0.0053
+D_PO           0.0006
+ca_size        200

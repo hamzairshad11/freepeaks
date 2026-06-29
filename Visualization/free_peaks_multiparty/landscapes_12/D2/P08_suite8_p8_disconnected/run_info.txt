@@ -1,0 +1,9 @@
+p_id P08
+suite 8
+name p8_disconnected
+feature random common optima across disconnected party partitions
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 2
