@@ -1,0 +1,9 @@
+p_id P04
+suite 4
+name p4_rugged
+feature random shared optima in rugged/asymmetric transformed subspaces
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 2

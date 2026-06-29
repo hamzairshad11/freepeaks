@@ -1,0 +1,9 @@
+p_id P07
+suite 7
+name p7_multiscale_hierarchy
+feature extreme k-d weight contrast: broad private peaks in large leaves, shared peaks in tiny leaves
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 2

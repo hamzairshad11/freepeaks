@@ -1,0 +1,9 @@
+p_id P03
+suite 3
+name p3_neighbor_deception
+feature broad private peaks placed near shared optima creating spatial deception
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 1

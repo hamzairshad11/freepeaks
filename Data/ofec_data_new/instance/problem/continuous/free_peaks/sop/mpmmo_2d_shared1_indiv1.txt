@@ -1,0 +1,29 @@
+2 1 0
+3
+shared
+dm1_indiv
+dm2_indiv
+0 shared 0.333
+1 shared 0.333
+0 dm1_indiv 0.666
+1 dm1_indiv 0.333
+0 dm2_indiv 0.333
+1 dm2_indiv 0.666
+
+subspace=shared
+function=one_peak_s1
+distance=euclidean_distance
+transform=map_x_base
+constraint=constraint_base
+
+subspace=dm1_indiv
+function=one_peak_s6
+distance=euclidean_distance
+transform=map_x_base
+constraint=constraint_base
+
+subspace=dm2_indiv
+function=one_peak_s6
+distance=euclidean_distance
+transform=map_x_base
+constraint=constraint_base

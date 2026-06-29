@@ -17,11 +17,31 @@
 namespace ofec {
 
     namespace {
-        // Returns m_suite_id clamped to [1, suite().size()].
-        // Used by currentSpec(), makeRandomSuiteSpec(), and generateRandomPeaks()
-        // to avoid repeating the same two-line clamp expression in each function.
-        int clampSuiteId(int suite_id) {
-            return std::max(1, std::min(static_cast<int>(FreePeaksMultiParty::suite().size()), suite_id));
+        FreePeaksMultiParty::PartyPeakSpec pk(
+            const std::string& name, Real x, Real y, Real h,
+            const std::string& shape, Real cond, Real bias, Real rot,
+            Real linkage = 0, Real asym = 0, Real radius = 32)
+        {
+            FreePeaksMultiParty::PartyPeakSpec p;
+            p.name = name;
+            p.center = { (x + 3.5) / 7.0, (y + 3.5) / 7.0 };
+            p.height = h;
+            p.shape = shape;
+            p.condition = cond;
+            p.bias = bias;
+            p.rotation = rot;
+            p.linkage = linkage;
+            p.asymmetry = asym;
+            p.radius = radius;
+            return p;
+        }
+
+        std::vector<std::pair<std::string, std::vector<std::pair<std::string, double>>>> tree(
+            std::initializer_list<std::pair<std::string, double>> leaves)
+        {
+            std::vector<std::pair<std::string, std::vector<std::pair<std::string, double>>>> t;
+            t.push_back({ "root", std::vector<std::pair<std::string, double>>(leaves) });
+            return t;
         }
 
         Real intersectionVolume(const std::vector<std::pair<Real, Real>>& a,
@@ -54,6 +74,17 @@ namespace ofec {
             return x;
         }
 
+        Real euclideanDistance(const std::vector<Real>& a, const std::vector<Real>& b)
+        {
+            Real value = 0;
+            const size_t n = std::min(a.size(), b.size());
+            for (size_t i = 0; i < n; ++i) {
+                const Real diff = a[i] - b[i];
+                value += diff * diff;
+            }
+            return std::sqrt(value);
+        }
+
         std::vector<std::pair<Real, Real>> intersectionBox(
             const std::vector<std::pair<Real, Real>>& a,
             const std::vector<std::pair<Real, Real>>& b)
@@ -78,12 +109,12 @@ namespace ofec {
         static const std::vector<SuiteSpec> specs = {
             { "p1_balanced", "balanced random shared/private optima", {}, {} },
             { "p2_unequal_basins", "random optima with unequal KD-tree basin volumes", {}, {} },
-            { "p3_neighbor_deception", "broad private peaks placed near shared optima creating spatial deception", {}, {} },
+            { "p3_local_conflict", "random shared optima plus party-private local conflicts", {}, {} },
             { "p4_rugged", "random shared optima in rugged/asymmetric transformed subspaces", {}, {} },
             { "p5_rotated", "random optima with rotated and ill-conditioned basins", {}, {} },
-            { "p6_strong_deception", "narrow shared optima (h=90) embedded in very broad high-fitness private basins (h~87)", {}, {} },
-            { "p7_multiscale_hierarchy", "extreme k-d weight contrast: broad private peaks in large leaves, shared peaks in tiny leaves", {}, {} },
-            { "p8_party_asymmetric", "party-0 broad smooth basins vs party-1 narrow ill-conditioned basins sharing common optima", {}, {} },
+            { "p6_deceptive", "random narrow shared optima embedded in broad private basins", {}, {} },
+            { "p7_hierarchical", "random broad shared basins plus sharp local peaks", {}, {} },
+            { "p8_disconnected", "random common optima across disconnected party partitions", {}, {} },
             { "p9_twenty_shared_optima", "dense random multimodal problem with 20 shared optima", {}, {} },
             { "p10_rotated_rugged_deceptive", "mixed rotated, ill-conditioned, rugged and deceptive shared optima", {}, {} },
             { "p11_hierarchical_disconnected", "mixed hierarchical, disconnected and ill-conditioned shared optima", {}, {} },
@@ -97,11 +128,14 @@ namespace ofec {
     }
     const FreePeaksMultiParty::SuiteSpec& FreePeaksMultiParty::currentSpec() const {
         if (!m_current_spec.name.empty()) return m_current_spec;
-        return suite()[static_cast<size_t>(clampSuiteId(m_suite_id) - 1)];
+        const int max_suite = static_cast<int>(suite().size());
+        const int id = std::max(1, std::min(max_suite, m_suite_id));
+        return suite()[static_cast<size_t>(id - 1)];
     }
 
     FreePeaksMultiParty::SuiteSpec FreePeaksMultiParty::makeRandomSuiteSpec() {
-        const int id = clampSuiteId(m_suite_id);
+        const int max_suite = static_cast<int>(suite().size());
+        const int id = std::max(1, std::min(max_suite, m_suite_id));
         const auto& meta = suite()[static_cast<size_t>(id - 1)];
         SuiteSpec spec;
         spec.name = meta.name;
@@ -127,16 +161,12 @@ namespace ofec {
                 Real weight = 0.6 + uniform.next();
                 if (id == 1) weight = party == 0 ? (0.9 + 0.5 * uniform.next()) : (0.35 + 2.20 * uniform.next());
                 if (id == 2) weight = (i % 3 == party ? 5.5 + 2.5 * uniform.next() : 0.25 + 0.65 * uniform.next());
-                // Suite 3 Neighbor Deception: balanced layout, uniform leaf sizes
-                if (id == 3) weight = 0.7 + 0.6 * uniform.next();
+                if (id == 3) weight = (i % 2 == party ? 3.2 + 1.7 * uniform.next() : 0.45 + 0.85 * uniform.next());
                 if (id == 4) weight = (i % 4 <= 1 ? 0.35 + 0.45 * uniform.next() : 2.8 + 1.8 * uniform.next());
                 if (id == 5) weight = (party == 0 ? 0.55 + 1.8 * uniform.next() : 0.25 + 3.4 * uniform.next());
-                // Suite 6 Strong Deception: shared-opt leaves (first 2) are TINY, rest are LARGE
-                if (id == 6) weight = (i < 2 ? 0.12 + 0.06 * uniform.next() : 4.2 + 2.2 * uniform.next());
-                // Suite 7 Multi-scale Hierarchy: extreme contrast (1 in 3 leaves is very large)
-                if (id == 7) weight = (i % 3 == 0 ? 9.0 + 3.0 * uniform.next() : 0.10 + 0.15 * uniform.next());
-                // Suite 8 Party-Asymmetric: P0 all large, P1 all small
-                if (id == 8) weight = (party == 0 ? 3.5 + 1.5 * uniform.next() : 0.20 + 0.35 * uniform.next());
+                if (id == 6) weight = (i < 2 + party ? 5.0 + 2.5 * uniform.next() : 0.30 + 0.80 * uniform.next());
+                if (id == 7) weight = (i % 4 == 0 ? 7.0 + 2.0 * uniform.next() : 0.30 + 0.90 * uniform.next());
+                if (id == 8) weight = (i % 3 == party ? 4.8 + 2.4 * uniform.next() : 0.25 + 0.75 * uniform.next());
                 if (id == 10 && i % 4 == party) weight = 3.1;
                 if (id == 11 && i < 3) weight = 4.0 - 0.3 * i;
                 if (id == 12 && i % 5 < 2) weight = 2.8 + 0.5 * uniform.next();
@@ -155,111 +185,35 @@ namespace ofec {
             Real volume = 0;
         };
 
-        const int id = clampSuiteId(m_suite_id);
+        const int max_suite = static_cast<int>(suite().size());
+        const int id = std::max(1, std::min(max_suite, m_suite_id));
         const std::array<size_t, 12> shared_counts = { 2, 2, 1, 2, 1, 2, 2, 2, 20, 6, 8, 16 };
         const size_t desired_shared = shared_counts[static_cast<size_t>(id - 1)];
         auto& uniform = random()->uniform;
         auto unit = [&uniform]() { return uniform.next(); };
-        auto tuneForVisibleBasins = [](PartyPeakSpec& peak, int suite_id, size_t dim) {
-            // Defaults (used only when a suite doesn't override)
-            Real min_radius = 80;
+        auto tuneForVisibleBasins = [](PartyPeakSpec& peak, int suite_id) {
+            Real min_radius = 86;
             Real max_condition = 14;
-            Real max_rotation = 1.00;
-            Real max_linkage = 12;
-            Real max_asymmetry = 1.40;
-            Real max_deceptive = 0.35;
+            Real max_rotation = 0.95;
+            Real max_linkage = 14;
+            Real max_asymmetry = 1.35;
+            Real max_deceptive = 0.32;
 
-            // P01 (Suite 1): Smooth balanced
-            // Defining feature: MULTIMODAL ENUMERATION in a smooth, near-spherical landscape
-            // No rotation/linkage/asymmetry/deceptive pure Gaussian peaks, mild condition
-            if (suite_id == 1) {
-                min_radius = 80; max_condition = 4.0;
-                max_rotation = 0.0; max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.0;
-            }
+            if (suite_id == 1) { min_radius = 76; max_condition = 10; max_rotation = 0.70; }
+            if (suite_id == 2) { min_radius = 110; max_condition = 10; max_rotation = 0.65; }
+            if (suite_id == 3) { min_radius = 160; max_condition = 5; max_rotation = 0.45; max_deceptive = 0.14; }
+            if (suite_id == 4) { min_radius = 92; max_condition = 12; max_linkage = 10; max_asymmetry = 1.10; max_deceptive = 0.24; }
+            if (suite_id == 5) { min_radius = 185; max_condition = 5; max_rotation = 0.50; max_deceptive = 0.12; }
+            if (suite_id == 6) { min_radius = 75; max_condition = 5; max_rotation = 0.45; max_deceptive = 0.32; }
+            if (suite_id == 7) { min_radius = 190; max_condition = 4.5; max_rotation = 0.42; max_deceptive = 0.12; }
+            if (suite_id == 8) { min_radius = 180; max_condition = 5.5; max_rotation = 0.48; max_deceptive = 0.14; }
+            if (suite_id == 9) { min_radius = 125; max_condition = 7; max_rotation = 0.48; max_linkage = 7; max_asymmetry = 0.85; max_deceptive = 0.16; }
+            if (suite_id >= 10) { min_radius = 185; max_condition = 5.5; max_rotation = 0.42; max_linkage = 6; max_asymmetry = 0.80; max_deceptive = 0.14; }
+            if (suite_id == 10) { min_radius = 210; max_condition = 4.5; max_rotation = 0.34; max_linkage = 5; max_asymmetry = 0.70; max_deceptive = 0.12; }
+            if (suite_id == 11) { min_radius = 195; max_condition = 5.0; max_rotation = 0.38; max_linkage = 5.5; max_asymmetry = 0.75; max_deceptive = 0.12; }
+            if (suite_id == 12) { min_radius = 220; max_condition = 4.5; max_rotation = 0.34; max_linkage = 5; max_asymmetry = 0.70; max_deceptive = 0.12; }
 
-            // P02 (Suite 2): Unequal k-d tree basin volumes
-            // Defining feature: BASIN GEOMETRY â€” some leaves very large, some small
-            // Mild per-party condition variation; NO rotation/asymmetry/deceptive
-            if (suite_id == 2) {
-                min_radius = 55; max_condition = 8.0;
-                max_rotation = 0.0; max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.0;
-            }
-
-            // P09 (Suite 3): Neighbor Deception (supplementary) 
-            // Narrow shared peaks (h=90) surrounded by broad near-optimal private peaks
-            if (suite_id == 3) {
-                min_radius = 50; max_condition = 3.0;
-                max_rotation = 0.0; max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.0;
-            }
-
-            // P03 (Suite 4): Rugged, asymmetrically transformed subspaces
-            // Defining feature: NON-SMOOTH GRADIENT via linkage + asymmetry + deceptive
-            // NO rotation (distinguishes P03 from P04/P06)
-            if (suite_id == 4) {
-                min_radius = 80; max_condition = 3.5;
-                max_rotation = 0.0; max_linkage = 12.0; max_asymmetry = 1.40; max_deceptive = 0.32;
-            }
-
-            // P04 (Suite 5): Rotated, ill-conditioned basins
-            // Defining feature: ORIENTATION + ELONGATION only no ruggedness at all
-            if (suite_id == 5) {
-                min_radius = 75; max_condition = 16.0; max_rotation = 1.57;
-                max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.0;
-            }
-
-            // P10 (Suite 6): Strong Deception (supplementary)
-            // Very narrow shared peaks, extremely broad private peaks dominate per-party search
-            if (suite_id == 6) {
-                min_radius = 40; max_condition = 3.0;
-                max_rotation = 0.0; max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.0;
-            }
-
-            // P11 (Suite 7): Multi-scale Hierarchy (supplementary)
-            // Extreme leaf-weight contrast; private peaks span two difficulty levels
-            if (suite_id == 7) {
-                min_radius = 60; max_condition = 22.0; max_rotation = 0.55;
-                max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.10;
-            }
-
-            // P12 (Suite 8): Party-Asymmetric (supplementary)
-            // P0: broad smooth basins. P1: narrow ill-conditioned rotated basins
-            if (suite_id == 8) {
-                min_radius = 35; max_condition = 40.0; max_rotation = 0.90;
-                max_linkage = 0.0; max_asymmetry = 0.0; max_deceptive = 0.08;
-            }
-
-            // P05 (Suite 9): Dense multimodal 20 shared optima
-            // Defining feature: ENUMERATION SCALE transforms must be minimal so the
-            // challenge is purely locating all 20 optima, not overcoming landscape complexity
-            if (suite_id == 9) {
-                min_radius = 90; max_condition = 3.5; max_rotation = 0.25;
-                max_linkage = 2.0; max_asymmetry = 0.20; max_deceptive = 0.06;
-            }
-
-            // P06 (Suite 10): Mixed rotation + ill-cond + rugged + deceptive, 6 opt
-            // Strengthened: Îº up to 14, rotation up to 1.2, deceptive up to 0.30
-            if (suite_id == 10) {
-                min_radius = 70; max_condition = 14.0; max_rotation = 1.20;
-                max_linkage = 8.0; max_asymmetry = 0.90; max_deceptive = 0.30;
-            }
-
-            // P07 (Suite 11): Hierarchical + disconnected + ill-conditioned, 8 opt
-            if (suite_id == 11) {
-                min_radius = 65; max_condition = 20.0; max_rotation = 1.10;
-                max_linkage = 2.0; max_asymmetry = 0.15; max_deceptive = 0.10;
-            }
-
-            // P08 (Suite 12): Dense full-mixed, 16 opt â€” highest overall difficulty
-            if (suite_id == 12) {
-                min_radius = 60; max_condition = 22.0; max_rotation = 2.00;
-                max_linkage = 14.0; max_asymmetry = 1.80; max_deceptive = 0.50;
-            }
-
-            // Dimension scaling: Gaussian basin volume (radius/domain_width)^D.
-            // Without scaling, a basin that fills 40% of D=2 fills only 0.01% of D=10.
-            // Multiplying radius by sqrt(D/2) keeps relative coverage stable across dims.
-            const Real dim_scale = std::sqrt(static_cast<Real>(dim) / 2.0);
-            peak.radius = std::max(peak.radius * dim_scale, min_radius * dim_scale);
+            peak.radius = std::max(peak.radius, min_radius);
             peak.condition = std::max<Real>(1.0, std::min(peak.condition, max_condition));
             if (peak.rotation != 0) {
                 const Real sign = peak.rotation < 0 ? -1.0 : 1.0;
@@ -310,159 +264,176 @@ namespace ofec {
                 peak.height = 90;
                 peak.radius = 48 + 36 * unit();
                 if (id == 1) {
-                    // P01: smooth near-spherical shared peaks, mild condition only
-                    peak.radius = 90 + 40 * unit();
-                    peak.condition = 1.0 + 1.5 * unit();  // [1, 2.5]
+                    const size_t mode = (shared_count + party) % 3;
+                    peak.radius = (party == 0 ? 34 + 26 * mode : 96 - 20 * mode) + 22 * unit();
+                    peak.condition = 1.0 + (party == 0 ? mode : 2 - mode) * 1.6 + 2.5 * unit();
+                    peak.height = 88 + 3 * unit();
                 }
                 if (id == 2) {
-                    // P02: party-asymmetric basin widths (P0 wider, P1 narrower, or vice versa)
-                    // The leaf WEIGHT already creates volume contrast; radius amplifies the effect
+                    const size_t mode = shared_count % 4;
                     if (party == 0) {
-                        peak.radius = 120 + 60 * unit();  // broad for party 0
-                        peak.condition = 2 + 4 * unit();  // mild condition
+                        peak.radius = (mode == 0 ? 18 : (mode == 1 ? 180 : 44)) + 20 * unit();
+                        peak.condition = 2 + 12 * unit();
                     }
                     else {
-                        peak.radius = 55 + 35 * unit();   // narrower for party 1
-                        peak.condition = 4 + 6 * unit();  // slightly higher condition
+                        peak.radius = (mode == 0 ? 170 : (mode == 1 ? 22 : 120)) + 30 * unit();
+                        peak.condition = 8 + 24 * unit();
                     }
                 }
                 if (id == 3) {
-                    // Neighbor Deception: shared optima are narrow (small radius) so
-                    // the nearby broad private peaks appear more attractive initially
-                    peak.radius = 55 + 18 * unit();      // narrow shared basin
-                    peak.condition = 1.0 + 0.8 * unit(); // near-spherical â€” clear target
-                    // no rotation, no deceptive: challenge is purely spatial
+                    const size_t mode = (shared_count * 2 + party) % 5;
+                    peak.radius = (mode < 2 ? 64 : 112) + (party == 0 ? 34 : 42) * unit();
+                    peak.condition = (party == 0 ? 4 : 8) + mode * 2.5 + 10 * unit();
+                    peak.rotation = (party == 0 ? 1 : -1) * (0.25 + 0.80 * unit());
+                    if (party == 1 || mode >= 3) peak.deceptive = 0.06 + 0.14 * unit();
                 }
                 if (id == 4) {
-                    // P03: rugged landscape via linkage + asymmetry + deceptive, NO rotation
-                    // Generate within tuneForVisibleBasins caps (max_linkage=12, max_asym=1.4, max_dec=0.32)
-                    // so mode diversity survives (previously all values were clipped to identical caps)
                     const size_t mode = (shared_count + 2 * party) % 4;
-                    peak.radius = (party == 0 ? 80 + 20 * mode : 90 - 10 * mode) + 20 * unit();
-                    peak.linkage = 4.0 + mode * 1.5 + 6.5 * unit();  // [4, 12]
-                    peak.asymmetry = 0.50 + mode * 0.15 + 0.75 * unit(); // [0.5, 1.4]
-                    peak.deceptive = (mode % 2 == 0 ? 0.08 : 0.16) + 0.16 * unit(); // [0.08, 0.32]
+                    peak.radius = (party == 0 ? 30 + 18 * mode : 92 - 14 * mode) + 26 * unit();
+                    peak.linkage = (party == 0 ? 10.0 : 18.0) + mode * 6.0 + 20.0 * unit();
+                    peak.asymmetry = (party == 0 ? 1.00 : 1.45) + 0.55 * mode + 1.20 * unit();
+                    peak.deceptive = (mode % 2 == 0 ? 0.18 : 0.34) + (party == 0 ? 0.22 : 0.34) * unit();
                 }
-                if (id == 5) {
-                    // P04: pure rotation + ill-conditioning NO linkage/asymmetry/deceptive
-                    // Parties rotate in opposite directions, creating misaligned elongated ellipsoids
-                    peak.radius = 80 + 40 * unit();
-                    peak.condition = 6 + 10 * unit();   // [6, 16]
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.5 + 1.07 * unit()); // [0.5, 1.57]
-                }
-                if (id == 6) {
-                    // Strong Deception: shared optima have VERY NARROW basins so that
-                    // the broad private peaks (h~87) dominate each party's landscape
-                    peak.radius = 48 + 12 * unit();       // very narrow hard to locate
-                    peak.condition = 1.0 + 0.6 * unit();  // near-spherical, no extra structure
-                }
-                if (id == 7) {
-                    // Multi-scale Hierarchy: shared peaks in SMALL leaves moderate radius,
-                    // moderate condition; the challenge is that small leaves are hard to enter
-                    peak.radius = 72 + 28 * unit();
-                    peak.condition = 3 + 5 * unit();
-                }
-                if (id == 8) {
-                    // Party-Asymmetric: P0 sees a broad, easy basin; P1 sees a narrow, harder one
-                    if (party == 0) {
-                        peak.radius = 140 + 40 * unit();  // broad, easily approached
-                        peak.condition = 2 + 2 * unit();
+                if (id == 5 || id == 8) {
+                    const size_t mode = (shared_count * 3 + party) % 5;
+                    if (id == 5) {
+                        peak.radius = (party == 0 ? 72 + 12 * mode : 118 - 8 * mode) + 36 * unit();
+                        peak.condition = (party == 0 ? 10 : 16) + mode * 4 + 16 * unit();
+                        peak.rotation = (party == 0 ? 1 : -1) * (0.55 + 0.28 * mode + 1.05 * unit());
                     }
                     else {
-                        peak.radius = 52 + 18 * unit();   // narrow, harder to locate
-                        peak.condition = 10 + 8 * unit(); // moderately ill-conditioned
+                        peak.radius = (mode == 0 || mode == 3 ? 76 : 150) + (party == 0 ? 38 : 52) * unit();
+                        peak.condition = (party == 0 ? 8 : 14) + mode * 3 + 18 * unit();
+                        peak.rotation = (party == 0 ? 1 : -1) * (0.30 + 0.20 * mode + 0.85 * unit());
+                        peak.deceptive = (mode % 2 == 0 ? 0.08 : 0.18) + (party == 0 ? 0.14 : 0.22) * unit();
+                    }
+                }
+                if (id == 6) {
+                    const size_t mode = (shared_count + party) % 4;
+                    peak.radius = (mode == 0 ? 14 : (mode == 1 ? 150 : 30)) + (party == 0 ? 14 : 30) * unit();
+                    peak.deceptive = (party == 0 ? 0.40 : 0.55) + mode * 0.08 + 0.24 * unit();
+                    peak.condition = (party == 0 ? 14 : 30) + mode * 8 + 42 * unit();
+                }
+                if (id == 7) {
+                    const size_t mode = shared_count % 4;
+                    if (party == 0) {
+                        peak.radius = (mode == 0 ? 175 : (mode == 1 ? 58 : 118)) + 34 * unit();
+                        peak.condition = (mode == 0 ? 2 : 9) + 16 * unit();
+                    }
+                    else {
+                        peak.radius = (mode == 0 ? 62 : (mode == 1 ? 170 : 92)) + 42 * unit();
+                        peak.condition = (mode == 1 ? 3 : 12) + 18 * unit();
                     }
                 }
                 if (id == 9) {
-                    // P05: 20 shared optima challenge is ENUMERATION SCALE, not landscape complexity
-                    // Generate within caps (max_condition=3.5, max_rotation=0.25, max_linkage=2.0,
-                    // max_asymmetry=0.20, max_deceptive=0.06) so mode diversity SURVIVES clipping
                     const size_t mode = shared_count % 5;
-                    peak.radius = 85 + 25 * unit();
                     if (mode == 0) {
-                        // mild condition + mild opposite-sign rotation
-                        peak.condition = 2.0 + 1.5 * unit();  // [2, 3.5]
-                        peak.rotation = (party == 0 ? 1 : -1) * (0.08 + 0.17 * unit());  // [0.08, 0.25]
+                        peak.radius = 34 + 24 * unit();
+                        peak.condition = 22 + 58 * unit();
+                        peak.rotation = (party == 0 ? 1 : -1) * (0.85 + 1.55 * unit());
                     }
                     else if (mode == 1) {
-                        // mild linkage + asymmetry + deceptive
-                        peak.linkage = 0.8 + 1.2 * unit();   // [0.8, 2.0]
-                        peak.asymmetry = 0.06 + 0.14 * unit(); // [0.06, 0.20]
-                        peak.deceptive = 0.02 + 0.04 * unit(); // [0.02, 0.06]
+                        peak.radius = 45 + 35 * unit();
+                        peak.linkage = 6.0 + 13.0 * unit();
+                        peak.asymmetry = 0.65 + 0.9 * unit();
+                        peak.deceptive = 0.12 + 0.18 * unit();
                     }
                     else if (mode == 2) {
-                        // mild condition + mild deceptive gradient
-                        peak.condition = 1.8 + 1.7 * unit();   // [1.8, 3.5]
-                        peak.deceptive = 0.02 + 0.04 * unit();
+                        peak.deceptive = 0.24 + 0.28 * unit();
+                        peak.radius = 24 + 16 * unit();
+                        peak.condition = 7 + 18 * unit();
                     }
                     else if (mode == 3) {
-                        // pure geometry: radius variation, near-spherical
-                        peak.radius = 75 + 35 * unit();
-                        peak.condition = 1.2 + 1.0 * unit();   // near-spherical
+                        peak.radius = 95 + 45 * unit();
+                        peak.condition = 4 + 10 * unit();
                     }
                     else {
-                        // mild rotation + mild deceptive
-                        peak.condition = 1.5 + 2.0 * unit();
-                        peak.rotation = (party == 0 ? -1 : 1) * (0.08 + 0.17 * unit());
-                        peak.deceptive = 0.02 + 0.04 * unit();
+                        peak.radius = 35 + 28 * unit();
+                        peak.condition = 18 + 42 * unit();
+                        peak.rotation = (party == 0 ? -1 : 1) * (0.65 + 1.35 * unit());
+                        peak.deceptive = 0.16 + 0.24 * unit();
                     }
                 }
                 if (id == 10) {
-                    // P06: mixed transforms (max_cond=14, max_rot=1.2, max_link=8,
-                    // max_asym=0.90, max_dec=0.30) generate within caps for diversity
                     const size_t mode = shared_count % 6;
-                    peak.condition = 5.0 + 9.0 * unit();   // [5, 14]
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.4 + 0.8 * unit());  // [0.4, 1.2]
-                    peak.radius = (mode % 2 == 0 ? 85 : 60) + 25 * unit();
-                    if (mode == 0 || mode == 3) {
-                        peak.linkage = 3.0 + 5.0 * unit();   // [3, 8]
-                        peak.asymmetry = 0.30 + 0.60 * unit(); // [0.3, 0.9]
+                    if (party == 0) {
+                        peak.radius = (mode % 2 == 0 ? 115 : 55) + 35 * unit();
+                        peak.condition = (mode < 3 ? 8 : 26) + 22 * unit();
+                        peak.rotation = 0.85 + 1.45 * unit();
+                        if (mode == 0 || mode == 3) {
+                            peak.linkage = 8.0 + 12.0 * unit();
+                            peak.asymmetry = 0.60 + 0.95 * unit();
+                        }
+                        if (mode == 1 || mode == 4) peak.deceptive = 0.24 + 0.32 * unit();
+                        if (mode == 5) {
+                            peak.linkage = 3.0 + 7.0 * unit();
+                            peak.deceptive = 0.14 + 0.24 * unit();
+                        }
                     }
-                    if (mode == 1 || mode == 4) {
-                        peak.deceptive = 0.10 + 0.20 * unit(); // [0.10, 0.30]
-                    }
-                    if (mode == 5) {
-                        peak.linkage = 2.0 + 5.0 * unit();   // [2, 7]
-                        peak.deceptive = 0.08 + 0.14 * unit(); // [0.08, 0.22]
+                    else {
+                        peak.radius = (mode % 2 == 0 ? 38 : 145) + 28 * unit();
+                        peak.condition = (mode < 3 ? 34 : 10) + 30 * unit();
+                        peak.rotation = -(0.25 + 1.95 * unit());
+                        if (mode == 0 || mode == 2) peak.deceptive = 0.30 + 0.30 * unit();
+                        if (mode == 1 || mode == 4 || mode == 5) {
+                            peak.linkage = 10.0 + 16.0 * unit();
+                            peak.asymmetry = 0.85 + 1.20 * unit();
+                        }
                     }
                 }
                 if (id == 11) {
-                    // P07: ill-conditioned + hierarchical; condition+rotation dominate
-                    // (max_cond=20, max_rot=1.10, max_linkage=2, max_asym=0.15, max_dec=0.10)
                     const size_t mode = shared_count % 8;
-                    peak.condition = 8.0 + 12.0 * unit();  // [8, 20]
-                    peak.rotation = (party == 0 ? -1 : 1) * (0.30 + 0.80 * unit());  // [0.3, 1.1]
-                    peak.radius = (mode % 4 == 0 ? 110 : (mode % 4 == 1 ? 55 : 80)) + 20 * unit();
-                    // Mild ruggedness for structural variety only
-                    if (mode % 4 >= 2) peak.linkage = 0.3 + 1.7 * unit();  // [0.3, 2.0]
-                    if (mode % 4 == 3) {
-                        peak.asymmetry = 0.04 + 0.11 * unit(); // [0.04, 0.15]
-                        peak.deceptive = 0.03 + 0.07 * unit(); // [0.03, 0.10]
+                    if (party == 0) {
+                        peak.radius = (mode % 4 == 0 ? 150 : (mode % 4 == 1 ? 28 : 72)) + 22 * unit();
+                        peak.condition = (mode % 4 == 0 ? 3 : 18) + 34 * unit();
+                        peak.rotation = -(0.20 + 1.25 * unit());
+                        if (mode % 4 == 1 || mode % 4 == 3) peak.deceptive = 0.16 + 0.30 * unit();
+                        if (mode % 4 >= 2) {
+                            peak.linkage = 4.0 + 11.0 * unit();
+                            peak.asymmetry = 0.25 + 0.95 * unit();
+                        }
+                    }
+                    else {
+                        peak.radius = (mode % 4 == 0 ? 30 : (mode % 4 == 1 ? 135 : 42)) + 24 * unit();
+                        peak.condition = (mode % 4 == 1 ? 4 : 30) + 42 * unit();
+                        peak.rotation = 0.55 + 1.60 * unit();
+                        if (mode % 2 == 0) peak.deceptive = 0.20 + 0.34 * unit();
+                        if (mode % 4 == 0 || mode % 4 == 3) {
+                            peak.linkage = 9.0 + 17.0 * unit();
+                            peak.asymmetry = 0.70 + 1.20 * unit();
+                        }
                     }
                 }
                 if (id == 12) {
-                    // P08: full-mixed at MAXIMUM levels across all transforms
-                    // (max_cond=22, max_rot=2.00, max_linkage=14, max_asym=1.80, max_dec=0.50)
                     const size_t mode = shared_count % 8;
-                    peak.condition = 10.0 + 12.0 * unit(); // [10, 22]
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.8 + 1.2 * unit());  // [0.8, 2.0]
-                    peak.radius = (mode == 0 || mode == 5 ? 90 : (mode == 3 ? 60 : 75)) + 20 * unit();
-                    if (mode == 1 || mode == 3 || mode == 7) {
-                        peak.deceptive = 0.18 + 0.32 * unit();  // [0.18, 0.50]
+                    if (party == 0) {
+                        peak.radius = (mode == 0 || mode == 5 ? 140 : (mode == 3 ? 30 : 65)) + 35 * unit();
+                        peak.condition = (mode == 1 || mode == 6 ? 40 : 8) + 32 * unit();
+                        peak.rotation = 0.15 + 2.20 * unit();
+                        if (mode == 1 || mode == 3 || mode == 7) peak.deceptive = 0.24 + 0.36 * unit();
+                        if (mode == 2 || mode == 4 || mode == 7) {
+                            peak.linkage = 5.0 + 18.0 * unit();
+                            peak.asymmetry = 0.45 + 1.35 * unit();
+                        }
                     }
-                    if (mode == 2 || mode == 4 || mode == 7) {
-                        peak.linkage = 6.0 + 8.0 * unit();    // [6, 14]
-                        peak.asymmetry = 0.70 + 1.10 * unit();  // [0.70, 1.80]
+                    else {
+                        peak.radius = (mode == 0 || mode == 5 ? 36 : (mode == 3 ? 120 : 48)) + 38 * unit();
+                        peak.condition = (mode == 2 || mode == 7 ? 46 : 12) + 38 * unit();
+                        peak.rotation = -(0.55 + 1.90 * unit());
+                        if (mode == 0 || mode == 4 || mode == 6) peak.deceptive = 0.20 + 0.42 * unit();
+                        if (mode == 1 || mode == 5 || mode == 6) {
+                            peak.linkage = 8.0 + 20.0 * unit();
+                            peak.asymmetry = 0.70 + 1.40 * unit();
+                        }
                     }
                 }
-                tuneForVisibleBasins(peak, id, m_problem_dimension);
-                peak.height = Real(90);  // shared optima always at exactly 90
+                tuneForVisibleBasins(peak, id);
                 spec.parties[party].peaks.push_back(peak);
             }
             ++shared_count;
         }
 
-        // (p6_neighbor_deceptive_done removed suite 6 redesigned as Strong Deception)
+        std::array<int, 2> p6_neighbor_deceptive_done{ 0, 0 };
         for (size_t party = 0; party < 2; ++party) {
             for (size_t i = 0; i < leaf_names[party].size(); ++i) {
                 if ((party == 0 && used0[i]) || (party == 1 && used1[i])) continue;
@@ -474,13 +445,10 @@ namespace ofec {
                 peak.height = 62 + 24 * unit();
                 peak.radius = 40 + 58 * unit();
                 if (id == 1) {
-                    // P01 private peaks: smooth near-spherical, mild condition only
-                    // Private peaks must be attractive per-party (h 70-85) but Q=min_p F_p
-                    // is low at these positions mediating population gravitates to shared optima
-                    peak.height = 65 + 22 * unit();
-                    peak.radius = 90 + 50 * unit();    // moderate radius, always min_radius=80
-                    peak.condition = 1.0 + 1.8 * unit(); // [1, 2.8] very mild
-                    // rotation=0, linkage=0, asymmetry=0, deceptive=0 (smooth landscape)
+                    const size_t mode = (i + 2 * party) % 4;
+                    peak.height = 64 + (party == 0 ? 18 : 24) * unit();
+                    peak.radius = (party == 0 ? 28 + 24 * mode : 108 - 18 * mode) + 26 * unit();
+                    peak.condition = 1.0 + mode * (party == 0 ? 1.2 : 1.8) + 2.5 * unit();
                 }
                 if (id == 2) {
                     const size_t mode = (i + party) % 5;
@@ -495,114 +463,150 @@ namespace ofec {
                     }
                 }
                 if (id == 3) {
-                    // Neighbor Deception: private peaks are TALL and BROAD, centered near
-                    // the shared optimum â€” creating a "shadow attractor"
-                    peak.height = 82 + 6 * unit();     // near-optimal h [82, 88)
-                    peak.radius = 220 + 60 * unit();   // very broad basin, overlaps shared region
-                    peak.condition = 1.0 + 1.0 * unit();
-                    // no rotation, no deceptive: spatial proximity IS the deception
+                    const size_t mode = (i * 2 + party) % 5;
+                    peak.height = party == 0 ? 66 + 18 * unit() : 56 + 30 * unit();
+                    peak.radius = (mode < 2 ? 18 : 105) + (party == 0 ? 22 : 38) * unit();
+                    peak.condition = (party == 0 ? 12 : 26) + mode * 9 + 36 * unit();
+                    peak.rotation = (party == 0 ? 1 : -1) * (0.25 + 1.80 * unit());
+                    if (mode == 1 || mode == 3 || party == 1) peak.deceptive = 0.10 + 0.28 * unit();
                 }
-                if (id == 5) {
-                    // P04 private peaks: rotation + condition only matches strengthened caps
-                    peak.radius = 80 + 50 * unit();
-                    peak.condition = 5 + 11 * unit();              // [5, 16]
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.4 + 1.17 * unit()); // [0.4, 1.57]
-                    // linkage/asymmetry/deceptive intentionally left at 0
+                if (id == 6 && i < 2) {
+                    peak.radius = 105 + 30 * unit();
+                    peak.height = 68 + 10 * unit();
+                }
+                if (id == 5 || id == 8) {
+                    const size_t mode = (i * 3 + party) % 6;
+                    if (id == 5) {
+                        peak.radius = (party == 0 ? 34 + 18 * mode : 145 - 16 * mode) + 38 * unit();
+                        peak.condition = (party == 0 ? 34 : 72) + mode * 16 + 62 * unit();
+                        peak.rotation = (party == 0 ? 1 : -1) * (0.75 + 0.65 * mode + 2.45 * unit());
+                    }
+                    else {
+                        peak.radius = (mode == 0 || mode == 4 ? 22 : 142) + (party == 0 ? 34 : 54) * unit();
+                        peak.condition = (party == 0 ? 28 : 58) + mode * 10 + 62 * unit();
+                        peak.rotation = (party == 0 ? 1 : -1) * (0.55 + 0.50 * mode + 2.10 * unit());
+                        peak.deceptive = (mode % 2 == 0 ? 0.16 : 0.34) + (party == 0 ? 0.28 : 0.40) * unit();
+                    }
                 }
                 if (id == 4) {
-                    // P03 private peaks: same rugged profile as shared generate within caps
                     const size_t mode = (i + 3 * party) % 5;
-                    peak.radius = 80 + 40 * unit();
-                    peak.linkage = 4.0 + 8.0 * unit();              // [4, 12]
-                    peak.asymmetry = 0.50 + 0.90 * unit();            // [0.5, 1.4]
-                    peak.deceptive = (mode % 2 == 0 ? 0.08 : 0.16) + 0.16 * unit(); // [0.08, 0.32]
+                    peak.radius = (party == 0 ? 24 + 18 * mode : 106 - 14 * mode) + 30 * unit();
+                    peak.linkage = (party == 0 ? 9.0 : 18.0) + mode * 5.5 + 24.0 * unit();
+                    peak.asymmetry = (party == 0 ? 0.90 : 1.35) + 0.45 * mode + 1.30 * unit();
+                    peak.deceptive = (mode % 2 == 0 ? 0.16 : 0.34) + (party == 0 ? 0.24 : 0.36) * unit();
                 }
                 if (id == 6) {
-                    // Strong Deception: private peaks are very broad and near-optimal (h~87)
-                    // so that single-party search finds THESE, not the narrow h=90 shared peaks
-                    peak.height = 84 + 4 * unit();      // h [84, 88) near-optimal
-                    peak.radius = 260 + 80 * unit();    // extremely broad global attractor
-                    peak.condition = 1.0 + 0.6 * unit(); // spherical easy to climb
+                    const size_t mode = (i + 2 * party) % 5;
+                    peak.height = party == 0 ? 60 + 22 * unit() : 54 + 30 * unit();
+                    peak.radius = (mode == 0 ? 180 : (mode == 2 ? 14 : 38)) + (party == 0 ? 24 : 42) * unit();
+                    peak.condition = (party == 0 ? 16 : 34) + mode * 8 + 48 * unit();
+                    peak.deceptive = (party == 0 ? 0.42 : 0.58) + mode * 0.07 + 0.28 * unit();
+                    if (!p6_neighbor_deceptive_done[party] && !spec.shared_optima.empty()) {
+                        const auto& opt = spec.shared_optima.front();
+                        std::vector<Real> near_opt(opt.size());
+                        for (size_t d = 0; d < opt.size(); ++d) {
+                            const Real offset = (d % 2 == party ? 0.10 : -0.10);
+                            const Real width = box[d].second - box[d].first;
+                            const Real lo = box[d].first + 0.08 * width;
+                            const Real hi = box[d].second - 0.08 * width;
+                            near_opt[d] = std::max(lo, std::min(hi, opt[d] + offset));
+                        }
+                        if (euclideanDistance(near_opt, opt) < 0.24) {
+                            peak.center = near_opt;
+                            peak.height = 80 + 4 * unit();
+                            peak.radius = 285 + 45 * unit();
+                            peak.condition = 2.0 + 2.0 * unit();
+                            peak.rotation = (party == 0 ? 1 : -1) * (0.08 + 0.18 * unit());
+                            peak.deceptive = 0.22 + 0.10 * unit();
+                            p6_neighbor_deceptive_done[party] = 1;
+                        }
+                    }
                 }
                 if (id == 7) {
-                    // Multi-scale Hierarchy: alternate between very broad (Level-1) peaks
-                    // that guide search into a region, and narrower (Level-2) peaks inside
-                    const size_t level = i % 2;
-                    if (level == 0) {
-                        // Level-1: very broad outer basin draws search to the region
-                        peak.height = 62 + 16 * unit();
-                        peak.radius = 250 + 60 * unit();
-                        peak.condition = 2 + 2 * unit();
-                    }
-                    else {
-                        // Level-2: narrower inner basin funnel toward shared optimum vicinity
-                        peak.height = 52 + 24 * unit();
-                        peak.radius = 80 + 40 * unit();
-                        peak.condition = 8 + 12 * unit();
-                    }
-                }
-                if (id == 8) {
-                    // Party-Asymmetric: party-0 landscape is broad and easy;
-                    // party-1 landscape is narrow, ill-conditioned and rotated
+                    const size_t mode = (i + party) % 4;
+                    peak.height = 60 + (party == 0 ? 24 : 18) * unit();
                     if (party == 0) {
-                        peak.height = 60 + 20 * unit();
-                        peak.radius = 190 + 50 * unit();  // broad, easy
-                        peak.condition = 2 + 3 * unit();
+                        peak.radius = (mode == 0 ? 205 : (mode == 1 ? 15 : 96)) + 32 * unit();
+                        peak.condition = (mode == 0 ? 2 : 42) + 60 * unit();
                     }
                     else {
-                        peak.height = 54 + 24 * unit();
-                        peak.radius = 40 + 28 * unit();   // narrow, hard to find
-                        peak.condition = 18 + 20 * unit(); // strongly ill-conditioned
-                        peak.rotation = (i % 2 == 0 ? 1 : -1) * (0.7 + 0.8 * unit());
+                        peak.radius = (mode == 0 ? 18 : (mode == 1 ? 195 : 36)) + 42 * unit();
+                        peak.condition = (mode == 1 ? 3 : 55) + 65 * unit();
                     }
                 }
                 if (id == 10) {
-                    // P06 private peaks: mixed transforms within caps (same as shared)
                     const size_t mode = (i * 3 + party) % 7;
                     peak.height = party == 0 ? 60 + 24 * unit() : 54 + 32 * unit();
-                    peak.condition = 5.0 + 9.0 * unit();   // [5, 14]
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.4 + 0.8 * unit());  // [0.4, 1.2]
-                    peak.radius = (mode == 0 || mode == 4 ? 95 : (mode == 2 ? 60 : 75)) + 20 * unit();
-                    if (mode == 2 || mode == 6) {
-                        peak.deceptive = 0.10 + 0.20 * unit(); // [0.10, 0.30]
+                    if (party == 0) {
+                        peak.radius = (mode == 0 || mode == 4 ? 128 : (mode == 2 ? 26 : 58)) + 28 * unit();
+                        peak.condition = (mode == 1 || mode == 5 ? 48 : 12) + 38 * unit();
+                        peak.rotation = 0.55 + 2.35 * unit();
+                        if (mode == 2 || mode == 6) peak.deceptive = 0.28 + 0.34 * unit();
+                        if (mode == 0 || mode == 3 || mode == 5) {
+                            peak.linkage = 7.0 + 18.0 * unit();
+                            peak.asymmetry = 0.70 + 1.25 * unit();
+                        }
                     }
-                    if (mode == 0 || mode == 3 || mode == 5) {
-                        peak.linkage = 3.0 + 5.0 * unit();   // [3, 8]
-                        peak.asymmetry = 0.30 + 0.60 * unit(); // [0.3, 0.9]
+                    else {
+                        peak.radius = (mode == 0 || mode == 4 ? 30 : (mode == 2 ? 145 : 46)) + 34 * unit();
+                        peak.condition = (mode == 3 || mode == 6 ? 58 : 18) + 46 * unit();
+                        peak.rotation = -(0.20 + 2.65 * unit());
+                        if (mode == 0 || mode == 5) peak.deceptive = 0.34 + 0.34 * unit();
+                        if (mode == 1 || mode == 2 || mode == 4) {
+                            peak.linkage = 10.0 + 22.0 * unit();
+                            peak.asymmetry = 0.85 + 1.45 * unit();
+                        }
                     }
                 }
                 if (id == 11) {
-                    // P07 private peaks: ill-conditioned + hierarchical within caps
-                    // (max_cond=20, max_rot=1.10, max_linkage=2.0, max_asym=0.15, max_dec=0.10)
                     const size_t mode = (i + 2 * party) % 8;
                     peak.height = party == 0 ? 57 + 27 * unit() : 62 + 22 * unit();
-                    peak.condition = 9.0 + 11.0 * unit();  // [9, 20]
-                    peak.rotation = (party == 0 ? -1 : 1) * (0.30 + 0.80 * unit());  // [0.3, 1.1]
-                    peak.radius = (mode < 2 ? 110 : (mode == 3 || mode == 6 ? 60 : 80)) + 20 * unit();
-                    if (mode % 4 >= 2) peak.linkage = 0.3 + 1.7 * unit();  // [0.3, 2.0]
-                    if (mode % 4 == 3) {
-                        peak.asymmetry = 0.04 + 0.11 * unit(); // [0.04, 0.15]
-                        peak.deceptive = 0.03 + 0.07 * unit(); // [0.03, 0.10]
+                    if (party == 0) {
+                        peak.radius = (mode < 2 ? 165 : (mode == 3 || mode == 6 ? 24 : 82)) + 30 * unit();
+                        peak.condition = (mode < 2 ? 3 : 25) + 55 * unit();
+                        peak.rotation = -(0.15 + 1.75 * unit());
+                        if (mode == 2 || mode == 5 || mode == 7) peak.deceptive = 0.22 + 0.36 * unit();
+                        if (mode == 1 || mode == 4 || mode == 6) {
+                            peak.linkage = 5.0 + 20.0 * unit();
+                            peak.asymmetry = 0.40 + 1.50 * unit();
+                        }
+                    }
+                    else {
+                        peak.radius = (mode < 2 ? 28 : (mode == 3 || mode == 6 ? 155 : 38)) + 36 * unit();
+                        peak.condition = (mode == 0 || mode == 4 ? 62 : 9) + 50 * unit();
+                        peak.rotation = 0.65 + 2.10 * unit();
+                        if (mode == 0 || mode == 3 || mode == 6) peak.deceptive = 0.26 + 0.40 * unit();
+                        if (mode == 2 || mode == 5 || mode == 7) {
+                            peak.linkage = 11.0 + 24.0 * unit();
+                            peak.asymmetry = 0.75 + 1.55 * unit();
+                        }
                     }
                 }
                 if (id == 12) {
-                    // P08 private peaks: full-mixed maximum transforms within caps
-                    // (max_cond=22, max_rot=2.00, max_linkage=14, max_asym=1.80, max_dec=0.50)
                     const size_t mode = (i * 5 + party * 3) % 10;
                     peak.height = party == 0 ? 54 + 34 * unit() : 50 + 38 * unit();
-                    peak.condition = 10.0 + 12.0 * unit(); // [10, 22]
-                    peak.rotation = (party == 0 ? 1 : -1) * (0.7 + 1.3 * unit());  // [0.7, 2.0]
-                    peak.radius = (mode == 0 || mode == 7 ? 100 : (mode == 2 || mode == 5 ? 60 : 75)) + 20 * unit();
-                    if (mode == 3 || mode == 5 || mode == 9) {
-                        peak.deceptive = 0.18 + 0.32 * unit();  // [0.18, 0.50]
+                    if (party == 0) {
+                        peak.radius = (mode == 0 || mode == 7 ? 172 : (mode == 2 || mode == 5 ? 18 : 55)) + 32 * unit();
+                        peak.condition = (mode == 1 || mode == 8 ? 70 : 10) + 58 * unit();
+                        peak.rotation = (mode % 2 == 0 ? 1 : -1) * (0.45 + 2.85 * unit());
+                        if (mode == 3 || mode == 5 || mode == 9) peak.deceptive = 0.32 + 0.42 * unit();
+                        if (mode == 0 || mode == 4 || mode == 6 || mode == 8) {
+                            peak.linkage = 8.0 + 28.0 * unit();
+                            peak.asymmetry = 0.80 + 1.70 * unit();
+                        }
                     }
-                    if (mode == 0 || mode == 4 || mode == 6 || mode == 8) {
-                        peak.linkage = 6.0 + 8.0 * unit();    // [6, 14]
-                        peak.asymmetry = 0.70 + 1.10 * unit();  // [0.70, 1.80]
+                    else {
+                        peak.radius = (mode == 0 || mode == 7 ? 22 : (mode == 2 || mode == 5 ? 160 : 44)) + 40 * unit();
+                        peak.condition = (mode == 4 || mode == 9 ? 78 : 14) + 62 * unit();
+                        peak.rotation = (mode % 2 == 0 ? -1 : 1) * (0.30 + 3.05 * unit());
+                        if (mode == 1 || mode == 6 || mode == 8) peak.deceptive = 0.36 + 0.42 * unit();
+                        if (mode == 2 || mode == 3 || mode == 5 || mode == 7) {
+                            peak.linkage = 12.0 + 30.0 * unit();
+                            peak.asymmetry = 0.95 + 1.85 * unit();
+                        }
                     }
                 }
-                tuneForVisibleBasins(peak, id, m_problem_dimension);
-                if (peak.height >= Real(90)) peak.height = Real(89);  // private peaks must not reach 90
+                tuneForVisibleBasins(peak, id);
                 spec.parties[party].peaks.push_back(peak);
             }
         }

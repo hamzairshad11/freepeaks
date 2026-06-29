@@ -627,7 +627,7 @@ namespace ofec {
 
         // Multiparty Multimodal Optimization (MPMMO)
         // Find ALL x* where consensus Q(x*) = min_p F_p(x*) is maximised.
-        ofec::g_working_directory = "E:/HITSZ/Research/Multimodal_Multiparty_Optimization/ThesisProject/Data/ofec_data_new";
+        ofec::g_working_directory = "D:/Research/ThesisProject/freepeaks/Data/ofec_data_new";
 
 
         // Run the full MPMMO 2-D benchmark suite

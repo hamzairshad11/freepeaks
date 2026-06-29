@@ -1,0 +1,9 @@
+p_id P11
+suite 11
+name p11_hierarchical_disconnected
+feature mixed hierarchical, disconnected and ill-conditioned shared optima
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 8

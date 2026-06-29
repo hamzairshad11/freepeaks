@@ -1,0 +1,9 @@
+p_id P05
+suite 5
+name p5_rotated
+feature random optima with rotated and ill-conditioned basins
+dimension 2
+instance_seed 0
+grid_resolution 400
+consensus_definition min(F_party0, F_party1)
+shared_optima_count 1
