@@ -1,2 +1,0 @@
-# gen=500 Consensus Archive size=0
-# x0..x(D-1) consensus

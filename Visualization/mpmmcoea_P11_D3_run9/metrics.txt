@@ -1,0 +1,16 @@
+# MPMM-CoEA metrics  P11  D=3  run_seed=8999848
+suite_id       11
+problem_name   p11_hierarchical_disconnected
+feature        mixed hierarchical, disconnected and ill-conditioned shared optima
+dim            3
+nopt           8
+eval_budget    50000
+# strict eps_x=0.01 eps_f=1.0
+SR_0.01        0.0000
+ANOF_0.01      0.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_0.05        0.0000
+ANOF_0.05      0.0000
+E_WP           2.0518
+D_PO           0.0038
+ca_size        200

@@ -1,6 +1,0 @@
-suite 8
-name p8_disconnected
-feature random common optima across disconnected party partitions
-dimension 2
-grid_resolution 400
-rank_definition nondominated_sort_rank_fast2obj_best_front_is_0

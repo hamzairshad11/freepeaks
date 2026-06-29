@@ -1,0 +1,16 @@
+# MPMM-CoEA metrics  P2  D=5  run_seed=1999967
+suite_id       2
+problem_name   p2_unequal_basins
+feature        random optima with unequal KD-tree basin volumes
+dim            5
+nopt           2
+eval_budget    100000
+# strict eps_x=0.01 eps_f=1.0
+SR_0.01        0.0000
+ANOF_0.01      0.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_0.05        0.0000
+ANOF_0.05      0.0000
+E_WP           57.3008
+D_PO           0.5738
+ca_size        200

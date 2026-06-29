@@ -1,0 +1,3 @@
+# Ground-truth shared optima
+# x0..x(D-1) f0 f1 consensus
+0.736158 0.686634 0.196801 90.000000 90.000000 90.000000

@@ -1,6 +1,0 @@
-suite 7
-name p7_hierarchical
-feature random broad shared basins plus sharp local peaks
-dimension 2
-grid_resolution 400
-rank_definition nondominated_sort_rank_fast2obj_best_front_is_0

@@ -1,0 +1,16 @@
+# MPMM-CoEA metrics  P4  D=3  run_seed=5999899
+suite_id       4
+problem_name   p4_rugged
+feature        random shared optima in rugged/asymmetric transformed subspaces
+dim            3
+nopt           2
+eval_budget    50000
+# strict eps_x=0.01 eps_f=1.0
+SR_0.01        100.0000
+ANOF_0.01      2.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_0.05        100.0000
+ANOF_0.05      2.0000
+E_WP           0.0059
+D_PO           0.0016
+ca_size        200

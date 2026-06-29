@@ -1,0 +1,16 @@
+# MPMM-CoEA metrics  P9  D=2  run_seed=5999899
+suite_id       9
+problem_name   p9_twenty_shared_optima
+feature        dense random multimodal problem with 20 shared optima
+dim            2
+nopt           20
+eval_budget    30000
+# strict eps_x=0.01 eps_f=1.0
+SR_0.01        100.0000
+ANOF_0.01      20.0000
+# loose  eps_x=0.05 eps_f=2.0
+SR_0.05        100.0000
+ANOF_0.05      20.0000
+E_WP           0.0002
+D_PO           0.0001
+ca_size        69
